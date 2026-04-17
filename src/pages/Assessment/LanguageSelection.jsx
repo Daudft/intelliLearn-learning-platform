@@ -47,7 +47,7 @@ export default function LanguageSelection() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 via-white to-slate-100">
         <div className="relative">
           <div className="animate-spin rounded-full h-20 w-20 border-4 border-slate-200"></div>
           <div className="animate-spin rounded-full h-20 w-20 border-4 border-t-[#E6FF03] absolute top-0"></div>
@@ -57,7 +57,7 @@ export default function LanguageSelection() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 py-16 px-6">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 py-16 px-6">
       <div className="max-w-7xl mx-auto">
         
         {/* Premium Header */}
@@ -65,7 +65,7 @@ export default function LanguageSelection() {
           <h1 className="text-7xl font-black text-gray-900 tracking-tight leading-tight">
             Choose Your
             <br />
-            <span className="bg-gradient-to-r from-gray-900 via-gray-600 to-gray-900 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-gray-900 via-gray-600 to-gray-900 bg-clip-text text-transparent">
               Programming Language
             </span>
           </h1>
@@ -94,16 +94,16 @@ export default function LanguageSelection() {
                 border-2 border-transparent hover:border-gray-900 overflow-hidden"
               >
                 {/* Animated Background Gradient */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} opacity-0 
+                <div className={`absolute inset-0 bg-linear-to-br ${config.gradient} opacity-0 
                   group-hover:opacity-5 transition-opacity duration-500`}></div>
                 
                 {/* Accent Line */}
-                <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${config.gradient} 
+                <div className={`absolute top-0 left-0 right-0 h-1 bg-linear-to-r ${config.gradient} 
                   transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500`}></div>
 
                 {/* Icon Container */}
                 <div className="relative mb-6 flex justify-center">
-                  <div className={`w-28 h-28 rounded-2xl bg-gradient-to-br ${config.gradient} p-0.5
+                  <div className={`w-28 h-28 rounded-2xl bg-linear-to-br ${config.gradient} p-0.5
                     transform group-hover:rotate-6 group-hover:scale-110 transition-all duration-500`}>
                     <div className="w-full h-full bg-white rounded-2xl p-5 flex items-center justify-center">
                       <img
@@ -140,7 +140,7 @@ export default function LanguageSelection() {
                 </div>
 
                 {/* Decorative Elements */}
-                <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-gradient-to-br 
+                <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-linear-to-br 
                   from-gray-100 to-transparent rounded-full opacity-0 group-hover:opacity-100 
                   transition-opacity duration-500"></div>
               </div>
@@ -149,7 +149,7 @@ export default function LanguageSelection() {
         </div>
 
         {/* Assessment Details - Premium Card */}
-        <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-10 shadow-2xl overflow-hidden">
+        <div className="relative bg-linear-to-br from-gray-900 to-gray-800 rounded-3xl p-10 shadow-2xl overflow-hidden">
           {/* Animated Background Pattern */}
           <div className="absolute inset-0 opacity-5">
             <div className="absolute inset-0" style={{
@@ -159,7 +159,7 @@ export default function LanguageSelection() {
           </div>
 
           {/* Accent Corner */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#E6FF03] 
+          <div className="absolute top-0 right-0 w-64 h-64 bg-linear-to-br from-[#E6FF03] 
             to-transparent opacity-10 rounded-full -mr-32 -mt-32"></div>
 
           <div className="relative">

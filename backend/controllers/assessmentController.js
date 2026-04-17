@@ -1,6 +1,7 @@
 const Assessment = require('../models/Assessment');
 const UserAssessment = require('../models/UserAssessment');
 const User = require('../models/User');
+const { ensurePathForLanguage } = require('./learningPathController');
 
 /* ---------------------------------------------
    GET AVAILABLE LANGUAGES
@@ -130,6 +131,8 @@ exports.submitAssessment = async (req, res) => {
       proficiencyLevel,
       lastAssessmentDate: new Date(),
     });
+
+    await ensurePathForLanguage(userId, language, proficiencyLevel);
 
     res.status(201).json({
       message: 'Assessment completed successfully',

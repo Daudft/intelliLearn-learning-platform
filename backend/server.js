@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 const assessmentRoutes = require('./routes/assessmentRoutes');
+const learningPathRoutes = require('./routes/learningPathRoutes');
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use(cookieParser());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/assessment', assessmentRoutes);
+app.use('/api/learning-path', learningPathRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

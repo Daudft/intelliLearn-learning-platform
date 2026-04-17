@@ -14,6 +14,7 @@ import ResetPassword from "./pages/Auth/ResetPassword";
 import LanguageSelection from "./pages/Assessment/LanguageSelection";
 import AssessmentTest from "./pages/Assessment/AssessmentTest";
 import AssessmentResult from "./pages/Assessment/AssessmentResult";
+import Dashboard from "./pages/Dashboard/Dashboard";
 
 // Courses Page  ⬅️ ADD THIS
 import Courses from "./pages/courses";
@@ -37,6 +38,7 @@ function App() {
         <Route path="/assessment" element={<LanguageSelection />} />
         <Route path="/assessment/test/:language" element={<AssessmentTest />} />
         <Route path="/assessment/result" element={<AssessmentResult />} />
+        <Route path="/dashboard" element={<Dashboard />} />
 
         {/* Courses Route  ⬅️ ADD THIS */}
         <Route path="/courses" element={<Courses />} />
