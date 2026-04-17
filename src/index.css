@@ -42,3 +42,12 @@ h1, h2, h3, .heading-font {
   animation: fadeIn 0.3s ease-out;
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

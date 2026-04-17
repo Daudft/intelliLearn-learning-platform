@@ -5,6 +5,7 @@ import authService from "../../services/authService";
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginMode, setLoginMode] = useState("student");
 
   const [showPass, setShowPass] = useState(false);
 
@@ -63,26 +64,23 @@ int main() {
 
     try {
       const response = await authService.signin({ email, password });
-      const userId = response.user.id;
 
-      // ✅ CHANGED: Wrap in try-catch to handle "no assessment" gracefully
-      try {
-        const assessmentStatus = await authService.checkAssessmentStatus(userId);
-
-        // ✅ If assessment completed, show the latest result
-        if (assessmentStatus.hasCompletedAssessment) {
-          const resultData = await authService.getUserResult(userId);
-          navigate("/assessment/result", { state: { result: resultData.result } });
-        } else {
-          // ✅ If NO assessment, go to language selection (silent redirect)
-          navigate("/assessment");
-        }
-      } catch (assessmentError) {
-        // ✅ If checkAssessmentStatus fails (user not found, etc), still go to assessment
-        // This handles the "No assessment found" case gracefully
-        console.log("No assessment found, redirecting to assessment page");
-        navigate("/assessment");
+      if (loginMode === "admin" && response.user.role !== "admin") {
+        await authService.logout();
+        setMessage({
+          type: "error",
+          text: "This account does not have admin access. Use Student Login or contact an admin.",
+        });
+        return;
       }
+
+      if (response.user.role === "admin") {
+        navigate("/admin");
+        return;
+      }
+
+      // Non-admin users always land on dashboard after sign-in.
+      navigate("/dashboard");
     } catch (err) {
       // ❌ Only show error for actual login failures
       const msg =
@@ -104,6 +102,31 @@ int main() {
 
           <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
           <p className="text-gray-600">Sign in to continue your learning journey.</p>
+
+          <div className="flex rounded-lg border border-black/10 p-1 w-fit bg-gray-50">
+            <button
+              type="button"
+              onClick={() => setLoginMode("student")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
+                loginMode === "student"
+                  ? "bg-[#E6FF03] text-black"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Student Login
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginMode("admin")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
+                loginMode === "admin"
+                  ? "bg-[#E6FF03] text-black"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              Admin Login
+            </button>
+          </div>
 
           {/* ALERT MESSAGE */}
           {message.text && (
@@ -201,7 +224,7 @@ int main() {
           <div className="absolute inset-0 opacity-[0.06]
             bg-[linear-gradient(to_right,#ffffff12_1px,transparent_1px),
             linear-gradient(to_bottom,#ffffff12_1px,transparent_1px)]
-            bg-[size:30px_30px]" />
+            bg-size-[30px_30px]" />
 
           <div className="absolute top-8 left-8 w-16 h-16 border border-gray-600 rounded-lg opacity-30"></div>
           <div className="absolute bottom-10 right-10 w-24 h-24 border border-gray-600 rounded-full opacity-20"></div>

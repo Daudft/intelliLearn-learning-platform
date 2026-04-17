@@ -45,6 +45,21 @@ const userSchema = new mongoose.Schema({
     enum: ['Beginner', 'Intermediate', 'Advanced', null],
     default: null,
   },
+  learningStyle: {
+    type: String,
+    enum: ['visual', 'auditory', 'reading-writing', 'kinesthetic', null],
+    default: null,
+  },
+  experienceLevel: {
+    type: String,
+    enum: ['beginner', 'intermediate', 'advanced', null],
+    default: null,
+  },
+  role: {
+    type: String,
+    enum: ['student', 'admin'],
+    default: 'student',
+  },
   
   createdAt: {
     type: Date,

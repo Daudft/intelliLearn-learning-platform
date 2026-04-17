@@ -7,7 +7,6 @@ import {
   ChartNoAxesColumn,
   ClipboardList,
   Code2,
-  Compass,
   Flame,
   Layers,
   Lock,
@@ -31,15 +30,6 @@ function getStoredUser() {
   } catch {
     return null;
   }
-}
-
-function formatDate(dateValue) {
-  if (!dateValue) return "-";
-  return new Date(dateValue).toLocaleDateString(undefined, {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-  });
 }
 
 function getInitials(name) {
@@ -454,7 +444,7 @@ export default function Dashboard() {
     try {
       await authService.logout();
     } catch {
-      // proceed with local cleanup fallback
+      // continue with local cleanup fallback
     } finally {
       localStorage.removeItem("user");
       navigate("/signin");
@@ -533,16 +523,12 @@ export default function Dashboard() {
             </nav>
 
             <div className="mt-auto space-y-2 px-1">
-              <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-gray-600 hover:bg-white hover:text-gray-900 transition-all">
-                <Compass size={18} />
-                Support
-              </button>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-white hover:text-gray-900 transition-all"
               >
                 <LogOut size={18} />
-                Sign Out
+                Logout
               </button>
             </div>
           </aside>
@@ -564,35 +550,8 @@ export default function Dashboard() {
                   <span className="text-sm text-gray-600">Streak</span>
                   <span className="text-sm font-bold text-gray-900 ml-auto">{currentStreak} days</span>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="h-11 px-4 rounded-xl bg-linear-to-r from-[#E6FF03] to-[#d7ee00] text-gray-900 font-semibold hover:from-[#d7ee00] hover:to-[#c8e003] transition-all"
-                >
-                  Sign Out
-                </button>
               </div>
             </header>
-
-            <div className="px-4 md:px-7 pt-4 pb-1 border-b border-[#eceff4] bg-white/70">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                {navItems.map(({ id, label }) => {
-                  const isActive = activeTab === id;
-                  return (
-                    <button
-                      key={`mobile-${id}`}
-                      onClick={() => setActiveTab(id)}
-                      className={`shrink-0 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
-                        isActive
-                          ? "bg-[#eef9df] border border-[#e0f3bf] text-gray-900"
-                          : "bg-white border border-[#e6e8ee] text-gray-600 hover:text-gray-900"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             <div className="p-4 md:p-7 space-y-5">
               {activeTab === "dashboard" && (
@@ -690,68 +649,7 @@ export default function Dashboard() {
                     </div>
                   </section>
 
-                  <section className="grid xl:grid-cols-3 gap-5">
-                    <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-black text-gray-900">Recent Learning Attempts</h3>
-                    <button
-                      onClick={() => setActiveTab("assessments")}
-                      className="text-xs font-semibold text-[#5acd00] hover:text-[#4bb000]"
-                    >
-                      New Attempt
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {displayAttempts.length === 0 ? (
-                      <p className="text-sm text-gray-500">
-                        No post-initial attempts yet. Start a task or a new assessment.
-                      </p>
-                    ) : (
-                      displayAttempts.slice(0, 3).map((attempt) => (
-                        <div key={attempt._id} className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3 flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900 uppercase">{attempt.language}</p>
-                            <p className="text-xs text-gray-500 mt-0.5">{formatDate(attempt.completedAt)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold text-gray-900">{attempt.score}/{attempt.totalQuestions}</p>
-                            <p className="text-xs text-[#5acd00] font-semibold">{attempt.percentage}%</p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                    </div>
-
-                    <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <h3 className="text-xl font-black text-gray-900 mb-4">Quiz Performance</h3>
-                  {stats.totalAttempts === 0 ? (
-                    <p className="text-sm text-gray-500">
-                      Performance details unlock after the first learning attempt.
-                    </p>
-                  ) : (
-                  <div className="flex items-center gap-4">
-                    <div className="relative h-24 w-24 rounded-full bg-[#f2f5ee] grid place-items-center border border-[#e6ebdc]">
-                      <div
-                        className="absolute inset-1 rounded-full"
-                        style={{
-                          background: `conic-gradient(#5acd00 ${stats.latestPercentage * 3.6}deg, #e9efdd 0deg)`,
-                        }}
-                      />
-                      <div className="relative h-16 w-16 rounded-full bg-white grid place-items-center border border-[#e6ebdc]">
-                        <span className="font-black text-gray-900">{stats.latestPercentage}%</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Latest Grade</p>
-                      <p className="text-lg font-black text-gray-900">{stats.proficiency}</p>
-                      <p className="text-sm text-[#5acd00] font-semibold mt-1">Average: {stats.averagePercentage}%</p>
-                    </div>
-                  </div>
-                  )}
-                    </div>
-
+                  <section className="grid xl:grid-cols-1 gap-5">
                     <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
                   <h3 className="text-xl font-black text-gray-900 mb-4">Quick Access</h3>
                   <div className="grid grid-cols-2 gap-3">
@@ -777,11 +675,11 @@ export default function Dashboard() {
                       <p className="text-sm font-semibold text-gray-900">Landing</p>
                     </button>
                     <button
-                      onClick={handleLogout}
+                      onClick={() => setActiveTab("progress")}
                       className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-4 hover:border-[#dceaa6] hover:bg-[#f8fde9] transition-all"
                     >
-                      <LogOut className="h-5 w-5 text-[#5acd00] mb-2" />
-                      <p className="text-sm font-semibold text-gray-900">Logout</p>
+                      <ChartNoAxesColumn className="h-5 w-5 text-[#5acd00] mb-2" />
+                      <p className="text-sm font-semibold text-gray-900">Progress</p>
                     </button>
                   </div>
                     </div>
