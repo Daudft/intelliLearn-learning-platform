@@ -30,6 +30,12 @@ const assessmentService = {
     const response = await api.get(`/assessment/status/${userId}`);
     return response.data;
   },
+
+  // Get all user attempts
+  getAllAttempts: async (userId) => {
+    const response = await api.get(`/assessment/all-attempts/${userId}`);
+    return response.data;
+  },
 };
 
 export default assessmentService;

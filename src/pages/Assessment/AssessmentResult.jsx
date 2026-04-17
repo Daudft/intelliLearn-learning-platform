@@ -72,14 +72,14 @@ export default function AssessmentResult() {
   const filled = (percentage / 100) * circumference;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center p-4 overflow-auto">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center p-4 overflow-auto">
       <div className="max-w-5xl w-full">
 
         {/* Main Result Card */}
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
 
           {/* Header */}
-          <div className={`bg-gradient-to-r ${levelStyles.bg} p-6 md:p-8 text-white`}>
+          <div className={`bg-linear-to-r ${levelStyles.bg} p-6 md:p-8 text-white`}>
             <div className="text-center">
               <div className="text-4xl md:text-5xl mb-2 md:mb-3">{levelStyles.icon}</div>
               <h1 className="text-2xl md:text-4xl font-black mb-2">Assessment Complete!</h1>
@@ -135,7 +135,7 @@ export default function AssessmentResult() {
                 </div>
 
                 {/* Proficiency Badge */}
-                <div className={`bg-gradient-to-r ${levelStyles.bg} text-white px-6 md:px-8 py-3 rounded-2xl shadow-lg`}>
+                <div className={`bg-linear-to-r ${levelStyles.bg} text-white px-6 md:px-8 py-3 rounded-2xl shadow-lg`}>
                   <div className="text-center">
                     <div className="text-xs md:text-sm font-medium opacity-90">Your Level</div>
                     <div className="text-lg md:text-2xl font-black">{proficiencyLevel}</div>
@@ -188,8 +188,8 @@ export default function AssessmentResult() {
               </button>
 
               <button
-                onClick={() => navigate("/")}
-                className="w-full bg-gradient-to-r from-[#E6FF03] to-[#d7ee00] text-gray-900 font-bold py-3 rounded-xl hover:from-[#d7ee00] hover:to-[#c8e003] transition-all"
+                onClick={() => navigate("/dashboard")}
+                className="w-full bg-linear-to-r from-[#E6FF03] to-[#d7ee00] text-gray-900 font-bold py-3 rounded-xl hover:from-[#d7ee00] hover:to-[#c8e003] transition-all"
               >
                 Go to Dashboard
               </button>
