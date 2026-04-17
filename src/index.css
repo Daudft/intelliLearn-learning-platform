@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Default body font */
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Headings font */
+h1, h2, h3, .heading-font {
+  font-family: 'Lexend', sans-serif;
+}
+
+/* Reusable Button Style */
+.fyp-btn {
+  background: #a3ff00; /* your neon green sign-up color */
+  color: #000;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: 
+    background 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+/* Hover Animation */
+.fyp-btn:hover {
+  background: #c6ff4d; /* slightly brighter */
+  transform: scale(1.05); /* subtle zoom like the video */
+  box-shadow: 0px 4px 12px rgba(163, 255, 0, 0.4);
+}
+
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
