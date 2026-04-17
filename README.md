@@ -14,3 +14,21 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Learning Path AI Setup
+
+To enable AI-generated learning tasks and AI code review:
+
+1. Copy `backend/.env.example` to `backend/.env`.
+2. Set your OpenAI key in `OPENAI_API_KEY`.
+3. Keep or adjust `LEARNING_PASS_SCORE`.
+
+Required variables:
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+LEARNING_PASS_SCORE=7
+```
+
+- `OPENAI_API_KEY`: Enables OpenAI task generation and code feedback.
+- `LEARNING_PASS_SCORE`: Minimum AI quality score (1-10) required to unlock the next task.
