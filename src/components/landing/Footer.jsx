@@ -6,7 +6,7 @@ export default function Footer() {
   const [hoveredButton, setHoveredButton] = useState(false);
 
   return (
-    <footer className="relative w-full bg-black text-white py-20 overflow-hidden  border border-white/10">
+    <footer className="relative w-full bg-slate-950 text-white py-20 overflow-hidden border-t border-white/10">
       
       
 
@@ -21,14 +21,14 @@ export default function Footer() {
           viewport={{ once: true }}
         >
           <motion.h2
-            className="text-5xl md:text-6xl lg:text-7xl font-bold mb-8 leading-tight"
+            className="text-4xl md:text-6xl lg:text-7xl font-bold mb-8 leading-tight"
             initial={{ opacity: 0, y: -30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
             viewport={{ once: true }}
           >
             Ready to transform <br />
-            <span className="bg-linear-to-r from-yellow-300 via-green-400 to-lime-300 text-transparent bg-clip-text">
+            <span className="bg-linear-to-r from-lime-300 via-cyan-300 to-sky-300 text-transparent bg-clip-text">
               your learning experience?
             </span>
           </motion.h2>
@@ -53,7 +53,7 @@ export default function Footer() {
             <button
               onMouseEnter={() => setHoveredButton(true)}
               onMouseLeave={() => setHoveredButton(false)}
-              className="relative px-8 py-4 bg-linear-to-r from-yellow-300 via-green-400 to-lime-300 text-black font-bold rounded-2xl hover:shadow-2xl hover:shadow-green-400/50 transition-all text-lg inline-flex items-center gap-2 overflow-hidden"
+              className="relative px-8 py-4 bg-linear-to-r from-lime-300 via-cyan-300 to-sky-300 text-slate-900 font-bold rounded-2xl hover:shadow-2xl hover:shadow-cyan-400/40 transition-all text-lg inline-flex items-center gap-2 overflow-hidden"
             >
               <span className={`inline-flex items-center gap-2 transition-all duration-700 ${hoveredButton ? "-translate-y-10 opacity-0" : "translate-y-0 opacity-100"}`}>
                 Get Started Now →
@@ -86,10 +86,10 @@ export default function Footer() {
           >
             <div className="mb-4">
               <h3 className="text-[26px] font-bold">
-                <span className="bg-linear-to-r text-[#E6FF03]  bg-clip-text">
+                <span className="bg-linear-to-r text-lime-300 bg-clip-text">
                   Intelli
                 </span>
-                <span className="text-[24px] font-medium text-[#E6E6E6]">
+                <span className="text-[24px] font-medium text-slate-200">
                   Learn
                 </span>
                 
@@ -109,7 +109,7 @@ export default function Footer() {
             viewport={{ once: true }}
           >
             <span className="text-lg">✉️</span>
-            <a href="mailto:support@intellilearn.ai" className="text-white hover:text-green-400 transition font-semibold text-sm">
+            <a href="mailto:support@intellilearn.ai" className="text-white hover:text-cyan-300 transition font-semibold text-sm">
               support@intellilearn.ai
             </a>
           </motion.div>
@@ -128,10 +128,10 @@ export default function Footer() {
           </p>
           
           <div className="flex gap-8 mt-6 md:mt-0">
-            <a href="#" className="text-gray-400 hover:text-green-400 transition text-sm">
+            <a href="#" className="text-gray-400 hover:text-cyan-300 transition text-sm">
               Privacy Policy
             </a>
-            <a href="#" className="text-gray-400 hover:text-green-400 transition text-sm">
+            <a href="#" className="text-gray-400 hover:text-cyan-300 transition text-sm">
               Terms & Conditions
             </a>
           </div>

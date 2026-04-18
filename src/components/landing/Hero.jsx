@@ -9,21 +9,22 @@ export default function Hero() {
 
       {/* BACKGROUND DECORATIVE BLOBS */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-10 -left-10 w-[360px] h-[360px] rounded-full bg-gradient-to-br from-white/70 to-slate-200/40 blur-3xl opacity-80" />
-        <div className="absolute bottom-0 left-20 w-[260px] h-[260px] rounded-full bg-gradient-to-tr from-slate-300/40 to-white/20 blur-[100px] opacity-40" />
-        <div className="absolute -bottom-20 right-0 w-[350px] h-[350px] rounded-full bg-gradient-to-tl from-white/50 to-slate-200/30 blur-[110px] opacity-50" />
+        <div className="absolute -top-16 -left-16 w-[420px] h-[420px] rounded-full bg-gradient-to-br from-lime-200/60 to-cyan-200/20 blur-3xl opacity-80" />
+        <div className="absolute bottom-10 left-20 w-[320px] h-[320px] rounded-full bg-gradient-to-tr from-emerald-200/40 to-white/30 blur-[120px] opacity-60" />
+        <div className="absolute -bottom-24 right-0 w-[420px] h-[420px] rounded-full bg-gradient-to-tl from-sky-200/40 to-white/30 blur-[130px] opacity-60" />
       </div>
 
       {/* MAIN GRID */}
-      <div className="relative z-10 grid md:grid-cols-2 gap-10 px-8 md:px-20 py-28">
+      <div className="relative z-10 grid md:grid-cols-2 gap-10 lg:gap-16 px-4 md:px-10 lg:px-16 py-16 md:py-20 lg:py-24">
 
         {/* LEFT SECTION */}
         <div className="flex flex-col justify-center max-w-xl">
-          <h1 className="text-5xl md:text-6xl font-extrabold leading-tight text-slate-900 tracking-tight">
-            Supercharge Your <br /> Skills with AI
+          <p className="text-xs tracking-[0.25em] uppercase font-semibold text-slate-600 mb-4">Adaptive Learning Platform</p>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-[1.05] text-slate-900 tracking-tight">
+            Learn Faster With <br /> Intelligent Practice
           </h1>
 
-          <p className="text-slate-700 mt-6 text-lg leading-relaxed">
+          <p className="text-slate-700 mt-6 text-base md:text-lg leading-relaxed">
             Take a fast assessment, let AI guide your next steps, and enjoy a personalized
             task flow that makes improving your skills feel easy and enjoyable.
           </p>
@@ -34,7 +35,7 @@ export default function Hero() {
               <button
                 onMouseEnter={() => setHoveredButton(true)}
                 onMouseLeave={() => setHoveredButton(false)}
-                className="relative bg-[#E6FF03] text-black font-semibold px-8 py-3 rounded-xl flex items-center gap-2 text-lg overflow-hidden shadow-[0_12px_28px_rgba(180,200,20,0.45)]"
+                className="relative bg-lime-300 text-slate-900 font-semibold px-8 py-3.5 rounded-2xl flex items-center gap-2 text-lg overflow-hidden shadow-[0_12px_28px_rgba(132,204,22,0.35)] hover:shadow-[0_16px_36px_rgba(132,204,22,0.45)] transition-shadow"
               >
                 <span className={`transition-all duration-500 ${hoveredButton ? "-translate-y-10 opacity-0" : "translate-y-0 opacity-100"}`}>
                   Get Started →
@@ -64,7 +65,7 @@ export default function Hero() {
         <div className="hidden md:flex items-center justify-center relative">
 
           {/* MAIN CODE CARD */}
-          <div className="relative w-[480px] p-6 rounded-3xl bg-white/30 backdrop-blur-2xl border border-white/40 shadow-[0_25px_50px_rgba(0,0,0,0.12)] ring-1 ring-white/20 -translate-x-6">
+          <div className="relative w-full max-w-[520px] p-6 rounded-3xl bg-white/55 backdrop-blur-2xl border border-white/70 shadow-[0_25px_50px_rgba(15,23,42,0.16)] ring-1 ring-white/50">
 
             {/* MAC DOTS */}
             <div className="flex items-center gap-2 mb-2">
@@ -75,16 +76,16 @@ export default function Hero() {
 
             {/* LANGUAGE TABS */}
             <div className="flex gap-2 text-xs mb-4">
-              <span className="px-3 py-1 rounded bg-purple-100 text-purple-700 font-medium">Python</span>
-              <span className="px-3 py-1 rounded bg-blue-100 text-blue-700 font-medium">Java</span>
-              <span className="px-3 py-1 rounded bg-green-100 text-green-700 font-medium">C</span>
+              <span className="px-3 py-1 rounded bg-lime-100 text-lime-800 font-medium">Python</span>
+              <span className="px-3 py-1 rounded bg-cyan-100 text-cyan-800 font-medium">Java</span>
+              <span className="px-3 py-1 rounded bg-amber-100 text-amber-800 font-medium">C</span>
             </div>
 
             {/* CODE + PROGRESS CARD */}
             <div className="flex gap-5 relative">
 
               {/* CODE BLOCK */}
-              <pre className="font-mono text-[12px] text-slate-900 leading-relaxed whitespace-pre-wrap w-[60%]">
+                <pre className="font-mono text-[12px] text-slate-900 leading-relaxed whitespace-pre-wrap w-[62%]">
 {`# Python
 def greet(name):
     print("Hello,", name)
@@ -109,60 +110,60 @@ int main() {
               {/* NEW PROGRESS CARD (ENHANCED) */}
               <div
                 className="
-                  absolute right-[-165px] top-[10%]
+                  absolute right-[-70px] top-[12%]
                   w-[240px] p-6 rounded-3xl
-                  bg-white/25 backdrop-blur-2xl
-                  border border-white/30 shadow-[0_20px_50px_rgba(0,0,0,0.15)]
+                  bg-slate-950/90 backdrop-blur-2xl
+                  border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.35)]
                 "
               >
                 {/* HEADER */}
                 <div className="mb-5">
-                  <h3 className="text-sm font-bold text-slate-900">Skill Progress</h3>
-                  <p className="text-[11px] text-slate-600 mt-1">Last 7 days</p>
+                  <h3 className="text-sm font-bold text-white">Skill Progress</h3>
+                  <p className="text-[11px] text-slate-300 mt-1">Last 7 days</p>
                 </div>
 
                 {/* PYTHON */}
                 <div className="mb-5">
                   <div className="flex justify-between mb-1">
-                    <span className="text-[12px] text-slate-900 font-medium"> Python</span>
-                    <span className="text-[11px] text-slate-700">80%</span>
+                    <span className="text-[12px] text-slate-100 font-medium"> Python</span>
+                    <span className="text-[11px] text-slate-300">80%</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-300/50 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-purple-400 to-purple-700 rounded-full" style={{ width: "80%" }}></div>
+                  <div className="w-full h-2 bg-slate-600/50 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-lime-300 to-emerald-400 rounded-full" style={{ width: "80%" }}></div>
                   </div>
-                  <div className="mt-1 text-[11px] text-purple-700">Improving</div>
+                  <div className="mt-1 text-[11px] text-lime-300">Improving</div>
                 </div>
 
                 {/* JAVA */}
                 <div className="mb-5">
                   <div className="flex justify-between mb-1">
-                    <span className="text-[12px] text-slate-900 font-medium"> Java</span>
-                    <span className="text-[11px] text-slate-700">60%</span>
+                    <span className="text-[12px] text-slate-100 font-medium"> Java</span>
+                    <span className="text-[11px] text-slate-300">60%</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-300/50 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-blue-400 to-blue-700 rounded-full" style={{ width: "60%" }}></div>
+                  <div className="w-full h-2 bg-slate-600/50 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-cyan-300 to-sky-500 rounded-full" style={{ width: "60%" }}></div>
                   </div>
-                  <div className="mt-1 text-[11px] text-blue-700">Stable</div>
+                  <div className="mt-1 text-[11px] text-cyan-300">Stable</div>
                 </div>
 
                 {/* C */}
                 <div className="mb-5">
                   <div className="flex justify-between mb-1">
-                    <span className="text-[12px] text-slate-900 font-medium"> C</span>
-                    <span className="text-[11px] text-slate-700">40%</span>
+                    <span className="text-[12px] text-slate-100 font-medium"> C</span>
+                    <span className="text-[11px] text-slate-300">40%</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-300/50 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-green-400 to-green-700 rounded-full" style={{ width: "40%" }}></div>
+                  <div className="w-full h-2 bg-slate-600/50 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-amber-300 to-orange-500 rounded-full" style={{ width: "40%" }}></div>
                   </div>
-                  <div className="mt-1 text-[11px] text-green-700">Needs Work</div>
+                  <div className="mt-1 text-[11px] text-amber-300">Needs Work</div>
                 </div>
 
                 {/* FOOTER */}
-                <div className="pt-3 border-t border-white/20">
-                  <p className="text-[12px] text-slate-900 font-semibold">
-                    Overall Score: <span className="text-black">67%</span>
+                <div className="pt-3 border-t border-white/10">
+                  <p className="text-[12px] text-slate-100 font-semibold">
+                    Overall Score: <span className="text-white">67%</span>
                   </p>
-                  <p className="text-[11px] text-green-600 mt-1">
+                  <p className="text-[11px] text-emerald-300 mt-1">
                     ↑ 12% improvement this week
                   </p>
                 </div>

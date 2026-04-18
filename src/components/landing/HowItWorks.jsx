@@ -49,12 +49,12 @@ export default function HowItWorks() {
 
   return (
     <div>
-      <section id="how-it-works" className="relative w-full bg-white border border-gray-200  overflow-hidden">
+      <section id="how-it-works" className="relative w-full bg-[linear-gradient(180deg,_#f3f8ef_0%,_#eef3fa_100%)] border-y border-slate-200 overflow-hidden">
 
         {/* BACKGROUND GRID */}
         <div
           ref={gridRef}
-          className="absolute inset-0 opacity-20 pointer-events-auto"
+          className="absolute inset-0 opacity-15 pointer-events-auto"
           style={{
             backgroundImage: `
               linear-gradient(to right, rgba(34,197,94,0.4) 1px, transparent 1px),
@@ -69,9 +69,9 @@ export default function HowItWorks() {
         ></div>
 
         <div
-          className="absolute inset-0 opacity-5 pointer-events-none"
+          className="absolute inset-0 opacity-10 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(to right, rgba(34,197,94,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(34,197,94,0.2) 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(to right, rgba(56,189,248,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(56,189,248,0.2) 1px, transparent 1px)`,
             backgroundSize: "60px 60px",
           }}
         />
@@ -80,9 +80,9 @@ export default function HowItWorks() {
         <div className="relative z-10 max-w-7xl mx-auto">
 
           {/* SECTION HEADING */}
-          <div className="pt-28 pb-20 px-6 md:px-10 text-center">
+          <div className="pt-24 pb-16 px-6 md:px-10 text-center">
             <motion.p
-              className="text-xs tracking-[0.25em] text-gray-500 mb-3"
+              className="text-xs tracking-[0.25em] text-slate-500 mb-3"
               initial={{ opacity: 0, y: -10 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
@@ -92,7 +92,7 @@ export default function HowItWorks() {
             </motion.p>
 
             <motion.h2
-              className="text-4xl md:text-5xl font-extrabold text-black mb-4"
+              className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4"
               initial={{ opacity: 0, y: -20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
@@ -102,7 +102,7 @@ export default function HowItWorks() {
             </motion.h2>
 
             <motion.p
-              className="text-gray-700 text-lg max-w-xl mx-auto"
+              className="text-slate-700 text-lg max-w-xl mx-auto"
               initial={{ opacity: 0, y: -10 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
@@ -113,7 +113,7 @@ export default function HowItWorks() {
           </div>
 
           {/* STEPS GRID */}
-          <div className="px-6 md:px-10 pb-32">
+          <div className="px-6 md:px-10 pb-24">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 relative">
 
               {steps.map((step, index) => {
@@ -127,16 +127,16 @@ export default function HowItWorks() {
                     className="relative group"
                   >
                     {/* Glow */}
-                    <div className="absolute -inset-1 bg-gradient-to-r from-yellow-300/20 to-green-300/20 rounded-2xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="absolute -inset-1 bg-gradient-to-r from-cyan-300/20 to-lime-300/20 rounded-2xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                     {/* CARD */}
                     <motion.div
-                      className="relative p-10 bg-white backdrop-blur border border-gray-200 rounded-2xl hover:border-yellow-200 hover:shadow-md transition-all duration-300 h-full"
+                      className="relative p-8 bg-white/90 backdrop-blur border border-slate-200 rounded-2xl hover:border-lime-300 hover:shadow-xl transition-all duration-300 h-full"
                       whileHover={{ y: -5, transition: { duration: 0.2 } }}
                     >
                       {/* Number */}
                       <motion.div
-                        className="text-5xl font-bold text-yellow-300/60 mb-4"
+                        className="text-5xl font-bold text-lime-400/70 mb-4"
                         initial={{ scale: 0.8, opacity: 0 }}
                         whileInView={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -147,7 +147,7 @@ export default function HowItWorks() {
 
                       {/* FIXED ICON */}
                       <motion.div
-                        className="mb-4 flex items-center justify-center bg-gradient-to-br from-yellow-200 to-yellow-100 rounded-lg w-16 h-16 text-3xl"
+                        className="mb-4 flex items-center justify-center bg-gradient-to-br from-cyan-100 to-lime-100 rounded-lg w-16 h-16 text-3xl"
                         initial={{ scale: 0, rotate: -90 }}
                         whileInView={{ scale: 1, rotate: 0 }}
                         transition={{
@@ -163,7 +163,7 @@ export default function HowItWorks() {
 
                       {/* TITLE */}
                       <motion.h3
-                        className="text-xl font-bold text-black mb-3"
+                        className="text-xl font-bold text-slate-900 mb-3"
                         initial={{ opacity: 0, x: -20 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.5, delay: index * 0.1 + 0.15 }}
@@ -174,7 +174,7 @@ export default function HowItWorks() {
 
                       {/* DESCRIPTION */}
                       <motion.p
-                        className="text-sm text-gray-600 leading-relaxed"
+                        className="text-sm text-slate-600 leading-relaxed"
                         initial={{ opacity: 0, y: 10 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5, delay: index * 0.1 + 0.2 }}
@@ -198,7 +198,7 @@ export default function HowItWorks() {
                             height="36"
                             viewBox="0 0 24 24"
                             fill="none"
-                            stroke="#FACC15"
+                            stroke="#84cc16"
                             strokeWidth="2.2"
                             strokeLinecap="round"
                             strokeLinejoin="round"

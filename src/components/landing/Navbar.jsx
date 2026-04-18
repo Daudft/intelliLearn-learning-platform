@@ -3,42 +3,19 @@ import { useState } from "react";
 export default function Navbar() {
   const [hoveredButton, setHoveredButton] = useState(null);
 
-  const smoothScrollTo = (targetY, duration = 900) => {
-  const startY = window.scrollY;
-  const difference = targetY - startY;
-  let startTime = null;
-
-  const easeOutExpo = (t) =>
-    t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-
-  const animation = (currentTime) => {
-    if (!startTime) startTime = currentTime;
-    const elapsed = currentTime - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const easedProgress = easeOutExpo(progress);
-
-    window.scrollTo(0, startY + difference * easedProgress);
-
-    if (elapsed < duration) requestAnimationFrame(animation);
-  };
-
-  requestAnimationFrame(animation);
-};
-
-
   return (
-    <div className="w-full bg-[#F1F2F4] py-4">
+    <div className="w-full py-4 md:py-5">
 
-      {/* FULL WIDTH WHITE NAVBAR */}
-      <nav className="w-full bg-black rounded-2xl shadow-sm px-8 py-4 flex items-center justify-between">
+      {/* FULL WIDTH NAVBAR */}
+      <nav className="w-full rounded-3xl border border-slate-800/20 bg-slate-950 px-5 md:px-8 py-4 flex items-center justify-between shadow-[0_18px_45px_rgba(15,23,42,0.35)] backdrop-blur-xl">
 
  {/* Logo (LEFT CORNER) */}
 <a href="/">
   <h1 className="cursor-pointer flex items-baseline">
-    <span className="text-[26px] font-bold text-[#E6FF03] leading-none">
+    <span className="text-[26px] font-bold text-lime-300 leading-none tracking-tight">
       Intelli
     </span>
-    <span className="text-[24px] font-medium text-[#E6E6E6] leading-none">
+    <span className="text-[24px] font-medium text-slate-100 leading-none">
       Learn
     </span>
   </h1>
@@ -49,7 +26,7 @@ export default function Navbar() {
 
 
         {/* Center Links */}
-        <ul className="hidden md:flex items-center space-x-10 text-[#F5F5F5] font-medium">
+        <ul className="hidden md:flex items-center space-x-8 text-slate-100/90 font-medium">
   {[
     { label: "Features", target: "features" },
     { label: "How it Works", target: "how-it-works" },
@@ -78,7 +55,7 @@ export default function Navbar() {
           });
         }
       }}
-      className="relative cursor-pointer overflow-hidden"
+      className="relative cursor-pointer overflow-hidden hover:text-lime-300 transition-colors"
     >
       {/* Default text */}
       <span
@@ -108,14 +85,14 @@ export default function Navbar() {
 
 
         {/* RIGHT SIDE BUTTONS */}
-        <div className="hidden md:flex items-center space-x-4">
+        <div className="hidden md:flex items-center space-x-3">
           
           {/* Sign In Button */}
           <a href="/signin">
             <button 
               onMouseEnter={() => setHoveredButton("signin")}
               onMouseLeave={() => setHoveredButton(null)}
-              className="relative px-5 py-2 bg-[#F5F5F5] rounded-xl text-gray-800 font-medium overflow-hidden cursor-pointer"
+              className="relative px-5 py-2 border border-slate-400/40 bg-white/90 rounded-xl text-slate-800 font-medium overflow-hidden cursor-pointer"
             >
               <span className={`inline-block transition-all duration-500 ${hoveredButton === "signin" ? "-translate-y-6 opacity-0" : "translate-y-0 opacity-100"}`}>
                 Sign In
@@ -131,7 +108,7 @@ export default function Navbar() {
             <button 
               onMouseEnter={() => setHoveredButton("signup")}
               onMouseLeave={() => setHoveredButton(null)}
-              className="relative bg-[#E6FF03] font-medium px-6 py-2.5 rounded-xl overflow-hidden cursor-pointer"
+              className="relative bg-lime-300 hover:bg-lime-200 text-slate-900 font-semibold px-6 py-2.5 rounded-xl overflow-hidden cursor-pointer transition-colors"
             >
               <span className={`inline-block transition-all duration-500 ${hoveredButton === "signup" ? "-translate-y-6 opacity-0" : "translate-y-0 opacity-100"}`}>
                 Sign Up
