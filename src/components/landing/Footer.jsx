@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -43,26 +44,27 @@ export default function Footer() {
             Where intelligent assessment meets progress, helping you build on strengths and improve with confidence.
           </motion.p>
           
-          <motion.a
-            href="/signup"
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
             viewport={{ once: true }}
           >
-            <button
-              onMouseEnter={() => setHoveredButton(true)}
-              onMouseLeave={() => setHoveredButton(false)}
-              className="relative px-8 py-4 bg-linear-to-r from-lime-300 via-cyan-300 to-sky-300 text-slate-900 font-bold rounded-2xl hover:shadow-2xl hover:shadow-cyan-400/40 transition-all text-lg inline-flex items-center gap-2 overflow-hidden"
-            >
-              <span className={`inline-flex items-center gap-2 transition-all duration-700 ${hoveredButton ? "-translate-y-10 opacity-0" : "translate-y-0 opacity-100"}`}>
-                Get Started Now →
-              </span>
-              <span className={`absolute inset-0 flex items-center justify-center gap-2 transition-all duration-700 ${hoveredButton ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"}`}>
-                Get Started Now →
-              </span>
-            </button>
-          </motion.a>
+            <Link to="/signup">
+              <button
+                onMouseEnter={() => setHoveredButton(true)}
+                onMouseLeave={() => setHoveredButton(false)}
+                className="relative px-8 py-4 bg-linear-to-r from-lime-300 via-cyan-300 to-sky-300 text-slate-900 font-bold rounded-2xl hover:shadow-2xl hover:shadow-cyan-400/40 transition-all text-lg inline-flex items-center gap-2 overflow-hidden"
+              >
+                <span className={`inline-flex items-center gap-2 transition-all duration-700 ${hoveredButton ? "-translate-y-10 opacity-0" : "translate-y-0 opacity-100"}`}>
+                  Get Started Now →
+                </span>
+                <span className={`absolute inset-0 flex items-center justify-center gap-2 transition-all duration-700 ${hoveredButton ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"}`}>
+                  Get Started Now →
+                </span>
+              </button>
+            </Link>
+          </motion.div>
         </motion.div>
 
         {/* Divider */}

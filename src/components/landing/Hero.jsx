@@ -31,7 +31,7 @@ export default function Hero() {
 
           {/* CTA BUTTON */}
           <div className="mt-8">
-            <a href="/signup">
+            <Link to="/signup">
               <button
                 onMouseEnter={() => setHoveredButton(true)}
                 onMouseLeave={() => setHoveredButton(false)}
@@ -45,7 +45,7 @@ export default function Hero() {
                   Get Started →
                 </span>
               </button>
-            </a>
+            </Link>
           </div>
 
           {/* SOCIAL PROOF */}

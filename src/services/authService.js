@@ -52,6 +52,12 @@ const authService = {
     return response.data;
   },
 
+  // Validate active cookie-based session and fetch current user.
+  getCurrentUser: async () => {
+    const response = await api.get('/auth/me');
+    return response.data;
+  },
+
   // Logout
   logout: async () => {
     const response = await api.post('/auth/logout');
