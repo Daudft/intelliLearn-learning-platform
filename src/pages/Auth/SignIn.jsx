@@ -86,8 +86,15 @@ int main() {
         return;
       }
 
-      // Non-admin users always land on dashboard after sign-in.
-      navigate("/dashboard");
+      const hasCompletedAssessment = Boolean(response?.user?.hasCompletedAssessment);
+
+      if (hasCompletedAssessment) {
+        navigate("/dashboard");
+        return;
+      }
+
+      // First-time student users must complete initial assessment.
+      navigate("/assessment");
     } catch (err) {
       // ❌ Only show error for actual login failures
       const msg =
