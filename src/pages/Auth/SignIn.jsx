@@ -59,11 +59,18 @@ int main() {
 
   const handleSignIn = async (e) => {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !password) {
+      setMessage({ type: "error", text: "Email and password are required." });
+      return;
+    }
+
     setLoading(true);
     setMessage({ type: "", text: "" });
 
     try {
-      const response = await authService.signin({ email, password });
+      const response = await authService.signin({ email: normalizedEmail, password });
 
       if (loginMode === "admin" && response.user.role !== "admin") {
         await authService.logout();
@@ -156,7 +163,7 @@ int main() {
                 type="email"
                 placeholder="Enter your email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value.trimStart())}
                 autoComplete="email"
                 required
                 className="w-full px-3 py-2 rounded-lg border border-black/10 bg-white text-gray-900

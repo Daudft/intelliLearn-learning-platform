@@ -3,6 +3,20 @@ const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
+const normalizeEmail = (email = '') => email.toString().trim().toLowerCase();
+const normalizeName = (name = '') => name.toString().trim();
+
+const isStrongPassword = (password = '') => {
+  const value = password.toString();
+  return (
+    value.length >= 8 &&
+    /[A-Z]/.test(value) &&
+    /[a-z]/.test(value) &&
+    /\d/.test(value) &&
+    /[^A-Za-z0-9]/.test(value)
+  );
+};
+
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '7d',
@@ -13,9 +27,11 @@ const generateToken = (id) => {
 exports.signup = async (req, res) => {
   try {
     const { name, email, password, passwordConfirm } = req.body;
+    const normalizedName = normalizeName(name);
+    const normalizedEmail = normalizeEmail(email);
 
     // Validation
-    if (!name || !email || !password || !passwordConfirm) {
+    if (!normalizedName || !normalizedEmail || !password || !passwordConfirm) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
@@ -23,20 +39,22 @@ exports.signup = async (req, res) => {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        message: 'Password must be at least 8 characters and include uppercase, lowercase, number, and symbol',
+      });
     }
 
     // Check if user already exists
-    let user = await User.findOne({ email: email });
+    let user = await User.findOne({ email: normalizedEmail });
     if (user) {
       return res.status(400).json({ message: 'Email is already in use' });
     }
 
     // Create new user
     user = await User.create({
-      name,
-      email,
+      name: normalizedName,
+      email: normalizedEmail,
       password,
     });
 
@@ -50,7 +68,7 @@ exports.signup = async (req, res) => {
     // Email message
     const message = `
       <h2>Welcome to FYP!</h2>
-      <p>Hi ${name},</p>
+      <p>Hi ${normalizedName},</p>
       <p>Please verify your email by clicking the link below:</p>
       <a href="${verifyUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
         Verify Email
@@ -59,7 +77,7 @@ exports.signup = async (req, res) => {
       <p>If you did not sign up, please ignore this email.</p>
     `;
 
-    await sendEmail(email, 'Email Verification - FYP', message);
+    await sendEmail(normalizedEmail, 'Email Verification - FYP', message);
 
     res.status(201).json({
       message: 'User registered successfully. Please check your email to verify your account.',
@@ -130,14 +148,15 @@ exports.verifyEmail = async (req, res) => {
 exports.signin = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
     // Validation
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
     // Find user and include password field
-    const user = await User.findOne({ email: email }).select('+password');
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
@@ -184,15 +203,19 @@ exports.signin = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!email) {
+    if (!normalizedEmail) {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    const user = await User.findOne({ email: email });
+    const user = await User.findOne({ email: normalizedEmail });
 
+    // Return a generic response even if the account does not exist.
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(200).json({
+        message: 'If an account with that email exists, a reset link has been sent.',
+      });
     }
 
     // Generate reset password token
@@ -213,10 +236,10 @@ exports.forgotPassword = async (req, res) => {
       <p>If you did not request a password reset, please ignore this email.</p>
     `;
 
-    await sendEmail(email, 'Password Reset Request - FYP', message);
+    await sendEmail(normalizedEmail, 'Password Reset Request - FYP', message);
 
     res.status(200).json({
-      message: 'Password reset link sent to your email',
+      message: 'If an account with that email exists, a reset link has been sent.',
     });
   } catch (error) {
     console.log(error);
@@ -237,8 +260,10 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Passwords do not match' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        message: 'Password must be at least 8 characters and include uppercase, lowercase, number, and symbol',
+      });
     }
 
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');

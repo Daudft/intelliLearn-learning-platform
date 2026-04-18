@@ -38,7 +38,7 @@ export default function SignUp() {
     const conditionsMet = [hasUpper, hasLower, hasNumber, hasSymbol].filter(Boolean).length;
 
     // Weak conditions
-    if (password.length < 6 || conditionsMet < 2) {
+    if (password.length < 8 || conditionsMet < 2) {
       setStrength("weak");
       setStrengthPercent(25);
       return;
@@ -48,7 +48,7 @@ export default function SignUp() {
     if (conditionsMet >= 2 && conditionsMet < 4) {
       setStrength("medium");
       // Set percent depending on conditions met and length
-      const percent = Math.min(50 + conditionsMet * 10 + (isLongEnough ? 10 : 0), 85);
+      const percent = Math.min(45 + conditionsMet * 12 + (isLongEnough ? 10 : 0), 85);
       setStrengthPercent(percent);
       return;
     }
@@ -102,12 +102,19 @@ int main() {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
 
-    // BLOCK SIGNUP IF PASSWORD IS WEAK
-    if (strength === "weak") {
+    if (!normalizedName || !normalizedEmail || !password || !passwordConfirm) {
+      setMessage({ type: "error", text: "All fields are required." });
+      return;
+    }
+
+    // Require strong password to align with backend policy.
+    if (strength !== "strong") {
       setMessage({
         type: "error",
-        text: "Your password is too weak. Use uppercase, lowercase, numbers, symbols, and minimum 8 characters.",
+        text: "Use a strong password: 8+ chars with uppercase, lowercase, number, and symbol.",
       });
       return; // stop function
     }
@@ -126,14 +133,16 @@ int main() {
 
     try {
       const response = await authService.signup({
-        name,
-        email,
+        name: normalizedName,
+        email: normalizedEmail,
         password,
         passwordConfirm,
       });
 
       // 🎉 SUCCESS stays on same page (NO REDIRECT)
       setMessage({ type: "success", text: response.message });
+      setPassword("");
+      setPasswordConfirm("");
     } catch (err) {
       const msg = err?.response?.data?.message || "Signup failed.";
       setMessage({ type: "error", text: msg });
@@ -192,7 +201,7 @@ int main() {
                 type="email"
                 placeholder="Enter your email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value.trimStart())}
                 required
                 className="w-full px-3 py-2 rounded-lg border border-black/10 bg-white text-gray-900
                 outline-none focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition text-sm"
@@ -206,7 +215,7 @@ int main() {
               <div className="relative">
                 <input
                   type={showPass ? "text" : "password"}
-                  placeholder="Minimum 6 characters"
+                  placeholder="Minimum 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -225,7 +234,7 @@ int main() {
               </div>
 
               {/* PASSWORD RULE */}
-              <p className="text-xs text-gray-500 mt-1">Use uppercase, lowercase, and numbers.</p>
+              <p className="text-xs text-gray-500 mt-1">Use uppercase, lowercase, number, symbol, and 8+ characters.</p>
 
               {/* PASSWORD STRENGTH BAR */}
               {/* 3–Step Password Strength Indicator */}
@@ -319,7 +328,7 @@ int main() {
             className="absolute inset-0 opacity-[0.06]
             bg-[linear-gradient(to_right,#ffffff12_1px,transparent_1px),
             linear-gradient(to_bottom,#ffffff12_1px,transparent_1px)]
-            bg-[size:30px_30px]"
+            bg-size-[30px_30px]"
           />
 
           <div className="absolute top-8 left-8 w-16 h-16 border border-gray-600 rounded-lg opacity-30"></div>

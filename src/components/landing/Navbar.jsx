@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 export default function Navbar() {
   const [hoveredButton, setHoveredButton] = useState(null);
@@ -88,7 +89,7 @@ export default function Navbar() {
         <div className="hidden md:flex items-center space-x-3">
           
           {/* Sign In Button */}
-          <a href="/signin">
+          <Link to="/signin">
             <button 
               onMouseEnter={() => setHoveredButton("signin")}
               onMouseLeave={() => setHoveredButton(null)}
@@ -101,10 +102,10 @@ export default function Navbar() {
                 Sign In
               </span>
             </button>
-          </a>
+          </Link>
 
           {/* Sign Up Button */}
-          <a href="/signup">
+          <Link to="/signup">
             <button 
               onMouseEnter={() => setHoveredButton("signup")}
               onMouseLeave={() => setHoveredButton(null)}
@@ -117,7 +118,7 @@ export default function Navbar() {
                 Sign Up
               </span>
             </button>
-          </a>
+          </Link>
 
         </div>
 

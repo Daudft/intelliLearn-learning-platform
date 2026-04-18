@@ -6,13 +6,79 @@ import Features from "../../components/landing/Features";
 import HowItWorks from "../../components/landing/HowItWorks";
 import Footer from "../../components/landing/Footer";
 
+const LANDING_LOADER_SEEN_KEY = "intellilearn_landing_loader_seen";
+let landingLoaderSeenFallback = false;
+
+const hasSeenLandingLoader = () => {
+  try {
+    return window.sessionStorage.getItem(LANDING_LOADER_SEEN_KEY) === "1";
+  } catch {
+    return landingLoaderSeenFallback;
+  }
+};
+
+const markLandingLoaderSeen = () => {
+  landingLoaderSeenFallback = true;
+  try {
+    window.sessionStorage.setItem(LANDING_LOADER_SEEN_KEY, "1");
+  } catch {
+    // Ignore storage errors in restricted browser modes.
+  }
+};
+
+const isAuthReferrer = () => {
+  try {
+    if (!document.referrer) return false;
+    const refUrl = new URL(document.referrer);
+    return (
+      refUrl.origin === window.location.origin &&
+      (refUrl.pathname === "/signin" || refUrl.pathname === "/signup")
+    );
+  } catch {
+    return false;
+  }
+};
+
+const shouldShowLandingLoader = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const navigationEntry = window.performance
+    .getEntriesByType("navigation")
+    .find((entry) => entry.entryType === "navigation");
+  const navigationType = navigationEntry?.type;
+  const isReload = navigationType === "reload";
+  const isBackForward = navigationType === "back_forward";
+  const alreadySeen = hasSeenLandingLoader();
+  const historyIndex = Number(window.history?.state?.idx ?? 0);
+  const isInAppReturnNavigation = historyIndex > 0;
+  const cameFromAuthRoute = isAuthReferrer();
+
+  if (isReload) {
+    return true;
+  }
+
+  if (isBackForward || isInAppReturnNavigation || cameFromAuthRoute) {
+    return false;
+  }
+
+  return !alreadySeen;
+};
+
 export default function LandingPage() {
-  const [showLoader, setShowLoader] = useState(true);
+  const [showLoader, setShowLoader] = useState(() => shouldShowLandingLoader());
 
   useEffect(() => {
+    markLandingLoaderSeen();
+
+    if (!showLoader) {
+      return;
+    }
+
     const timer = window.setTimeout(() => setShowLoader(false), 3200);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [showLoader]);
 
   useEffect(() => {
     if (!showLoader) {

@@ -10,14 +10,20 @@ export default function ForgotPassword() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setError("Email is required.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setSuccess(false);
 
     try {
-      const response = await authService.forgotPassword({ email });
+      const response = await authService.forgotPassword({ email: normalizedEmail });
       setSuccess(true);
-      alert(response.message || "Password reset link sent to your email!");
     } catch (err) {
       const errorMessage = err.response?.data?.message || "Failed to send reset link. Please try again.";
       setError(errorMessage);
@@ -62,7 +68,7 @@ export default function ForgotPassword() {
               type="email"
               placeholder="Enter your email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value.trimStart())}
               required
               className="
                 w-full px-4 py-3 rounded-xl

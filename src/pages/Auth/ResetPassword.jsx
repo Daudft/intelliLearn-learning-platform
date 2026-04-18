@@ -10,11 +10,23 @@ export default function ResetPassword() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const isStrongPassword = (value = "") => {
+    return (
+      value.length >= 8 &&
+      /[A-Z]/.test(value) &&
+      /[a-z]/.test(value) &&
+      /\d/.test(value) &&
+      /[^A-Za-z0-9]/.test(value)
+    );
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
 
     // Validation
     if (password !== passwordConfirm) {
@@ -23,8 +35,8 @@ export default function ResetPassword() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (!isStrongPassword(password)) {
+      setError("Password must be 8+ chars and include uppercase, lowercase, number, and symbol");
       setLoading(false);
       return;
     }
@@ -36,8 +48,10 @@ export default function ResetPassword() {
         passwordConfirm,
       });
 
-      alert(response.message || "Password reset successful! You can now sign in.");
-      navigate("/signin");
+      setSuccess(response.message || "Password reset successful! Redirecting to sign in...");
+      setTimeout(() => {
+        navigate("/signin");
+      }, 1200);
       
     } catch (err) {
       const errorMessage = err.response?.data?.message || "Failed to reset password. The link may be expired.";
@@ -65,6 +79,12 @@ export default function ResetPassword() {
           </div>
         )}
 
+        {success && (
+          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+            {success}
+          </div>
+        )}
+
         <form className="space-y-6" onSubmit={handleSubmit}>
           
           {/* NEW PASSWORD */}
@@ -74,11 +94,11 @@ export default function ResetPassword() {
             </label>
             <input
               type="password"
-              placeholder="Enter new password (min 6 characters)"
+              placeholder="Enter new password (8+ chars, strong)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               className="
                 w-full px-4 py-3 rounded-xl
                 border border-black/20 bg-white text-gray-900 shadow-sm
@@ -100,7 +120,7 @@ export default function ResetPassword() {
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               className="
                 w-full px-4 py-3 rounded-xl
                 border border-black/20 bg-white text-gray-900 shadow-sm
