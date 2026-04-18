@@ -136,6 +136,9 @@ exports.verifyEmail = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        hasCompletedAssessment: user.hasCompletedAssessment,
+        assessmentLanguage: user.assessmentLanguage,
+        proficiencyLevel: user.proficiencyLevel,
       },
     });
   } catch (error) {
@@ -191,6 +194,9 @@ exports.signin = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        hasCompletedAssessment: user.hasCompletedAssessment,
+        assessmentLanguage: user.assessmentLanguage,
+        proficiencyLevel: user.proficiencyLevel,
       },
     });
   } catch (error) {
@@ -299,6 +305,9 @@ exports.resetPassword = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        hasCompletedAssessment: user.hasCompletedAssessment,
+        assessmentLanguage: user.assessmentLanguage,
+        proficiencyLevel: user.proficiencyLevel,
       },
     });
   } catch (error) {
@@ -323,6 +332,10 @@ exports.getCurrentUser = async (req, res) => {
         name: user.name,
         email: user.email,
         isEmailVerified: user.isEmailVerified,
+        role: user.role,
+        hasCompletedAssessment: user.hasCompletedAssessment,
+        assessmentLanguage: user.assessmentLanguage,
+        proficiencyLevel: user.proficiencyLevel,
       },
     });
   } catch (error) {
