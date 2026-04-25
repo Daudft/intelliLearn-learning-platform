@@ -25,6 +25,20 @@ const learningTaskSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    hints: [
+      {
+        hint: {
+          type: String,
+          default: '',
+        },
+        difficulty: {
+          type: String,
+          enum: ['light', 'medium', 'heavy'],
+          default: 'light',
+        },
+        _id: false,
+      },
+    ],
     draftCode: {
       type: String,
       default: '',

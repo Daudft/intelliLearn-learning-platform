@@ -110,6 +110,9 @@ exports.submitAssessment = async (req, res) => {
     if (percentage > 70) proficiencyLevel = 'Advanced';
     else if (percentage > 40) proficiencyLevel = 'Intermediate';
 
+    // Convert topicBreakdown Map to plain object for MongoDB storage
+    const topicBreakdownObj = Object.fromEntries(topicBreakdown);
+
     // Create new attempt
     const userAssessment = await UserAssessment.create({
       userId,
@@ -120,7 +123,7 @@ exports.submitAssessment = async (req, res) => {
       totalQuestions,
       percentage,
       proficiencyLevel,
-      topicBreakdown,  // Stored as Map
+      topicBreakdown: topicBreakdownObj,  // Store as plain object
       timeTaken: timeTaken || null,
     });
 
@@ -132,7 +135,13 @@ exports.submitAssessment = async (req, res) => {
       lastAssessmentDate: new Date(),
     });
 
-    await ensurePathForLanguage(userId, language, proficiencyLevel);
+    // Generate personalized learning path based on assessment performance
+    try {
+      await ensurePathForLanguage(userId, language, proficiencyLevel, topicBreakdownObj, percentage);
+      console.log('✅ Learning path created successfully for user:', userId);
+    } catch (pathError) {
+      console.error('❌ Error creating learning path:', pathError);
+    }
 
     res.status(201).json({
       message: 'Assessment completed successfully',
@@ -206,10 +215,24 @@ exports.checkAssessmentStatus = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    // Get latest assessment for more detailed dashboard data
+    const latestAssessment = await UserAssessment.findOne({ userId })
+      .sort({ completedAt: -1 })
+      .select('score totalQuestions percentage proficiencyLevel language completedAt');
+
     res.status(200).json({
       hasCompletedAssessment: user.hasCompletedAssessment,
       assessmentLanguage: user.assessmentLanguage,
       proficiencyLevel: user.proficiencyLevel,
+      // Include latest assessment details for dashboard
+      latestAssessment: latestAssessment ? {
+        score: latestAssessment.score,
+        totalQuestions: latestAssessment.totalQuestions,
+        percentage: latestAssessment.percentage,
+        proficiencyLevel: latestAssessment.proficiencyLevel,
+        language: latestAssessment.language,
+        completedAt: latestAssessment.completedAt,
+      } : null,
     });
 
   } catch (error) {

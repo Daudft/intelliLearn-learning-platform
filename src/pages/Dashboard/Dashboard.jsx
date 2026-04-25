@@ -27,9 +27,9 @@ function getLangColor(l) {
 /* ─── StatusPill ─── */
 function StatusPill({ status }) {
   const map = {
-    completed: { bg:"rgba(52,211,153,0.18)", color:"#34d399", icon: <CheckCircle2 size={10} /> },
-    unlocked:  { bg:"rgba(163,230,53,0.18)", color:"#a3e635", icon: <Circle size={10} /> },
-    locked:    { bg:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.35)", icon: <Lock size={10} /> },
+    completed: { bg:"rgba(52,211,153,0.15)", color:"#059669", icon: <CheckCircle2 size={10} /> },
+    unlocked:  { bg:"rgba(163,230,53,0.15)", color:"#7c3aed", icon: <Circle size={10} /> },
+    locked:    { bg:"rgba(0,0,0,0.06)", color:"rgba(0,0,0,0.4)", icon: <Lock size={10} /> },
   };
   const { bg, color, icon } = map[status] || map.locked;
   return (
@@ -44,10 +44,10 @@ function StatusPill({ status }) {
 function Glass({ children, className = "", style = {} }) {
   return (
     <div className={className} style={{
-      background:"rgba(255,255,255,0.055)",
+      background:"rgba(255,255,255,0.7)",
       backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)",
-      boxShadow:"0 8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.10)",
-      borderRadius:20, padding:24, ...style,
+      boxShadow:"0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
+      borderRadius:20, padding:24, border:"1px solid rgba(163,230,53,0.1)", ...style,
     }}>
       {children}
     </div>
@@ -61,7 +61,7 @@ function Ring({ pct = 0, size = 52, stroke = 4, color = "#a3e635" }) {
   const dash = (pct / 100) * circ;
   return (
     <svg width={size} height={size} style={{ transform:"rotate(-90deg)" }}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={stroke} />
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color}
         strokeWidth={stroke} strokeLinecap="round"
         strokeDasharray={`${dash} ${circ - dash}`} />
@@ -100,11 +100,11 @@ export default function Dashboard() {
         const [sr, ar, pr] = await Promise.allSettled([
           assessmentService.checkStatus(uid),
           assessmentService.getAllAttempts(uid),
-          learningPathService.getLearningPath(uid),
+          learningPathService.waitForLearningPath(uid),  // Use wait function for AI generation
         ]);
         if (sr.status === "fulfilled") setStatus(sr.value || null);
         if (ar.status === "fulfilled") setAttempts(Array.isArray(ar.value?.attempts) ? ar.value.attempts : []);
-        if (pr.status === "fulfilled") setLearningPaths(Array.isArray(pr.value?.paths) ? pr.value.paths : []);
+        if (pr.status === "fulfilled") setLearningPaths(Array.isArray(pr.value?.learningPath?.paths) ? pr.value.learningPath.paths : []);
       } catch (e) {
         setError(e?.response?.data?.message || "Could not load dashboard.");
       } finally { setLoading(false); }
@@ -141,11 +141,7 @@ export default function Dashboard() {
 
   const logout = async () => { try { await authService.logout(); } finally { navigate("/signin", { replace: true }); } };
 
-  const pageBg = `
-    radial-gradient(ellipse 90% 65% at 15% 0%, #1b3320 0%, transparent 55%),
-    radial-gradient(ellipse 65% 55% at 88% 105%, #0e2118 0%, transparent 50%),
-    linear-gradient(160deg, #0b1a0c 0%, #0d1e0e 45%, #091208 100%)
-  `;
+  const pageBg = `#f5f5f4`;
 
   if (loading) return (
     <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background: pageBg }}>
@@ -153,7 +149,7 @@ export default function Dashboard() {
       <div style={{ textAlign:"center" }}>
         <div style={{ width:36, height:36, borderRadius:"50%", border:"2px solid rgba(163,230,53,0.5)",
           borderTopColor:"transparent", animation:"spin .8s linear infinite", margin:"0 auto" }} />
-        <p style={{ marginTop:16, color:"rgba(255,255,255,0.35)", fontSize:13, fontFamily:"system-ui" }}>Loading…</p>
+        <p style={{ marginTop:16, color:"rgba(0,0,0,0.4)", fontSize:13, fontFamily:"system-ui" }}>Loading…</p>
       </div>
     </div>
   );
@@ -161,10 +157,10 @@ export default function Dashboard() {
   if (error) return (
     <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", padding:24, background: pageBg }}>
       <div style={{ maxWidth:360, width:"100%", borderRadius:24, padding:36, textAlign:"center",
-        background:"rgba(255,255,255,0.06)", backdropFilter:"blur(24px)",
-        boxShadow:"0 12px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.09)" }}>
-        <p style={{ margin:0, color:"#fff", fontWeight:800, fontSize:18, fontFamily:"system-ui" }}>Something went wrong</p>
-        <p style={{ margin:"10px 0 0", color:"rgba(255,255,255,0.4)", fontSize:13, fontFamily:"system-ui" }}>{error}</p>
+        background:"rgba(255,255,255,0.8)", backdropFilter:"blur(24px)",
+        boxShadow:"0 12px 40px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.6)" }}>
+        <p style={{ margin:0, color:"#0a1a0a", fontWeight:800, fontSize:18, fontFamily:"system-ui" }}>Something went wrong</p>
+        <p style={{ margin:"10px 0 0", color:"rgba(0,0,0,0.5)", fontSize:13, fontFamily:"system-ui" }}>{error}</p>
         <button onClick={() => window.location.reload()} style={{ marginTop:24, padding:"11px 28px",
           borderRadius:12, background:"#a3e635", fontWeight:800, fontSize:13, color:"#0a1a0a", border:"none", cursor:"pointer" }}>
           Try again
@@ -181,23 +177,23 @@ export default function Dashboard() {
 
       {/* Ambient orbs */}
       <div style={{ position:"fixed", top:-140, left:180, width:520, height:520, borderRadius:"50%",
-        background:"radial-gradient(circle, rgba(163,230,53,0.10) 0%, transparent 68%)",
+        background:"radial-gradient(circle, rgba(163,230,53,0.05) 0%, transparent 68%)",
         pointerEvents:"none", zIndex:0 }} />
       <div style={{ position:"fixed", bottom:-100, right:60, width:440, height:440, borderRadius:"50%",
-        background:"radial-gradient(circle, rgba(52,211,153,0.07) 0%, transparent 68%)",
+        background:"radial-gradient(circle, rgba(52,211,153,0.03) 0%, transparent 68%)",
         pointerEvents:"none", zIndex:0 }} />
 
       <style>{`
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:4px}
         ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:rgba(163,230,53,0.25);border-radius:4px}
+        ::-webkit-scrollbar-thumb{background:rgba(163,230,53,0.4);border-radius:4px}
         .nav-item{transition:background .15s,color .15s}
-        .nav-item:hover{background:rgba(255,255,255,0.07)!important}
+        .nav-item:hover{background:rgba(163,230,53,0.1)!important}
         .stat-card{transition:transform .2s,box-shadow .2s}
-        .stat-card:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.13)!important}
+        .stat-card:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,0.1),inset 0 1px 0 rgba(255,255,255,0.5)!important}
         .task-row{transition:background .15s}
-        .task-row:hover{background:rgba(255,255,255,0.07)!important}
+        .task-row:hover{background:rgba(163,230,53,0.08)!important}
         .continue-btn{transition:transform .15s, box-shadow .15s}
         .continue-btn:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(163,230,53,0.35)!important}
         @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
@@ -210,9 +206,9 @@ export default function Dashboard() {
       <aside style={{
         position:"fixed", left:0, top:0, width:232, height:"100vh",
         display:"flex", flexDirection:"column", zIndex:20,
-        background:"rgba(255,255,255,0.035)",
+        background:"rgba(255,255,255,0.85)",
         backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)",
-        boxShadow:"1px 0 0 rgba(255,255,255,0.055), 12px 0 48px rgba(0,0,0,0.3)",
+        boxShadow:"1px 0 0 rgba(0,0,0,0.05), 12px 0 48px rgba(0,0,0,0.08)",
       }}>
         <div style={{ padding:"30px 24px 26px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -221,12 +217,12 @@ export default function Dashboard() {
               boxShadow:"0 4px 14px rgba(163,230,53,0.35)" }}>
               <BookOpen size={17} color="#0a1a0a" />
             </div>
-            <span style={{ color:"#fff", fontWeight:900, fontSize:17, letterSpacing:"-0.025em" }}>LearnPath</span>
+            <span style={{ color:"#0a1a0a", fontWeight:900, fontSize:17, letterSpacing:"-0.025em" }}>IntelliLearn</span>
           </div>
         </div>
 
         <nav style={{ flex:1, padding:"4px 12px", display:"flex", flexDirection:"column", gap:2 }}>
-          <p style={{ color:"rgba(255,255,255,0.22)", fontSize:10, fontWeight:700,
+          <p style={{ color:"rgba(0,0,0,0.4)", fontSize:10, fontWeight:700,
             letterSpacing:"0.18em", textTransform:"uppercase", padding:"0 12px", margin:"0 0 10px" }}>Menu</p>
           {NAV.map(({ id, label, Icon }) => {
             const active = activeView === id;
@@ -234,10 +230,10 @@ export default function Dashboard() {
               <button key={id} className="nav-item" onClick={() => setActiveView(id)} style={{
                 width:"100%", display:"flex", alignItems:"center", gap:11,
                 padding:"11px 14px", borderRadius:13, border:"none", cursor:"pointer", textAlign:"left",
-                background: active ? "rgba(163,230,53,0.13)" : "transparent",
-                color: active ? "#a3e635" : "rgba(255,255,255,0.5)",
+                background: active ? "rgba(163,230,53,0.2)" : "transparent",
+                color: active ? "#7c3aed" : "rgba(0,0,0,0.5)",
                 fontWeight: active ? 700 : 500, fontSize:14,
-                boxShadow: active ? "inset 0 0 0 1px rgba(163,230,53,0.22)" : "none",
+                boxShadow: active ? "inset 0 0 0 1px rgba(163,230,53,0.3)" : "none",
               }}>
                 <Icon size={16} />
                 <span style={{ flex:1 }}>{label}</span>
@@ -255,11 +251,11 @@ export default function Dashboard() {
               {initial}
             </div>
             <div style={{ minWidth:0 }}>
-              <p style={{ margin:0, color:"#fff", fontWeight:700, fontSize:13,
+              <p style={{ margin:0, color:"#0a1a0a", fontWeight:700, fontSize:13,
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                 {user?.name || "Learner"}
               </p>
-              <p style={{ margin:0, color:"rgba(255,255,255,0.28)", fontSize:11,
+              <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11,
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                 {user?.email || ""}
               </p>
@@ -268,7 +264,7 @@ export default function Dashboard() {
           <button className="nav-item" onClick={logout} style={{
             width:"100%", display:"flex", alignItems:"center", gap:11,
             padding:"11px 14px", borderRadius:13, border:"none", cursor:"pointer",
-            background:"transparent", color:"rgba(255,255,255,0.3)", fontWeight:500, fontSize:14,
+            background:"transparent", color:"rgba(0,0,0,0.4)", fontWeight:500, fontSize:14,
           }}>
             <LogOut size={15} /> Sign out
           </button>
@@ -291,7 +287,7 @@ export default function Dashboard() {
                 <Glass style={{ display:"flex", flexDirection:"column", alignItems:"center",
                   justifyContent:"center", padding:"28px 24px", textAlign:"center" }}>
                   {/* Avatar circle */}
-                  <div style={{ position:"relative", marginBottom:14 }}>
+                  <div style={{ marginBottom:14 }}>
                     <div style={{ width:72, height:72, borderRadius:"50%",
                       background:"linear-gradient(135deg, #a3e635 0%, #34d399 100%)",
                       display:"grid", placeItems:"center",
@@ -299,21 +295,18 @@ export default function Dashboard() {
                       boxShadow:"0 8px 28px rgba(163,230,53,0.35)" }}>
                       {initial}
                     </div>
-                    {/* Online dot */}
-                    <div style={{ position:"absolute", bottom:3, right:3, width:14, height:14,
-                      borderRadius:"50%", background:"#a3e635",
-                      boxShadow:"0 0 0 2.5px #0d1e0e" }} />
                   </div>
-                  <p style={{ margin:0, color:"#fff", fontWeight:800, fontSize:16, letterSpacing:"-0.01em" }}>
+                  <p style={{ margin:0, color:"#0a1a0a", fontWeight:800, fontSize:16, letterSpacing:"-0.01em" }}>
                     Hi, {user?.name?.split(" ")[0] || "Learner"}!
                   </p>
                   <div style={{ marginTop:8, padding:"3px 12px", borderRadius:99,
                     background:"rgba(163,230,53,0.15)", display:"inline-block" }}>
-                    <span style={{ color:"#a3e635", fontWeight:700, fontSize:11, textTransform:"uppercase",
+                    <span style={{ color:"#7c3aed", fontWeight:700, fontSize:11, textTransform:"uppercase",
                       letterSpacing:"0.1em" }}>{s.level}</span>
                   </div>
-                  <p style={{ margin:"10px 0 0", color:"rgba(255,255,255,0.3)", fontSize:12 }}>
-                    {s.langEmoji} Learning {s.langLabel}
+                  <p style={{ margin:"12px 0 0", color:"rgba(0,0,0,0.55)", fontSize:13, minHeight:20,
+                    whiteSpace:"nowrap" }}>
+                    {s.langEmoji} {s.langLabel}
                   </p>
                 </Glass>
 
@@ -327,7 +320,7 @@ export default function Dashboard() {
                       <Flame size={22} color="#fb923c" />
                     </div>
                     <div>
-                      <p style={{ margin:0, color:"rgba(255,255,255,0.4)", fontSize:11, fontWeight:700,
+                      <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700,
                         textTransform:"uppercase", letterSpacing:"0.14em" }}>Current Streak</p>
                       <p style={{ margin:"3px 0 0", color:"#fb923c", fontWeight:900, fontSize:22,
                         letterSpacing:"-0.02em" }}>{s.streak} days</p>
@@ -335,26 +328,24 @@ export default function Dashboard() {
                   </div>
 
                   {/* Day bubbles */}
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:6 }}>
                     {DAYS.map((d, i) => {
                       const lit = i < s.streak;
                       const today = i === s.streak - 1;
                       return (
-                        <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
-                          <div style={{
-                            width:36, height:36, borderRadius:"50%",
-                            display:"grid", placeItems:"center",
-                            background: today ? "#fb923c"
-                              : lit ? "rgba(251,146,60,0.25)"
-                              : "rgba(255,255,255,0.06)",
-                            boxShadow: today ? "0 4px 16px rgba(251,146,60,0.4)" : "none",
-                            transition:"all .2s",
-                          }}>
-                            <Flame size={16}
-                              color={today ? "#fff" : lit ? "#fb923c" : "rgba(255,255,255,0.18)"}
-                            />
-                          </div>
-                          <span style={{ color:"rgba(255,255,255,0.3)", fontSize:10, fontWeight:600 }}>{d}</span>
+                        <div key={i} style={{
+                          width:28, height:28, borderRadius:"50%",
+                          display:"grid", placeItems:"center",
+                          background: today ? "#fb923c"
+                            : lit ? "rgba(251,146,60,0.25)"
+                            : "rgba(0,0,0,0.08)",
+                          boxShadow: today ? "0 4px 16px rgba(251,146,60,0.4)" : "none",
+                          transition:"all .2s",
+                          flexShrink: 0
+                        }}>
+                          <Flame size={14}
+                            color={today ? "#fff" : lit ? "#fb923c" : "rgba(0,0,0,0.2)"}
+                          />
                         </div>
                       );
                     })}
@@ -366,8 +357,8 @@ export default function Dashboard() {
               <Glass style={{ padding:0, overflow:"hidden" }}>
                 {/* Header strip */}
                 <div style={{ padding:"14px 24px 12px",
-                  borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-                  <p style={{ margin:0, color:"rgba(255,255,255,0.35)", fontSize:11, fontWeight:700,
+                  borderBottom:"1px solid rgba(0,0,0,0.06)" }}>
+                  <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700,
                     textTransform:"uppercase", letterSpacing:"0.18em" }}>My Learning</p>
                 </div>
 
@@ -387,24 +378,24 @@ export default function Dashboard() {
                   {/* Info */}
                   <div style={{ flex:1 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-                      <p style={{ margin:0, color:"#fff", fontWeight:800, fontSize:18,
+                      <p style={{ margin:0, color:"#0a1a0a", fontWeight:800, fontSize:18,
                         letterSpacing:"-0.02em" }}>{s.langLabel}</p>
                       <span style={{ padding:"2px 10px", borderRadius:99, fontSize:10, fontWeight:700,
-                        background:"rgba(163,230,53,0.15)", color:"#a3e635",
+                        background:"rgba(163,230,53,0.15)", color:"#7c3aed",
                         textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.level}</span>
                     </div>
-                    <p style={{ margin:"0 0 14px", color:"rgba(255,255,255,0.35)", fontSize:13 }}>
+                    <p style={{ margin:"0 0 14px", color:"rgba(0,0,0,0.5)", fontSize:13 }}>
                       {s.done} of {s.totalTasks} tasks completed
                     </p>
 
                     {/* Progress bar */}
-                    <div style={{ height:6, borderRadius:99, background:"rgba(255,255,255,0.07)",
+                    <div style={{ height:6, borderRadius:99, background:"rgba(0,0,0,0.08)",
                       overflow:"hidden", maxWidth:320 }}>
                       <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
                         background:`linear-gradient(90deg, ${s.langColor}, #34d399)`,
                         transition:"width 1s cubic-bezier(.4,0,.2,1)" }} />
                     </div>
-                    <p style={{ margin:"6px 0 0", color:"rgba(255,255,255,0.22)", fontSize:11 }}>
+                    <p style={{ margin:"6px 0 0", color:"rgba(0,0,0,0.4)", fontSize:11 }}>
                       {s.pct}% complete
                     </p>
                   </div>
@@ -416,7 +407,7 @@ export default function Dashboard() {
                       <div style={{ position:"absolute", inset:0 }}>
                         <Ring pct={s.pct} size={60} stroke={5} color={s.langColor} />
                       </div>
-                      <span style={{ color:"#fff", fontWeight:800, fontSize:13, position:"relative" }}>
+                      <span style={{ color:"#0a1a0a", fontWeight:800, fontSize:13, position:"relative" }}>
                         {s.pct}%
                       </span>
                     </div>
@@ -436,14 +427,14 @@ export default function Dashboard() {
                 {/* Current task hint */}
                 {s.daily && (
                   <div style={{ margin:"0 24px 20px", padding:"12px 16px", borderRadius:12,
-                    background:"rgba(255,255,255,0.04)",
+                    background:"rgba(0,0,0,0.04)",
                     display:"flex", alignItems:"center", gap:12 }}>
                     <div style={{ width:8, height:8, borderRadius:"50%", background:"#a3e635",
                       flexShrink:0, animation:"pulse 2s ease-in-out infinite" }} />
                     <div style={{ flex:1, minWidth:0 }}>
-                      <p style={{ margin:0, color:"rgba(255,255,255,0.35)", fontSize:10, fontWeight:700,
+                      <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:10, fontWeight:700,
                         textTransform:"uppercase", letterSpacing:"0.12em" }}>Up next</p>
-                      <p style={{ margin:"2px 0 0", color:"rgba(255,255,255,0.7)", fontSize:13, fontWeight:600,
+                      <p style={{ margin:"2px 0 0", color:"rgba(0,0,0,0.7)", fontSize:13, fontWeight:600,
                         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                         {s.daily.title}
                       </p>
@@ -462,16 +453,16 @@ export default function Dashboard() {
                 ].map(({ label, value, sub, accent, glow, Icon }) => (
                   <Glass key={label} className="stat-card" style={{ padding:22 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-                      <p style={{ margin:0, color:"rgba(255,255,255,0.35)", fontSize:11, fontWeight:700,
+                      <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700,
                         textTransform:"uppercase", letterSpacing:"0.14em" }}>{label}</p>
                       <div style={{ width:33, height:33, borderRadius:10, background: glow,
                         display:"grid", placeItems:"center" }}>
                         <Icon size={15} color={accent} />
                       </div>
                     </div>
-                    <p style={{ margin:0, color:"#fff", fontSize:36, fontWeight:900,
+                    <p style={{ margin:0, color:"#0a1a0a", fontSize:36, fontWeight:900,
                       letterSpacing:"-0.03em", lineHeight:1 }}>{value}</p>
-                    <p style={{ margin:"8px 0 0", color:"rgba(255,255,255,0.28)", fontSize:12 }}>{sub}</p>
+                    <p style={{ margin:"8px 0 0", color:"rgba(0,0,0,0.4)", fontSize:12 }}>{sub}</p>
                   </Glass>
                 ))}
               </div>
@@ -482,8 +473,8 @@ export default function Dashboard() {
           {activeView === "progress" && (
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
               <div style={{ marginBottom:4 }}>
-                <h2 style={{ margin:0, color:"#fff", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Progress</h2>
-                <p style={{ margin:"6px 0 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>Your learning journey at a glance.</p>
+                <h2 style={{ margin:0, color:"#0a1a0a", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Progress</h2>
+                <p style={{ margin:"6px 0 0", color:"rgba(0,0,0,0.5)", fontSize:14 }}>Your learning journey at a glance.</p>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
                 {[
@@ -496,22 +487,22 @@ export default function Dashboard() {
                       display:"grid", placeItems:"center", margin:"0 auto 18px" }}>
                       <Icon size={21} color={accent} />
                     </div>
-                    <p style={{ margin:0, color:"#fff", fontSize:38, fontWeight:900, letterSpacing:"-0.03em" }}>{value}</p>
-                    <p style={{ margin:"7px 0 0", color:"rgba(255,255,255,0.32)", fontSize:11, fontWeight:700,
+                    <p style={{ margin:0, color:"#0a1a0a", fontSize:38, fontWeight:900, letterSpacing:"-0.03em" }}>{value}</p>
+                    <p style={{ margin:"7px 0 0", color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700,
                       textTransform:"uppercase", letterSpacing:"0.14em" }}>{label}</p>
                   </Glass>
                 ))}
               </div>
               <Glass>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-                  <p style={{ margin:0, color:"#fff", fontWeight:700, fontSize:15 }}>Overall Completion</p>
-                  <p style={{ margin:0, color:"#a3e635", fontWeight:900, fontSize:15 }}>{s.pct}%</p>
+                  <p style={{ margin:0, color:"#0a1a0a", fontWeight:700, fontSize:15 }}>Overall Completion</p>
+                  <p style={{ margin:0, color:"#7c3aed", fontWeight:900, fontSize:15 }}>{s.pct}%</p>
                 </div>
-                <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.07)", overflow:"hidden" }}>
+                <div style={{ height:8, borderRadius:99, background:"rgba(0,0,0,0.08)", overflow:"hidden" }}>
                   <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
                     background:"linear-gradient(90deg, #a3e635, #34d399)" }} />
                 </div>
-                <p style={{ margin:"10px 0 0", color:"rgba(255,255,255,0.28)", fontSize:13 }}>
+                <p style={{ margin:"10px 0 0", color:"rgba(0,0,0,0.4)", fontSize:13 }}>
                   {s.done} of {s.totalTasks} tasks completed
                 </p>
               </Glass>
@@ -522,30 +513,30 @@ export default function Dashboard() {
           {activeView === "assessment" && (
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
               <div style={{ marginBottom:4 }}>
-                <h2 style={{ margin:0, color:"#fff", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Assessment</h2>
-                <p style={{ margin:"6px 0 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>Test your skills and refine your level.</p>
+                <h2 style={{ margin:0, color:"#0a1a0a", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Assessment</h2>
+                <p style={{ margin:"6px 0 0", color:"rgba(0,0,0,0.5)", fontSize:14 }}>Test your skills and refine your level.</p>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
                 <Glass className="stat-card">
-                  <p style={{ margin:"0 0 12px", color:"rgba(255,255,255,0.28)", fontSize:10, fontWeight:700,
+                  <p style={{ margin:"0 0 12px", color:"rgba(0,0,0,0.4)", fontSize:10, fontWeight:700,
                     textTransform:"uppercase", letterSpacing:"0.16em" }}>Current Level</p>
-                  <p style={{ margin:0, color:"#a3e635", fontSize:30, fontWeight:900, letterSpacing:"-0.03em" }}>{s.level}</p>
-                  <p style={{ margin:"8px 0 0", color:"rgba(255,255,255,0.38)", fontSize:13 }}>
-                    Language: <span style={{ color:"#fff", fontWeight:600 }}>{s.displayLang}</span>
+                  <p style={{ margin:0, color:"#7c3aed", fontSize:30, fontWeight:900, letterSpacing:"-0.03em" }}>{s.level}</p>
+                  <p style={{ margin:"8px 0 0", color:"rgba(0,0,0,0.5)", fontSize:13 }}>
+                    Language: <span style={{ color:"#0a1a0a", fontWeight:600 }}>{s.displayLang}</span>
                   </p>
                 </Glass>
                 <Glass className="stat-card">
-                  <p style={{ margin:"0 0 12px", color:"rgba(255,255,255,0.28)", fontSize:10, fontWeight:700,
+                  <p style={{ margin:"0 0 12px", color:"rgba(0,0,0,0.4)", fontSize:10, fontWeight:700,
                     textTransform:"uppercase", letterSpacing:"0.16em" }}>Last Score</p>
-                  <p style={{ margin:0, color:"#fff", fontSize:30, fontWeight:900, letterSpacing:"-0.03em" }}>{s.score}</p>
-                  <p style={{ margin:"8px 0 0", color:"rgba(255,255,255,0.38)", fontSize:13 }}>
+                  <p style={{ margin:0, color:"#0a1a0a", fontSize:30, fontWeight:900, letterSpacing:"-0.03em" }}>{s.score}</p>
+                  <p style={{ margin:"8px 0 0", color:"rgba(0,0,0,0.5)", fontSize:13 }}>
                     {s.quizzes} retake{s.quizzes !== 1 ? "s" : ""} taken
                   </p>
                 </Glass>
               </div>
               <Glass>
-                <h3 style={{ margin:"0 0 8px", color:"#fff", fontWeight:800, fontSize:17 }}>Ready to improve?</h3>
-                <p style={{ margin:0, color:"rgba(255,255,255,0.4)", fontSize:14, lineHeight:1.65 }}>
+                <h3 style={{ margin:"0 0 8px", color:"#0a1a0a", fontWeight:800, fontSize:17 }}>Ready to improve?</h3>
+                <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:14, lineHeight:1.65 }}>
                   Retake the assessment to update your proficiency score and unlock higher-level tasks.
                 </p>
                 <button onClick={() => navigate("/assessment")} style={{
@@ -565,14 +556,14 @@ export default function Dashboard() {
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
               <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:4 }}>
                 <div>
-                  <h2 style={{ margin:0, color:"#fff", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Learning Path</h2>
-                  <p style={{ margin:"6px 0 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>
+                  <h2 style={{ margin:0, color:"#0a1a0a", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Learning Path</h2>
+                  <p style={{ margin:"6px 0 0", color:"rgba(0,0,0,0.5)", fontSize:14 }}>
                     {s.langLabel} · {s.done}/{s.totalTasks} tasks complete
                   </p>
                 </div>
                 <button onClick={() => navigate("/learning-path")} style={{
                   padding:"10px 20px", borderRadius:12, border:"none", cursor:"pointer",
-                  background:"rgba(163,230,53,0.12)", color:"#a3e635", fontWeight:700, fontSize:13,
+                  background:"rgba(163,230,53,0.15)", color:"#7c3aed", fontWeight:700, fontSize:13,
                   display:"inline-flex", alignItems:"center", gap:8,
                   boxShadow:"inset 0 0 0 1px rgba(163,230,53,0.2)",
                 }}>
@@ -580,16 +571,16 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              <div style={{ height:6, borderRadius:99, background:"rgba(255,255,255,0.07)", overflow:"hidden" }}>
+              <div style={{ height:6, borderRadius:99, background:"rgba(0,0,0,0.08)", overflow:"hidden" }}>
                 <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
                   background:"linear-gradient(90deg, #a3e635, #34d399)" }} />
               </div>
 
               {!learningPaths.length ? (
                 <Glass style={{ textAlign:"center", padding:52 }}>
-                  <Layers size={30} color="rgba(255,255,255,0.12)" style={{ margin:"0 auto 14px" }} />
-                  <p style={{ margin:0, color:"rgba(255,255,255,0.45)", fontWeight:600, fontSize:15 }}>No learning path yet</p>
-                  <p style={{ margin:"7px 0 0", color:"rgba(255,255,255,0.22)", fontSize:13 }}>Complete an assessment first.</p>
+                  <Layers size={30} color="rgba(0,0,0,0.2)" style={{ margin:"0 auto 14px" }} />
+                  <p style={{ margin:0, color:"rgba(0,0,0,0.6)", fontWeight:600, fontSize:15 }}>No learning path yet</p>
+                  <p style={{ margin:"7px 0 0", color:"rgba(0,0,0,0.4)", fontSize:13 }}>Complete an assessment first.</p>
                   <button onClick={() => setActiveView("assessment")} style={{
                     marginTop:22, padding:"11px 26px", borderRadius:12, border:"none",
                     background:"#a3e635", color:"#0a1a0a", fontWeight:800, fontSize:13, cursor:"pointer",
@@ -605,24 +596,24 @@ export default function Dashboard() {
                       borderRadius:14, padding:"15px 20px",
                       display:"flex", alignItems:"center", gap:16,
                       opacity: task.status === "locked" ? 0.42 : 1,
-                      background:"rgba(255,255,255,0.045)",
+                      background:"rgba(0,0,0,0.04)",
                       backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
-                      boxShadow:"inset 0 1px 0 rgba(255,255,255,0.07)",
+                      boxShadow:"inset 0 1px 0 rgba(0,0,0,0.05)",
                     }}>
                       <div style={{ width:36, height:36, borderRadius:"50%", flexShrink:0,
                         display:"grid", placeItems:"center", fontWeight:900, fontSize:13,
-                        background: task.status === "completed" ? "rgba(52,211,153,0.18)"
-                          : task.status === "unlocked" ? "rgba(163,230,53,0.18)"
-                          : "rgba(255,255,255,0.05)",
-                        color: task.status === "completed" ? "#34d399"
-                          : task.status === "unlocked" ? "#a3e635"
-                          : "rgba(255,255,255,0.22)" }}>
+                        background: task.status === "completed" ? "rgba(52,211,153,0.15)"
+                          : task.status === "unlocked" ? "rgba(163,230,53,0.15)"
+                          : "rgba(0,0,0,0.08)",
+                        color: task.status === "completed" ? "#059669"
+                          : task.status === "unlocked" ? "#7c3aed"
+                          : "rgba(0,0,0,0.3)" }}>
                         {task.status === "completed" ? <CheckCircle2 size={16} /> : i + 1}
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <p style={{ margin:0, color:"#fff", fontWeight:700, fontSize:14,
+                        <p style={{ margin:0, color:"#0a1a0a", fontWeight:700, fontSize:14,
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{task.title}</p>
-                        <p style={{ margin:"3px 0 0", color:"rgba(255,255,255,0.32)", fontSize:12,
+                        <p style={{ margin:"3px 0 0", color:"rgba(0,0,0,0.45)", fontSize:12,
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{task.description}</p>
                       </div>
                       <StatusPill status={task.status} />
