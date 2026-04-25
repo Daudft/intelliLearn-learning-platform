@@ -1,933 +1,640 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  BarChart3,
-  BookOpen,
-  CheckCircle2,
-  ChartNoAxesColumn,
-  ClipboardList,
-  Code2,
-  Flame,
-  Layers,
-  Lock,
-  LogOut,
-  Plus,
-  Play,
-  Search,
-  Sparkles,
-  Trophy,
-  X,
+  ArrowRight, ClipboardList, Flame, Layers,
+  LayoutDashboard, LogOut, Target, TrendingUp,
+  BookOpen, CheckCircle2, Lock, Circle, ChevronRight, Play,
 } from "lucide-react";
 import assessmentService from "../../services/assessmentService";
 import authService from "../../services/authService";
 import learningPathService from "../../services/learningPathService";
 
+/* ─── helpers ─── */
 function getStoredUser() {
-  try {
-    const raw = localStorage.getItem("user");
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  try { const r = localStorage.getItem("user"); return r ? JSON.parse(r) : null; }
+  catch { return null; }
+}
+function getLanguageLabel(l) {
+  return ({ python: "Python", java: "Java", c: "C Language" })[l] || l;
+}
+function getLangEmoji(l) {
+  return ({ python: "🐍", java: "☕", c: "⚙️" })[l?.toLowerCase()] || "💻";
+}
+function getLangColor(l) {
+  return ({ python: "#3b82f6", java: "#f59e0b", c: "#8b5cf6" })[l?.toLowerCase()] || "#a3e635";
 }
 
-function getLanguageLabel(language) {
-  const labels = {
-    python: "Python",
-    java: "Java",
-    c: "C Language",
+/* ─── StatusPill ─── */
+function StatusPill({ status }) {
+  const map = {
+    completed: { bg:"rgba(52,211,153,0.18)", color:"#34d399", icon: <CheckCircle2 size={10} /> },
+    unlocked:  { bg:"rgba(163,230,53,0.18)", color:"#a3e635", icon: <Circle size={10} /> },
+    locked:    { bg:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.35)", icon: <Lock size={10} /> },
   };
-
-  return labels[language] || language;
+  const { bg, color, icon } = map[status] || map.locked;
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"3px 10px",
+      borderRadius:99, fontSize:11, fontWeight:700, background: bg, color }}>
+      {icon} {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
 }
 
+/* ─── Glass card ─── */
+function Glass({ children, className = "", style = {} }) {
+  return (
+    <div className={className} style={{
+      background:"rgba(255,255,255,0.055)",
+      backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)",
+      boxShadow:"0 8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.10)",
+      borderRadius:20, padding:24, ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+/* ─── Circular progress ring ─── */
+function Ring({ pct = 0, size = 52, stroke = 4, color = "#a3e635" }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  return (
+    <svg width={size} height={size} style={{ transform:"rotate(-90deg)" }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color}
+        strokeWidth={stroke} strokeLinecap="round"
+        strokeDasharray={`${dash} ${circ - dash}`} />
+    </svg>
+  );
+}
+
+const NAV = [
+  { id:"dashboard",    label:"Dashboard",    Icon: LayoutDashboard },
+  { id:"progress",     label:"Progress",     Icon: Target },
+  { id:"assessment",   label:"Assessment",   Icon: ClipboardList },
+  { id:"learningPath", label:"Learning Path", Icon: Layers },
+];
+
+const DAYS = ["M","T","W","T","F","S","S"];
+
+/* ════════════════════════════════════════════════════════ */
 export default function Dashboard() {
   const navigate = useNavigate();
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("dashboard");
-
-  const [status, setStatus] = useState(null);
-  const [attempts, setAttempts] = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState("");
+  const [activeView, setActiveView]       = useState("dashboard");
+  const [user, setUser]                   = useState(null);
+  const [status, setStatus]               = useState(null);
+  const [attempts, setAttempts]           = useState([]);
   const [learningPaths, setLearningPaths] = useState([]);
-  const [selectedPathLanguage, setSelectedPathLanguage] = useState("");
-  const [taskActionLoading, setTaskActionLoading] = useState(false);
-  const [taskGuide, setTaskGuide] = useState(null);
-  const [taskGuideError, setTaskGuideError] = useState("");
-  const [activeTask, setActiveTask] = useState(null);
-  const [taskEditorCode, setTaskEditorCode] = useState("");
-  const [aiFeedbackLoading, setAiFeedbackLoading] = useState(false);
-  const [aiFeedback, setAiFeedback] = useState(null);
-  const [draftSaveState, setDraftSaveState] = useState("idle");
-  const draftTimerRef = useRef(null);
-
-  const courseCards = useMemo(
-    () => [
-      {
-        title: "Python",
-        description: "Learn Python programming from basics to advanced.",
-        level: "Beginner Friendly",
-        topics: ["Syntax", "OOP", "Data Science", "Web Dev"],
-      },
-      {
-        title: "Java",
-        description: "Master OOP and enterprise-level development.",
-        level: "Intermediate",
-        topics: ["Classes", "Threads", "Spring", "Microservices"],
-      },
-      {
-        title: "C Language",
-        description: "Understand memory, pointers, and low-level programming.",
-        level: "Core Foundations",
-        topics: ["Pointers", "Memory", "Algorithms", "Systems"],
-      },
-    ],
-    []
-  );
-
-  const navItems = [
-    { id: "dashboard", label: "Dashboard", Icon: BarChart3 },
-    { id: "learningPath", label: "Learning Path", Icon: Layers },
-    { id: "assessments", label: "Assessments", Icon: ClipboardList },
-    { id: "progress", label: "Progress", Icon: ChartNoAxesColumn },
-    { id: "achievements", label: "Achievements", Icon: Trophy },
-  ];
 
   useEffect(() => {
-    const bootstrap = async () => {
-      const currentUser = getStoredUser();
-      if (!currentUser) {
-        navigate("/signin", { replace: true });
-        return;
-      }
-
-      setUser(currentUser);
-      const userId = currentUser.id || currentUser._id;
-
-      if (!userId) {
-        navigate("/signin", { replace: true });
-        return;
-      }
-
+    const boot = async () => {
+      const cu = getStoredUser();
+      if (!cu) { navigate("/signin", { replace: true }); return; }
+      const uid = cu.id || cu._id;
+      if (!uid) { navigate("/signin", { replace: true }); return; }
+      setUser(cu);
       try {
-        const [statusResponse, attemptsResponse, pathResponse] = await Promise.allSettled([
-          assessmentService.checkStatus(userId),
-          assessmentService.getAllAttempts(userId),
-          learningPathService.getLearningPath(userId),
+        const [sr, ar, pr] = await Promise.allSettled([
+          assessmentService.checkStatus(uid),
+          assessmentService.getAllAttempts(uid),
+          learningPathService.getLearningPath(uid),
         ]);
-
-        if (statusResponse.status === "fulfilled") {
-          const statusData = statusResponse.value || null;
-          setStatus(statusData);
-
-          if (!statusData?.hasCompletedAssessment) {
-            navigate("/assessment", { replace: true });
-            return;
-          }
-        }
-
-        if (attemptsResponse.status === "fulfilled") {
-          setAttempts(
-            Array.isArray(attemptsResponse.value?.attempts)
-              ? attemptsResponse.value.attempts
-              : []
-          );
-        }
-
-        if (pathResponse.status === "fulfilled") {
-          const paths = Array.isArray(pathResponse.value?.paths) ? pathResponse.value.paths : [];
-          setLearningPaths(paths);
-          if (paths[0]?.language) {
-            setSelectedPathLanguage(paths[0].language);
-          }
-        }
-      } catch (err) {
-        const message =
-          err?.response?.data?.message ||
-          "Could not load dashboard right now. Please try again.";
-        setError(message);
-      } finally {
-        setLoading(false);
-      }
+        if (sr.status === "fulfilled") setStatus(sr.value || null);
+        if (ar.status === "fulfilled") setAttempts(Array.isArray(ar.value?.attempts) ? ar.value.attempts : []);
+        if (pr.status === "fulfilled") setLearningPaths(Array.isArray(pr.value?.paths) ? pr.value.paths : []);
+      } catch (e) {
+        setError(e?.response?.data?.message || "Could not load dashboard.");
+      } finally { setLoading(false); }
     };
-
-    bootstrap();
+    boot();
   }, [navigate]);
 
-  const attemptsAfterInitial = useMemo(
-    () => attempts.filter((item) => Number(item?.attemptNumber || 0) > 1),
-    [attempts]
+  const later = useMemo(() => attempts.filter(a => Number(a?.attemptNumber || 0) > 1), [attempts]);
+
+  const s = useMemo(() => {
+    const latest    = later[0] || null;
+    const path      = learningPaths[0] || null;
+    const tasks     = path?.tasks || [];
+    const done      = tasks.filter(t => t.status === "completed").length;
+    const unlocked  = tasks.filter(t => t.status !== "locked").length;
+    const daily     = tasks.find(t => t.status === "unlocked") || tasks[0] || null;
+    const streak    = Math.max(1, Math.min(7, later.length + done + 1));
+    const langKey   = (path?.language || status?.assessmentLanguage || "python").toLowerCase();
+    return {
+      streak, streakPct: Math.min(100, Math.round((streak / 7) * 100)),
+      lang:       langKey,
+      langLabel:  getLanguageLabel(langKey),
+      langEmoji:  getLangEmoji(langKey),
+      langColor:  getLangColor(langKey),
+      displayLang:(latest?.language || status?.assessmentLanguage || "-").toString().toUpperCase(),
+      level:      latest?.proficiencyLevel || status?.proficiencyLevel || "Beginner",
+      quizzes:    later.length,
+      score:      latest ? `${latest.score}/${latest.totalQuestions}` : "—",
+      totalTasks: tasks.length, done, unlocked, daily,
+      pct:        tasks.length ? Math.round((done / tasks.length) * 100) : 0,
+      tasks,
+    };
+  }, [later, status, learningPaths]);
+
+  const logout = async () => { try { await authService.logout(); } finally { navigate("/signin", { replace: true }); } };
+
+  const pageBg = `
+    radial-gradient(ellipse 90% 65% at 15% 0%, #1b3320 0%, transparent 55%),
+    radial-gradient(ellipse 65% 55% at 88% 105%, #0e2118 0%, transparent 50%),
+    linear-gradient(160deg, #0b1a0c 0%, #0d1e0e 45%, #091208 100%)
+  `;
+
+  if (loading) return (
+    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background: pageBg }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ width:36, height:36, borderRadius:"50%", border:"2px solid rgba(163,230,53,0.5)",
+          borderTopColor:"transparent", animation:"spin .8s linear infinite", margin:"0 auto" }} />
+        <p style={{ marginTop:16, color:"rgba(255,255,255,0.35)", fontSize:13, fontFamily:"system-ui" }}>Loading…</p>
+      </div>
+    </div>
   );
 
-  const hasOnlyInitialAttempt = attempts.length === 1;
-  const displayAttempts = useMemo(() => attemptsAfterInitial.slice(0, 6), [attemptsAfterInitial]);
-
-  const selectedPath = useMemo(() => {
-    if (!learningPaths.length) return null;
-    return (
-      learningPaths.find((path) => path.language === selectedPathLanguage) || learningPaths[0]
-    );
-  }, [learningPaths, selectedPathLanguage]);
-
-  const availableLanguagesToAdd = useMemo(() => {
-    const allLanguages = ["python", "java", "c"];
-    const added = new Set(learningPaths.map((path) => path.language));
-    return allLanguages.filter((language) => !added.has(language));
-  }, [learningPaths]);
-
-  const userId = user?.id || user?._id;
-
-  const stats = useMemo(() => {
-    const source = attemptsAfterInitial.length ? attemptsAfterInitial : [];
-
-    const bestPercentage = source.reduce((max, item) => {
-      const p = Number(item?.percentage || 0);
-      return p > max ? p : max;
-    }, 0);
-
-    const averagePercentage =
-      source.length > 0
-        ? Math.round(
-            source.reduce((sum, item) => sum + Number(item?.percentage || 0), 0) /
-              source.length
-          )
-        : 0;
-
-    const latest = attemptsAfterInitial[0] || null;
-
-    return {
-      totalAttempts: attemptsAfterInitial.length,
-      latestScore: latest?.score ?? 0,
-      latestTotal: latest?.totalQuestions ?? 0,
-      latestPercentage: Math.round(Number(latest?.percentage || 0)),
-      bestPercentage: Math.round(bestPercentage),
-      averagePercentage,
-      latestLanguage:
-        (latest?.language || status?.assessmentLanguage || "-").toString().toUpperCase(),
-      proficiency:
-        latest?.proficiencyLevel || status?.proficiencyLevel || "Not Available",
-    };
-  }, [attemptsAfterInitial, status]);
-
-  const currentStreak = 5;
-
-  const activityCells = useMemo(() => {
-    const palette = ["bg-slate-100", "bg-indigo-100", "bg-indigo-200", "bg-indigo-300"];
-    return Array.from({ length: 56 }, (_, index) => palette[index % palette.length]);
-  }, []);
-
-  const topicRows = useMemo(() => {
-    const source = attemptsAfterInitial[0]?.topicBreakdown;
-    if (!source) return [];
-
-    return Object.entries(source).map(([topic, data]) => ({
-      topic,
-      correct: data.correct,
-      total: data.total,
-      percentage: Math.round((Number(data.correct) / Number(data.total || 1)) * 100),
-    }));
-  }, [attemptsAfterInitial]);
-
-  const handleLogout = async () => {
-    try {
-      await authService.logout();
-    } finally {
-      navigate("/signin", { replace: true });
-    }
-  };
-
-  const handleAddLanguagePath = async (language) => {
-    if (!userId) return;
-    setTaskActionLoading(true);
-    setTaskGuideError("");
-
-    try {
-      await learningPathService.addLanguagePath(userId, language);
-      const refreshed = await learningPathService.getLearningPath(userId);
-      const paths = Array.isArray(refreshed?.paths) ? refreshed.paths : [];
-      setLearningPaths(paths);
-      setSelectedPathLanguage(language);
-    } catch (err) {
-      setTaskGuideError(err?.response?.data?.message || "Could not add language path.");
-    } finally {
-      setTaskActionLoading(false);
-    }
-  };
-
-  const openTaskWorkspace = (task, language) => {
-    setActiveTask({ ...task, language });
-    setTaskEditorCode("");
-    setAiFeedback(null);
-    setDraftSaveState("idle");
-  };
-
-  const closeTaskWorkspace = () => {
-    setActiveTask(null);
-    setTaskEditorCode("");
-    setAiFeedback(null);
-    setDraftSaveState("idle");
-    if (draftTimerRef.current) {
-      clearTimeout(draftTimerRef.current);
-    }
-  };
-
-  const handleGetTaskGuide = async (taskId, language) => {
-    if (!userId) return;
-    setTaskGuideError("");
-    try {
-      const response = await assessmentService.getTaskGuide?.(taskId, language, userId);
-      if (response) {
-        setTaskGuide(response);
-      }
-    } catch (err) {
-      setTaskGuideError(err?.response?.data?.message || "Could not load task guide.");
-    }
-  };
-
-  const handleGetAiFeedback = async () => {
-    if (!activeTask || !taskEditorCode.trim()) return;
-    setAiFeedbackLoading(true);
-    try {
-      const response = await learningPathService.getAiFeedback?.({
-        code: taskEditorCode,
-        language: activeTask.language,
-        taskTitle: activeTask.title,
-      });
-      if (response) {
-        setAiFeedback(response);
-      }
-    } catch (err) {
-      setTaskGuideError(err?.response?.data?.message || "Could not get AI feedback.");
-    } finally {
-      setAiFeedbackLoading(false);
-    }
-  };
-
-  const handleCompleteFromWorkspace = async () => {
-    if (!activeTask || !taskEditorCode.trim()) return;
-    setTaskActionLoading(true);
-    try {
-      await learningPathService.completeTask?.({
-        userId,
-        taskId: activeTask.taskId,
-        code: taskEditorCode,
-      });
-      closeTaskWorkspace();
-    } catch (err) {
-      setTaskGuideError(err?.response?.data?.message || "Could not submit task.");
-    } finally {
-      setTaskActionLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F1F2F4] flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="relative inline-block" aria-hidden>
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200"></div>
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-[#E6FF03] absolute top-0 left-0"></div>
-          </div>
-          <p className="mt-4 text-gray-600 font-medium">Loading your dashboard...</p>
-        </div>
+  if (error) return (
+    <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", padding:24, background: pageBg }}>
+      <div style={{ maxWidth:360, width:"100%", borderRadius:24, padding:36, textAlign:"center",
+        background:"rgba(255,255,255,0.06)", backdropFilter:"blur(24px)",
+        boxShadow:"0 12px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.09)" }}>
+        <p style={{ margin:0, color:"#fff", fontWeight:800, fontSize:18, fontFamily:"system-ui" }}>Something went wrong</p>
+        <p style={{ margin:"10px 0 0", color:"rgba(255,255,255,0.4)", fontSize:13, fontFamily:"system-ui" }}>{error}</p>
+        <button onClick={() => window.location.reload()} style={{ marginTop:24, padding:"11px 28px",
+          borderRadius:12, background:"#a3e635", fontWeight:800, fontSize:13, color:"#0a1a0a", border:"none", cursor:"pointer" }}>
+          Try again
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#F1F2F4] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-lg w-full text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Dashboard unavailable</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <button
-              onClick={() => navigate("/assessment")}
-              className="w-full py-3 rounded-xl border-2 border-gray-300 font-semibold hover:bg-gray-50"
-            >
-              Take Assessment
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full py-3 rounded-xl bg-linear-to-r from-[#E6FF03] to-[#d7ee00] font-semibold text-gray-900"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const initial = (user?.name || "U").charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-[#F1F2F4] p-3 md:p-5">
-      <div className="mx-auto max-w-[1440px] rounded-[28px] border border-[#e8eaef] bg-[#f7f8fb] shadow-[0_20px_60px_rgba(15,23,42,0.08)] overflow-hidden">
-        <main className="bg-[#f8f9fc]">
-          <header className="h-auto border-b border-[#e7e9ef] bg-white/80 backdrop-blur px-4 md:px-7 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-md">
-              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search modules, topics, attempts..."
-                className="w-full h-11 rounded-xl border border-[#e6e8ee] bg-[#fbfcff] pl-11 pr-4 text-sm text-gray-700 placeholder:text-gray-400 outline-none focus:border-[#d7ee00]"
-              />
-            </div>
+    <div style={{ minHeight:"100vh", display:"flex", background: pageBg,
+      fontFamily:"'DM Sans', system-ui, sans-serif", position:"relative" }}>
 
-            <div className="flex items-center gap-3 flex-wrap justify-end">
-              <div className="h-11 min-w-[150px] rounded-xl bg-[#f6f7fb] border border-[#e6e8ee] px-4 flex items-center gap-2">
-                <Flame size={16} className="text-[#5acd00]" />
-                <span className="text-sm text-gray-600">Streak</span>
-                <span className="text-sm font-bold text-gray-900 ml-auto">{currentStreak} days</span>
+      {/* Ambient orbs */}
+      <div style={{ position:"fixed", top:-140, left:180, width:520, height:520, borderRadius:"50%",
+        background:"radial-gradient(circle, rgba(163,230,53,0.10) 0%, transparent 68%)",
+        pointerEvents:"none", zIndex:0 }} />
+      <div style={{ position:"fixed", bottom:-100, right:60, width:440, height:440, borderRadius:"50%",
+        background:"radial-gradient(circle, rgba(52,211,153,0.07) 0%, transparent 68%)",
+        pointerEvents:"none", zIndex:0 }} />
+
+      <style>{`
+        *{box-sizing:border-box}
+        ::-webkit-scrollbar{width:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:rgba(163,230,53,0.25);border-radius:4px}
+        .nav-item{transition:background .15s,color .15s}
+        .nav-item:hover{background:rgba(255,255,255,0.07)!important}
+        .stat-card{transition:transform .2s,box-shadow .2s}
+        .stat-card:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.13)!important}
+        .task-row{transition:background .15s}
+        .task-row:hover{background:rgba(255,255,255,0.07)!important}
+        .continue-btn{transition:transform .15s, box-shadow .15s}
+        .continue-btn:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(163,230,53,0.35)!important}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+        .fade-up{animation:fadeUp .38s ease both}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+      `}</style>
+
+      {/* ══ SIDEBAR ══ */}
+      <aside style={{
+        position:"fixed", left:0, top:0, width:232, height:"100vh",
+        display:"flex", flexDirection:"column", zIndex:20,
+        background:"rgba(255,255,255,0.035)",
+        backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)",
+        boxShadow:"1px 0 0 rgba(255,255,255,0.055), 12px 0 48px rgba(0,0,0,0.3)",
+      }}>
+        <div style={{ padding:"30px 24px 26px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ width:36, height:36, borderRadius:11, background:"#a3e635",
+              display:"grid", placeItems:"center", flexShrink:0,
+              boxShadow:"0 4px 14px rgba(163,230,53,0.35)" }}>
+              <BookOpen size={17} color="#0a1a0a" />
+            </div>
+            <span style={{ color:"#fff", fontWeight:900, fontSize:17, letterSpacing:"-0.025em" }}>LearnPath</span>
+          </div>
+        </div>
+
+        <nav style={{ flex:1, padding:"4px 12px", display:"flex", flexDirection:"column", gap:2 }}>
+          <p style={{ color:"rgba(255,255,255,0.22)", fontSize:10, fontWeight:700,
+            letterSpacing:"0.18em", textTransform:"uppercase", padding:"0 12px", margin:"0 0 10px" }}>Menu</p>
+          {NAV.map(({ id, label, Icon }) => {
+            const active = activeView === id;
+            return (
+              <button key={id} className="nav-item" onClick={() => setActiveView(id)} style={{
+                width:"100%", display:"flex", alignItems:"center", gap:11,
+                padding:"11px 14px", borderRadius:13, border:"none", cursor:"pointer", textAlign:"left",
+                background: active ? "rgba(163,230,53,0.13)" : "transparent",
+                color: active ? "#a3e635" : "rgba(255,255,255,0.5)",
+                fontWeight: active ? 700 : 500, fontSize:14,
+                boxShadow: active ? "inset 0 0 0 1px rgba(163,230,53,0.22)" : "none",
+              }}>
+                <Icon size={16} />
+                <span style={{ flex:1 }}>{label}</span>
+                {active && <ChevronRight size={13} />}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div style={{ padding:"16px 12px 24px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:11, padding:"10px 14px", marginBottom:4 }}>
+            <div style={{ width:36, height:36, borderRadius:"50%", background:"#a3e635",
+              display:"grid", placeItems:"center", fontWeight:900, fontSize:14,
+              color:"#0a1a0a", flexShrink:0, boxShadow:"0 4px 12px rgba(163,230,53,0.3)" }}>
+              {initial}
+            </div>
+            <div style={{ minWidth:0 }}>
+              <p style={{ margin:0, color:"#fff", fontWeight:700, fontSize:13,
+                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {user?.name || "Learner"}
+              </p>
+              <p style={{ margin:0, color:"rgba(255,255,255,0.28)", fontSize:11,
+                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {user?.email || ""}
+              </p>
+            </div>
+          </div>
+          <button className="nav-item" onClick={logout} style={{
+            width:"100%", display:"flex", alignItems:"center", gap:11,
+            padding:"11px 14px", borderRadius:13, border:"none", cursor:"pointer",
+            background:"transparent", color:"rgba(255,255,255,0.3)", fontWeight:500, fontSize:14,
+          }}>
+            <LogOut size={15} /> Sign out
+          </button>
+        </div>
+      </aside>
+
+      {/* ══ MAIN ══ */}
+      <main style={{ marginLeft:232, flex:1, minHeight:"100vh",
+        padding:"44px 52px", position:"relative", zIndex:1 }}>
+        <div style={{ maxWidth:880, margin:"0 auto" }}>
+
+          {/* ── DASHBOARD ── */}
+          {activeView === "dashboard" && (
+            <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
+
+              {/* ══ HERO: Profile card + Streak card side by side ══ */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1.6fr", gap:16 }}>
+
+                {/* Profile Card */}
+                <Glass style={{ display:"flex", flexDirection:"column", alignItems:"center",
+                  justifyContent:"center", padding:"28px 24px", textAlign:"center" }}>
+                  {/* Avatar circle */}
+                  <div style={{ position:"relative", marginBottom:14 }}>
+                    <div style={{ width:72, height:72, borderRadius:"50%",
+                      background:"linear-gradient(135deg, #a3e635 0%, #34d399 100%)",
+                      display:"grid", placeItems:"center",
+                      fontSize:30, fontWeight:900, color:"#0a1a0a",
+                      boxShadow:"0 8px 28px rgba(163,230,53,0.35)" }}>
+                      {initial}
+                    </div>
+                    {/* Online dot */}
+                    <div style={{ position:"absolute", bottom:3, right:3, width:14, height:14,
+                      borderRadius:"50%", background:"#a3e635",
+                      boxShadow:"0 0 0 2.5px #0d1e0e" }} />
+                  </div>
+                  <p style={{ margin:0, color:"#fff", fontWeight:800, fontSize:16, letterSpacing:"-0.01em" }}>
+                    Hi, {user?.name?.split(" ")[0] || "Learner"}!
+                  </p>
+                  <div style={{ marginTop:8, padding:"3px 12px", borderRadius:99,
+                    background:"rgba(163,230,53,0.15)", display:"inline-block" }}>
+                    <span style={{ color:"#a3e635", fontWeight:700, fontSize:11, textTransform:"uppercase",
+                      letterSpacing:"0.1em" }}>{s.level}</span>
+                  </div>
+                  <p style={{ margin:"10px 0 0", color:"rgba(255,255,255,0.3)", fontSize:12 }}>
+                    {s.langEmoji} Learning {s.langLabel}
+                  </p>
+                </Glass>
+
+                {/* Streak Card */}
+                <Glass style={{ padding:"26px 28px" }}>
+                  {/* Top row */}
+                  <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:22 }}>
+                    <div style={{ width:48, height:48, borderRadius:14, flexShrink:0,
+                      background:"rgba(251,146,60,0.15)", display:"grid", placeItems:"center",
+                      boxShadow:"0 0 24px rgba(251,146,60,0.18)" }}>
+                      <Flame size={22} color="#fb923c" />
+                    </div>
+                    <div>
+                      <p style={{ margin:0, color:"rgba(255,255,255,0.4)", fontSize:11, fontWeight:700,
+                        textTransform:"uppercase", letterSpacing:"0.14em" }}>Current Streak</p>
+                      <p style={{ margin:"3px 0 0", color:"#fb923c", fontWeight:900, fontSize:22,
+                        letterSpacing:"-0.02em" }}>{s.streak} days</p>
+                    </div>
+                  </div>
+
+                  {/* Day bubbles */}
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    {DAYS.map((d, i) => {
+                      const lit = i < s.streak;
+                      const today = i === s.streak - 1;
+                      return (
+                        <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+                          <div style={{
+                            width:36, height:36, borderRadius:"50%",
+                            display:"grid", placeItems:"center",
+                            background: today ? "#fb923c"
+                              : lit ? "rgba(251,146,60,0.25)"
+                              : "rgba(255,255,255,0.06)",
+                            boxShadow: today ? "0 4px 16px rgba(251,146,60,0.4)" : "none",
+                            transition:"all .2s",
+                          }}>
+                            <Flame size={16}
+                              color={today ? "#fff" : lit ? "#fb923c" : "rgba(255,255,255,0.18)"}
+                            />
+                          </div>
+                          <span style={{ color:"rgba(255,255,255,0.3)", fontSize:10, fontWeight:600 }}>{d}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Glass>
               </div>
 
-              <button
-                onClick={handleLogout}
-                className="h-11 px-4 rounded-xl border border-[#e6e8ee] bg-white text-sm font-semibold text-gray-700 hover:text-gray-900"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <LogOut size={15} />
-                  Logout
-                </span>
-              </button>
-            </div>
-          </header>
+              {/* ══ CONTINUE LEARNING CARD ══ */}
+              <Glass style={{ padding:0, overflow:"hidden" }}>
+                {/* Header strip */}
+                <div style={{ padding:"14px 24px 12px",
+                  borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+                  <p style={{ margin:0, color:"rgba(255,255,255,0.35)", fontSize:11, fontWeight:700,
+                    textTransform:"uppercase", letterSpacing:"0.18em" }}>My Learning</p>
+                </div>
 
-          <div className="p-4 md:p-7 space-y-5">
-            {activeTab === "dashboard" && (
-              <>
-                <section className="bg-white rounded-3xl border border-[#e7e9ef] shadow-[0_8px_30px_rgba(15,23,42,0.05)] p-5 md:p-7">
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <div>
-                      <h1 className="text-2xl md:text-4xl font-black text-gray-900 leading-tight">
-                        Welcome Back, <span className="text-[#5acd00]">{user?.name || "Learner"}</span>
-                      </h1>
-                      <p className="text-gray-600 mt-1">
-                        Your current learning level is <span className="font-semibold text-gray-900">{stats.proficiency}</span> in {stats.latestLanguage}.
+                <div style={{ padding:"20px 24px 24px", display:"flex", alignItems:"center", gap:24 }}>
+                  {/* Lang badge */}
+                  <div style={{ width:80, height:80, borderRadius:18, flexShrink:0,
+                    background: s.langColor,
+                    display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                    boxShadow:`0 12px 32px ${s.langColor}55`, gap:2 }}>
+                    <span style={{ fontSize:28, lineHeight:1 }}>{s.langEmoji}</span>
+                    <span style={{ color:"#fff", fontSize:9, fontWeight:800,
+                      textTransform:"uppercase", letterSpacing:"0.06em", opacity:0.85 }}>
+                      {s.langLabel.substring(0, 6)}
+                    </span>
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+                      <p style={{ margin:0, color:"#fff", fontWeight:800, fontSize:18,
+                        letterSpacing:"-0.02em" }}>{s.langLabel}</p>
+                      <span style={{ padding:"2px 10px", borderRadius:99, fontSize:10, fontWeight:700,
+                        background:"rgba(163,230,53,0.15)", color:"#a3e635",
+                        textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.level}</span>
+                    </div>
+                    <p style={{ margin:"0 0 14px", color:"rgba(255,255,255,0.35)", fontSize:13 }}>
+                      {s.done} of {s.totalTasks} tasks completed
+                    </p>
+
+                    {/* Progress bar */}
+                    <div style={{ height:6, borderRadius:99, background:"rgba(255,255,255,0.07)",
+                      overflow:"hidden", maxWidth:320 }}>
+                      <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
+                        background:`linear-gradient(90deg, ${s.langColor}, #34d399)`,
+                        transition:"width 1s cubic-bezier(.4,0,.2,1)" }} />
+                    </div>
+                    <p style={{ margin:"6px 0 0", color:"rgba(255,255,255,0.22)", fontSize:11 }}>
+                      {s.pct}% complete
+                    </p>
+                  </div>
+
+                  {/* Ring + Continue button */}
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:12, flexShrink:0 }}>
+                    <div style={{ position:"relative", width:60, height:60,
+                      display:"grid", placeItems:"center" }}>
+                      <div style={{ position:"absolute", inset:0 }}>
+                        <Ring pct={s.pct} size={60} stroke={5} color={s.langColor} />
+                      </div>
+                      <span style={{ color:"#fff", fontWeight:800, fontSize:13, position:"relative" }}>
+                        {s.pct}%
+                      </span>
+                    </div>
+
+                    <button className="continue-btn" onClick={() => navigate("/learning-path")} style={{
+                      padding:"12px 22px", borderRadius:12, border:"none", cursor:"pointer",
+                      background:"#a3e635", color:"#0a1a0a", fontWeight:800, fontSize:14,
+                      display:"inline-flex", alignItems:"center", gap:8,
+                      boxShadow:"0 8px 24px rgba(163,230,53,0.3)",
+                      whiteSpace:"nowrap",
+                    }}>
+                      <Play size={14} fill="#0a1a0a" /> Continue
+                    </button>
+                  </div>
+                </div>
+
+                {/* Current task hint */}
+                {s.daily && (
+                  <div style={{ margin:"0 24px 20px", padding:"12px 16px", borderRadius:12,
+                    background:"rgba(255,255,255,0.04)",
+                    display:"flex", alignItems:"center", gap:12 }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:"#a3e635",
+                      flexShrink:0, animation:"pulse 2s ease-in-out infinite" }} />
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <p style={{ margin:0, color:"rgba(255,255,255,0.35)", fontSize:10, fontWeight:700,
+                        textTransform:"uppercase", letterSpacing:"0.12em" }}>Up next</p>
+                      <p style={{ margin:"2px 0 0", color:"rgba(255,255,255,0.7)", fontSize:13, fontWeight:600,
+                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {s.daily.title}
                       </p>
                     </div>
+                    <StatusPill status={s.daily.status} />
                   </div>
+                )}
+              </Glass>
 
-                  {hasOnlyInitialAttempt && (
-                    <div className="mt-5 rounded-2xl border border-[#e7efcf] bg-[#f7fce9] p-4">
-                      <p className="text-sm font-semibold text-gray-900">Initial assessment captured.</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        We only use your first assessment to start your learning path. Continue with tasks to unlock deeper progress analytics.
-                      </p>
-                    </div>
-                  )}
-                </section>
-
-                <section className="grid xl:grid-cols-[2fr_1fr] gap-5">
-                  <div className="bg-white rounded-3xl border border-[#e7e9ef] p-4 md:p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                    <div className="flex items-center justify-between mb-2.5">
-                      <div>
-                        <h2 className="text-lg font-black text-gray-900">Learning Activity</h2>
-                        <p className="text-xs text-gray-500">Intensity from attempts after your initial placement test.</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] font-semibold tracking-wider text-gray-500">
-                        <span>LESS</span>
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#e9edf3]" />
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#d9efb9]" />
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#9fdf55]" />
-                        <span>MORE</span>
+              {/* ══ 3 STAT CARDS ══ */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
+                {[
+                  { label:"Quiz Attempts", value: s.quizzes,    sub:`Latest: ${s.score}`,                accent:"#60a5fa", glow:"rgba(96,165,250,0.10)",  Icon: TrendingUp },
+                  { label:"Assignments",   value: s.totalTasks, sub:`${s.unlocked} unlocked`,             accent:"#a3e635", glow:"rgba(163,230,53,0.10)",  Icon: ClipboardList },
+                  { label:"Completion",    value:`${s.pct}%`,   sub:`${s.done} of ${s.totalTasks} tasks`, accent:"#34d399", glow:"rgba(52,211,153,0.10)", Icon: CheckCircle2 },
+                ].map(({ label, value, sub, accent, glow, Icon }) => (
+                  <Glass key={label} className="stat-card" style={{ padding:22 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+                      <p style={{ margin:0, color:"rgba(255,255,255,0.35)", fontSize:11, fontWeight:700,
+                        textTransform:"uppercase", letterSpacing:"0.14em" }}>{label}</p>
+                      <div style={{ width:33, height:33, borderRadius:10, background: glow,
+                        display:"grid", placeItems:"center" }}>
+                        <Icon size={15} color={accent} />
                       </div>
                     </div>
-
-                    <div className="rounded-2xl border border-[#edf0f5] bg-linear-to-r from-[#fbfcff] to-[#f7f9fc] px-2.5 py-2">
-                      <div className="grid grid-cols-[repeat(14,minmax(0,0.65rem))] gap-0.5 w-fit">
-                        {activityCells.map((cell, index) => (
-                          <div key={index} className={`h-2 w-2.5 rounded-xs ${cell}`} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-5">
-                    <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                      <h3 className="text-sm font-bold tracking-[0.14em] text-[#5acd00] uppercase mb-4">Learning Path Tasks</h3>
-                      {selectedPath ? (
-                        <div className="space-y-3">
-                          <p className="text-sm text-gray-600">
-                            Active language: <span className="font-semibold text-gray-900">{getLanguageLabel(selectedPath.language)}</span>
-                          </p>
-                          {selectedPath.tasks
-                            ?.filter((task) => task.status !== "locked")
-                            .slice(0, 2)
-                            .map((task) => (
-                              <div key={task.taskId} className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                                <p className="font-semibold text-gray-900 text-sm">{task.title}</p>
-                                <p className="text-xs text-gray-500 mt-1">{task.description}</p>
-                              </div>
-                            ))}
-
-                          <button
-                            onClick={() => setActiveTab("learningPath")}
-                            className="w-full py-2.5 rounded-xl border border-[#dceaa6] bg-[#f8fde9] text-sm font-semibold text-gray-900"
-                          >
-                            Open Full Learning Path
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                          <p className="text-sm text-gray-600">Complete your first assessment to generate tasks.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </section>
-
-                <section className="grid xl:grid-cols-1 gap-5">
-                  <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                    <h3 className="text-xl font-black text-gray-900 mb-4">Quick Access</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={() => setActiveTab("assessments")}
-                        className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-4 hover:border-[#dceaa6] hover:bg-[#f8fde9] transition-all"
-                      >
-                        <ClipboardList className="h-5 w-5 text-[#5acd00] mb-2" />
-                        <p className="text-sm font-semibold text-gray-900">Assessments</p>
-                      </button>
-                      <button
-                        onClick={() => setActiveTab("learningPath")}
-                        className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-4 hover:border-[#dceaa6] hover:bg-[#f8fde9] transition-all"
-                      >
-                        <Layers className="h-5 w-5 text-[#5acd00] mb-2" />
-                        <p className="text-sm font-semibold text-gray-900">Learning Path</p>
-                      </button>
-                      <button
-                        onClick={() => navigate("/")}
-                        className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-4 hover:border-[#dceaa6] hover:bg-[#f8fde9] transition-all"
-                      >
-                        <BookOpen className="h-5 w-5 text-[#5acd00] mb-2" />
-                        <p className="text-sm font-semibold text-gray-900">Landing</p>
-                      </button>
-                      <button
-                        onClick={() => setActiveTab("progress")}
-                        className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-4 hover:border-[#dceaa6] hover:bg-[#f8fde9] transition-all"
-                      >
-                        <ChartNoAxesColumn className="h-5 w-5 text-[#5acd00] mb-2" />
-                        <p className="text-sm font-semibold text-gray-900">Progress</p>
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              </>
-            )}
-
-            {activeTab === "learningPath" && (
-              <section className="space-y-5">
-                <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 md:p-7 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <div>
-                      <h2 className="text-2xl font-black text-gray-900">Your Learning Path</h2>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Complete unlocked tasks to automatically unlock the next task.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {availableLanguagesToAdd.map((language) => (
-                        <button
-                          key={language}
-                          onClick={() => handleAddLanguagePath(language)}
-                          disabled={taskActionLoading}
-                          className="px-3 py-2 rounded-xl border border-[#d9e0cb] bg-[#f8fde9] text-sm font-semibold text-gray-900 flex items-center gap-1.5 disabled:opacity-60"
-                        >
-                          <Plus size={14} />
-                          Add {getLanguageLabel(language)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {!!taskGuideError && (
-                    <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                      {taskGuideError}
-                    </div>
-                  )}
-
-                  {!learningPaths.length && (
-                    <div className="mt-5 rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-4">
-                      <p className="text-sm text-gray-600">
-                        No learning path yet. Complete an initial assessment to auto-generate tasks.
-                      </p>
-                      <button
-                        onClick={() => navigate("/assessment")}
-                        className="mt-3 px-4 py-2 rounded-xl bg-linear-to-r from-[#E6FF03] to-[#d7ee00] text-sm font-semibold text-gray-900"
-                      >
-                        Start Assessment
-                      </button>
-                    </div>
-                  )}
-
-                  {learningPaths.length > 0 && (
-                    <div className="mt-5 space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        {learningPaths.map((path) => (
-                          <button
-                            key={path.language}
-                            onClick={() => setSelectedPathLanguage(path.language)}
-                            className={`px-3 py-2 rounded-xl text-sm font-semibold border ${
-                              selectedPath?.language === path.language
-                                ? "border-[#dceaa6] bg-[#f8fde9] text-gray-900"
-                                : "border-[#e7e9ef] bg-white text-gray-600"
-                            }`}
-                          >
-                            {getLanguageLabel(path.language)}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="grid xl:grid-cols-[2fr_1fr] gap-5">
-                        <div className="space-y-3">
-                          {selectedPath?.tasks?.map((task) => (
-                            <div key={task.taskId} className="rounded-2xl border border-[#e8ebf0] bg-[#fbfcff] p-4">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-bold text-gray-900">{task.title}</p>
-                                  <p className="text-xs text-gray-500 mt-1">{task.description}</p>
-                                </div>
-
-                                <span
-                                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full border ${
-                                    task.status === "completed"
-                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                      : task.status === "unlocked"
-                                      ? "border-[#dceaa6] bg-[#f8fde9] text-gray-700"
-                                      : "border-gray-200 bg-gray-100 text-gray-500"
-                                  }`}
-                                >
-                                  {task.status === "completed" && <CheckCircle2 size={12} />}
-                                  {task.status === "locked" && <Lock size={12} />}
-                                  {task.status.toUpperCase()}
-                                </span>
-                              </div>
-
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                <button
-                                  onClick={() => openTaskWorkspace(task, selectedPath.language)}
-                                  disabled={task.status === "locked"}
-                                  className="px-3 py-2 rounded-xl border border-[#d9e0cb] text-xs font-semibold text-gray-700 disabled:opacity-50 flex items-center gap-1.5"
-                                >
-                                  <Code2 size={13} />
-                                  Open Coding Window
-                                </button>
-
-                                <button
-                                  onClick={() => handleGetTaskGuide(task.taskId, selectedPath.language)}
-                                  disabled={task.status === "locked"}
-                                  className="px-3 py-2 rounded-xl border border-[#d9e0cb] text-xs font-semibold text-gray-700 disabled:opacity-50 flex items-center gap-1.5"
-                                >
-                                  <Code2 size={13} />
-                                  Get Task Guide (API)
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="rounded-2xl border border-[#e8ebf0] bg-white p-4">
-                          <h3 className="text-base font-black text-gray-900">Task Guide Panel</h3>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Fetch explanation from API, then solve in the coding window and submit.
-                          </p>
-
-                          {!taskGuide && (
-                            <p className="text-sm text-gray-500 mt-5">
-                              Select any unlocked task and click "Get Task Guide (API)".
-                            </p>
-                          )}
-
-                          {taskGuide && (
-                            <div className="mt-4 space-y-3">
-                              <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                                <p className="text-xs text-gray-500">Task</p>
-                                <p className="text-sm font-semibold text-gray-900 mt-1">{taskGuide.taskTitle}</p>
-                              </div>
-
-                              <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                                <p className="text-xs text-gray-500">Explanation</p>
-                                <p className="text-sm text-gray-700 mt-1">{taskGuide.explanation}</p>
-                              </div>
-
-                              <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                                <p className="text-xs text-gray-500">Starter Code</p>
-                                <pre className="mt-2 text-xs text-gray-700 whitespace-pre-wrap">{taskGuide.starterCode}</pre>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {activeTab === "courses" && (
-              <section className="bg-white rounded-3xl border border-[#e7e9ef] p-5 md:p-7 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-                  <div>
-                    <h2 className="text-2xl font-black text-gray-900">Course Library</h2>
-                    <p className="text-sm text-gray-500 mt-1">Explore modules without leaving your dashboard.</p>
-                  </div>
-                  <button
-                    onClick={() => navigate("/courses")}
-                    className="px-4 py-2 rounded-xl border border-[#d9e0cb] text-sm font-semibold text-gray-700 hover:bg-[#f7fbe8]"
-                  >
-                    Open Full Courses Page
-                  </button>
-                </div>
-
-                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {courseCards.map((course) => (
-                    <div key={course.title} className="rounded-2xl border border-[#e8ebf0] bg-[#fbfcff] p-4">
-                      <h3 className="text-lg font-bold text-gray-900">{course.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{course.description}</p>
-                      <p className="text-xs font-semibold text-[#5acd00] uppercase tracking-wide mt-3">{course.level}</p>
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {course.topics.map((topic) => (
-                          <span key={topic} className="px-2.5 py-1 rounded-full bg-white border border-[#e7e9ef] text-xs text-gray-600">
-                            {topic}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {activeTab === "assessments" && (
-              <section className="grid lg:grid-cols-[2fr_1fr] gap-5">
-                <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 md:p-7 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <h2 className="text-2xl font-black text-gray-900">Assessments</h2>
-                  <p className="text-sm text-gray-500 mt-1">Start a new test when you are ready.</p>
-
-                  <div className="grid sm:grid-cols-3 gap-3 mt-6">
-                    {["Python", "Java", "C"].map((language) => (
-                      <div key={language} className="rounded-2xl border border-[#e8ebf0] bg-[#fbfcff] p-4">
-                        <p className="text-sm text-gray-500">Language</p>
-                        <p className="text-lg font-bold text-gray-900 mt-1">{language}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => navigate("/assessment")}
-                    className="mt-6 px-5 py-3 rounded-xl bg-linear-to-r from-[#E6FF03] to-[#d7ee00] text-gray-900 font-semibold"
-                  >
-                    Choose Language And Start
-                  </button>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <h3 className="text-lg font-black text-gray-900">Latest Attempt</h3>
-                  <p className="text-sm text-gray-500 mt-1">Snapshot from attempts after initial placement.</p>
-
-                  <div className="mt-5 space-y-3">
-                    <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                      <p className="text-xs text-gray-500">Language</p>
-                      <p className="font-semibold text-gray-900 mt-1">{stats.latestLanguage}</p>
-                    </div>
-                    <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                      <p className="text-xs text-gray-500">Score</p>
-                      <p className="font-semibold text-gray-900 mt-1">{stats.latestScore}/{stats.latestTotal}</p>
-                    </div>
-                    <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                      <p className="text-xs text-gray-500">Proficiency</p>
-                      <p className="font-semibold text-[#5acd00] mt-1">{stats.proficiency}</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {activeTab === "progress" && (
-              <section className="grid xl:grid-cols-[1.3fr_1fr] gap-5">
-                <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 md:p-6 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <h2 className="text-2xl font-black text-gray-900">Topic Progress</h2>
-                  <p className="text-sm text-gray-500 mt-1">Performance by topic from your latest result.</p>
-
-                  {topicRows.length === 0 ? (
-                    <p className="text-sm text-gray-500 mt-5">No topic data available yet.</p>
-                  ) : (
-                    <div className="space-y-3 mt-5">
-                      {topicRows.map((row) => (
-                        <div key={row.topic} className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                          <div className="flex items-center justify-between">
-                            <p className="font-semibold text-gray-900">{row.topic}</p>
-                            <p className="text-sm font-semibold text-[#5acd00]">{row.percentage}%</p>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">{row.correct} correct out of {row.total}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <h3 className="text-lg font-black text-gray-900">Progress Summary</h3>
-                  <div className="mt-4 space-y-3">
-                    <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                      <p className="text-xs text-gray-500">Average Score</p>
-                      <p className="text-2xl font-black text-gray-900 mt-1">{stats.averagePercentage}%</p>
-                    </div>
-                    <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                      <p className="text-xs text-gray-500">Best Score</p>
-                      <p className="text-2xl font-black text-gray-900 mt-1">{stats.bestPercentage}%</p>
-                    </div>
-                    <div className="rounded-xl border border-[#e8ebf0] bg-[#fbfcff] p-3">
-                      <p className="text-xs text-gray-500">Current Streak</p>
-                      <p className="text-2xl font-black text-gray-900 mt-1">{currentStreak} days</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {activeTab === "achievements" && (
-              <section className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-                <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <h3 className="text-lg font-black text-gray-900">Consistency</h3>
-                  <p className="text-sm text-gray-500 mt-1">Earn this by keeping your streak alive.</p>
-                  <p className="text-3xl font-black text-gray-900 mt-4">{currentStreak} / 7</p>
-                  <p className="text-xs text-[#5acd00] font-semibold mt-2">{currentStreak >= 7 ? "Unlocked" : "In progress"}</p>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-                  <h3 className="text-lg font-black text-gray-900">High Scorer</h3>
-                  <p className="text-sm text-gray-500 mt-1">Reach at least 80% in an assessment.</p>
-                  <p className="text-3xl font-black text-gray-900 mt-4">{stats.bestPercentage}%</p>
-                  <p className="text-xs text-[#5acd00] font-semibold mt-2">{stats.bestPercentage >= 80 ? "Unlocked" : "Keep practicing"}</p>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-[#e7e9ef] p-5 shadow-[0_8px_24px_rgba(15,23,42,0.04)] md:col-span-2 xl:col-span-1">
-                  <h3 className="text-lg font-black text-gray-900">Assessment Explorer</h3>
-                  <p className="text-sm text-gray-500 mt-1">Complete 3 assessment attempts.</p>
-                  <p className="text-3xl font-black text-gray-900 mt-4">{stats.totalAttempts} / 3</p>
-                  <p className="text-xs text-[#5acd00] font-semibold mt-2">{stats.totalAttempts >= 3 ? "Unlocked" : "In progress"}</p>
-                </div>
-              </section>
-            )}
-          </div>
-
-          {activeTask && (
-            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] flex items-end md:items-center justify-center p-3 md:p-6">
-              <div className="w-full max-w-6xl max-h-[95vh] overflow-auto rounded-3xl border border-[#dfe4eb] bg-white shadow-2xl">
-                <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-[#edf0f5] px-4 md:px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-gray-500">In-App Coding Workspace</p>
-                    <h3 className="text-lg md:text-xl font-black text-gray-900 mt-1">{activeTask.title}</h3>
-                  </div>
-                  <button
-                    onClick={closeTaskWorkspace}
-                    className="h-10 w-10 rounded-xl border border-[#e6e8ee] grid place-items-center text-gray-600 hover:text-gray-900"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="grid lg:grid-cols-[1.5fr_1fr] gap-5 p-4 md:p-6">
-                  <div className="space-y-3">
-                    <div className="rounded-2xl border border-[#e8ebf0] bg-[#fbfcff] p-4">
-                      <p className="text-xs text-gray-500">Task Description</p>
-                      <p className="text-sm text-gray-700 mt-1">{activeTask.description}</p>
-                      {taskGuide?.explanation && (
-                        <>
-                          <p className="text-xs text-gray-500 mt-3">Task Explanation</p>
-                          <p className="text-sm text-gray-700 mt-1">{taskGuide.explanation}</p>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="rounded-2xl border border-[#1f2937] bg-[#0f172a] p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs text-slate-300">Code Editor</p>
-                        <p className="text-xs text-slate-400">
-                          {getLanguageLabel(activeTask.language)} • {draftSaveState === "saving" ? "Saving draft..." : draftSaveState === "saved" ? "Draft saved" : draftSaveState === "error" ? "Draft save failed" : ""}
-                        </p>
-                      </div>
-                      <textarea
-                        value={taskEditorCode}
-                        onChange={(event) => setTaskEditorCode(event.target.value)}
-                        spellCheck={false}
-                        className="w-full min-h-[340px] bg-[#020617] text-[#d1fae5] border border-slate-700 rounded-xl p-3 font-mono text-sm outline-none focus:border-[#84cc16]"
-                        placeholder="Write your code here..."
-                      />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={handleGetAiFeedback}
-                        disabled={aiFeedbackLoading || !taskEditorCode.trim()}
-                        className="px-4 py-2.5 rounded-xl border border-[#d9e0cb] text-sm font-semibold text-gray-700 disabled:opacity-50 flex items-center gap-1.5"
-                      >
-                        <Play size={14} />
-                        {aiFeedbackLoading ? "Getting AI Feedback..." : "Get AI Feedback"}
-                      </button>
-
-                      <button
-                        onClick={handleCompleteFromWorkspace}
-                        disabled={activeTask.status !== "unlocked" || taskActionLoading || !taskEditorCode.trim()}
-                        className="px-4 py-2.5 rounded-xl bg-linear-to-r from-[#E6FF03] to-[#d7ee00] text-sm font-semibold text-gray-900 disabled:opacity-50"
-                      >
-                        Submit Solution (AI Review)
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="rounded-2xl border border-[#e8ebf0] bg-[#fbfcff] p-4">
-                      <h4 className="text-sm font-black text-gray-900">AI Mentor Feedback</h4>
-
-                      {!aiFeedback && (
-                        <p className="text-sm text-gray-500 mt-2">
-                          Click "Get AI Feedback" to review code quality, suggestions, and score.
-                        </p>
-                      )}
-
-                      {aiFeedback && (
-                        <div className="mt-3 space-y-3">
-                          <div className="rounded-xl border border-[#e8ebf0] bg-white p-3">
-                            <p className="text-xs text-gray-500">Feedback</p>
-                            <p className="text-sm text-gray-700 mt-1">{aiFeedback.feedback}</p>
-                          </div>
-
-                          <div className="rounded-xl border border-[#e8ebf0] bg-white p-3">
-                            <p className="text-xs text-gray-500">Quality Score</p>
-                            <p className="text-2xl font-black text-gray-900 mt-1">{aiFeedback.qualityScore || 0}/10</p>
-                            {aiFeedback.passScore ? (
-                              <p className="text-xs text-gray-500 mt-1">Pass score: {aiFeedback.passScore}/10</p>
-                            ) : null}
-                            {typeof aiFeedback.passed === "boolean" ? (
-                              <p className={`text-xs font-semibold mt-1 ${aiFeedback.passed ? "text-emerald-600" : "text-amber-600"}`}>
-                                {aiFeedback.passed ? "Passed. Next task unlocked." : "Not passed yet. Improve and resubmit."}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          <div className="rounded-xl border border-[#e8ebf0] bg-white p-3">
-                            <p className="text-xs text-gray-500">Suggestions</p>
-                            <ul className="mt-2 space-y-1 text-sm text-gray-700 list-disc pl-5">
-                              {(aiFeedback.suggestions || []).map((item, index) => (
-                                <li key={`${item}-${index}`}>{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                    <p style={{ margin:0, color:"#fff", fontSize:36, fontWeight:900,
+                      letterSpacing:"-0.03em", lineHeight:1 }}>{value}</p>
+                    <p style={{ margin:"8px 0 0", color:"rgba(255,255,255,0.28)", fontSize:12 }}>{sub}</p>
+                  </Glass>
+                ))}
               </div>
             </div>
           )}
-        </main>
-      </div>
+
+          {/* ── PROGRESS ── */}
+          {activeView === "progress" && (
+            <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
+              <div style={{ marginBottom:4 }}>
+                <h2 style={{ margin:0, color:"#fff", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Progress</h2>
+                <p style={{ margin:"6px 0 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>Your learning journey at a glance.</p>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
+                {[
+                  { label:"Attempts",    value: s.quizzes,     Icon: TrendingUp,   accent:"#60a5fa", glow:"rgba(96,165,250,0.10)" },
+                  { label:"Assignments", value: s.totalTasks,  Icon: ClipboardList, accent:"#a3e635", glow:"rgba(163,230,53,0.10)" },
+                  { label:"Day Streak",  value:`${s.streak}d`, Icon: Flame,         accent:"#fb923c", glow:"rgba(251,146,60,0.10)" },
+                ].map(({ label, value, Icon, accent, glow }) => (
+                  <Glass key={label} className="stat-card" style={{ padding:28, textAlign:"center" }}>
+                    <div style={{ width:46, height:46, borderRadius:13, background: glow,
+                      display:"grid", placeItems:"center", margin:"0 auto 18px" }}>
+                      <Icon size={21} color={accent} />
+                    </div>
+                    <p style={{ margin:0, color:"#fff", fontSize:38, fontWeight:900, letterSpacing:"-0.03em" }}>{value}</p>
+                    <p style={{ margin:"7px 0 0", color:"rgba(255,255,255,0.32)", fontSize:11, fontWeight:700,
+                      textTransform:"uppercase", letterSpacing:"0.14em" }}>{label}</p>
+                  </Glass>
+                ))}
+              </div>
+              <Glass>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                  <p style={{ margin:0, color:"#fff", fontWeight:700, fontSize:15 }}>Overall Completion</p>
+                  <p style={{ margin:0, color:"#a3e635", fontWeight:900, fontSize:15 }}>{s.pct}%</p>
+                </div>
+                <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.07)", overflow:"hidden" }}>
+                  <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
+                    background:"linear-gradient(90deg, #a3e635, #34d399)" }} />
+                </div>
+                <p style={{ margin:"10px 0 0", color:"rgba(255,255,255,0.28)", fontSize:13 }}>
+                  {s.done} of {s.totalTasks} tasks completed
+                </p>
+              </Glass>
+            </div>
+          )}
+
+          {/* ── ASSESSMENT ── */}
+          {activeView === "assessment" && (
+            <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
+              <div style={{ marginBottom:4 }}>
+                <h2 style={{ margin:0, color:"#fff", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Assessment</h2>
+                <p style={{ margin:"6px 0 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>Test your skills and refine your level.</p>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                <Glass className="stat-card">
+                  <p style={{ margin:"0 0 12px", color:"rgba(255,255,255,0.28)", fontSize:10, fontWeight:700,
+                    textTransform:"uppercase", letterSpacing:"0.16em" }}>Current Level</p>
+                  <p style={{ margin:0, color:"#a3e635", fontSize:30, fontWeight:900, letterSpacing:"-0.03em" }}>{s.level}</p>
+                  <p style={{ margin:"8px 0 0", color:"rgba(255,255,255,0.38)", fontSize:13 }}>
+                    Language: <span style={{ color:"#fff", fontWeight:600 }}>{s.displayLang}</span>
+                  </p>
+                </Glass>
+                <Glass className="stat-card">
+                  <p style={{ margin:"0 0 12px", color:"rgba(255,255,255,0.28)", fontSize:10, fontWeight:700,
+                    textTransform:"uppercase", letterSpacing:"0.16em" }}>Last Score</p>
+                  <p style={{ margin:0, color:"#fff", fontSize:30, fontWeight:900, letterSpacing:"-0.03em" }}>{s.score}</p>
+                  <p style={{ margin:"8px 0 0", color:"rgba(255,255,255,0.38)", fontSize:13 }}>
+                    {s.quizzes} retake{s.quizzes !== 1 ? "s" : ""} taken
+                  </p>
+                </Glass>
+              </div>
+              <Glass>
+                <h3 style={{ margin:"0 0 8px", color:"#fff", fontWeight:800, fontSize:17 }}>Ready to improve?</h3>
+                <p style={{ margin:0, color:"rgba(255,255,255,0.4)", fontSize:14, lineHeight:1.65 }}>
+                  Retake the assessment to update your proficiency score and unlock higher-level tasks.
+                </p>
+                <button onClick={() => navigate("/assessment")} style={{
+                  marginTop:22, padding:"12px 26px", borderRadius:12, border:"none",
+                  background:"#a3e635", color:"#0a1a0a", fontWeight:800, fontSize:14,
+                  cursor:"pointer", display:"inline-flex", alignItems:"center", gap:9,
+                  boxShadow:"0 8px 24px rgba(163,230,53,0.28)",
+                }}>
+                  Start Assessment <ArrowRight size={15} />
+                </button>
+              </Glass>
+            </div>
+          )}
+
+          {/* ── LEARNING PATH ── */}
+          {activeView === "learningPath" && (
+            <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:4 }}>
+                <div>
+                  <h2 style={{ margin:0, color:"#fff", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Learning Path</h2>
+                  <p style={{ margin:"6px 0 0", color:"rgba(255,255,255,0.35)", fontSize:14 }}>
+                    {s.langLabel} · {s.done}/{s.totalTasks} tasks complete
+                  </p>
+                </div>
+                <button onClick={() => navigate("/learning-path")} style={{
+                  padding:"10px 20px", borderRadius:12, border:"none", cursor:"pointer",
+                  background:"rgba(163,230,53,0.12)", color:"#a3e635", fontWeight:700, fontSize:13,
+                  display:"inline-flex", alignItems:"center", gap:8,
+                  boxShadow:"inset 0 0 0 1px rgba(163,230,53,0.2)",
+                }}>
+                  Full View <ArrowRight size={14} />
+                </button>
+              </div>
+
+              <div style={{ height:6, borderRadius:99, background:"rgba(255,255,255,0.07)", overflow:"hidden" }}>
+                <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
+                  background:"linear-gradient(90deg, #a3e635, #34d399)" }} />
+              </div>
+
+              {!learningPaths.length ? (
+                <Glass style={{ textAlign:"center", padding:52 }}>
+                  <Layers size={30} color="rgba(255,255,255,0.12)" style={{ margin:"0 auto 14px" }} />
+                  <p style={{ margin:0, color:"rgba(255,255,255,0.45)", fontWeight:600, fontSize:15 }}>No learning path yet</p>
+                  <p style={{ margin:"7px 0 0", color:"rgba(255,255,255,0.22)", fontSize:13 }}>Complete an assessment first.</p>
+                  <button onClick={() => setActiveView("assessment")} style={{
+                    marginTop:22, padding:"11px 26px", borderRadius:12, border:"none",
+                    background:"#a3e635", color:"#0a1a0a", fontWeight:800, fontSize:13, cursor:"pointer",
+                    boxShadow:"0 8px 24px rgba(163,230,53,0.28)",
+                  }}>
+                    Take Assessment
+                  </button>
+                </Glass>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {s.tasks.slice(0, 8).map((task, i) => (
+                    <div key={task.taskId} className="task-row" style={{
+                      borderRadius:14, padding:"15px 20px",
+                      display:"flex", alignItems:"center", gap:16,
+                      opacity: task.status === "locked" ? 0.42 : 1,
+                      background:"rgba(255,255,255,0.045)",
+                      backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
+                      boxShadow:"inset 0 1px 0 rgba(255,255,255,0.07)",
+                    }}>
+                      <div style={{ width:36, height:36, borderRadius:"50%", flexShrink:0,
+                        display:"grid", placeItems:"center", fontWeight:900, fontSize:13,
+                        background: task.status === "completed" ? "rgba(52,211,153,0.18)"
+                          : task.status === "unlocked" ? "rgba(163,230,53,0.18)"
+                          : "rgba(255,255,255,0.05)",
+                        color: task.status === "completed" ? "#34d399"
+                          : task.status === "unlocked" ? "#a3e635"
+                          : "rgba(255,255,255,0.22)" }}>
+                        {task.status === "completed" ? <CheckCircle2 size={16} /> : i + 1}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <p style={{ margin:0, color:"#fff", fontWeight:700, fontSize:14,
+                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{task.title}</p>
+                        <p style={{ margin:"3px 0 0", color:"rgba(255,255,255,0.32)", fontSize:12,
+                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{task.description}</p>
+                      </div>
+                      <StatusPill status={task.status} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      </main>
     </div>
   );
 }
