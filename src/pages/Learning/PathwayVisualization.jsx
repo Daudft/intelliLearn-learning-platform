@@ -24,7 +24,8 @@ export default function PathwayVisualization() {
     try {
       setLoading(true);
       setError(null);
-      const data = await learningPathService.getLearningPath(userId);
+      // Use waitForLearningPath to poll with retries for AI generation
+      const data = await learningPathService.waitForLearningPath(userId);
       setLearningPath(data.learningPath);
       if (data.learningPath?.paths?.length > 0) {
         setSelectedLanguage(data.learningPath.paths[0].language);

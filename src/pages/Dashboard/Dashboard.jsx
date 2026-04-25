@@ -100,11 +100,11 @@ export default function Dashboard() {
         const [sr, ar, pr] = await Promise.allSettled([
           assessmentService.checkStatus(uid),
           assessmentService.getAllAttempts(uid),
-          learningPathService.getLearningPath(uid),
+          learningPathService.waitForLearningPath(uid),  // Use wait function for AI generation
         ]);
         if (sr.status === "fulfilled") setStatus(sr.value || null);
         if (ar.status === "fulfilled") setAttempts(Array.isArray(ar.value?.attempts) ? ar.value.attempts : []);
-        if (pr.status === "fulfilled") setLearningPaths(Array.isArray(pr.value?.paths) ? pr.value.paths : []);
+        if (pr.status === "fulfilled") setLearningPaths(Array.isArray(pr.value?.learningPath?.paths) ? pr.value.learningPath.paths : []);
       } catch (e) {
         setError(e?.response?.data?.message || "Could not load dashboard.");
       } finally { setLoading(false); }

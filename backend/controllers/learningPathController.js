@@ -82,11 +82,15 @@ function normalizeAiTasks(tasks, language, proficiencyLevel) {
   }
 
   return tasks.slice(0, 5).map((task, index) => ({
-    taskId: `${language}-${index + 1}`,
+    taskId: (task?.taskId || `${language}-${index + 1}`).toString(),
     title: (task?.title || `${LANGUAGE_LABELS[language]} Task ${index + 1}`).toString().slice(0, 120),
     description: (task?.description || 'Solve the coding task and verify edge cases.').toString().slice(0, 300),
     explanation: (task?.explanation || 'Analyze the problem and implement a clean solution.').toString(),
+    difficulty: task?.difficulty || 'medium',
+    topic: task?.topic || 'Functions',
     starterCode: (task?.starterCode || '// Write your solution here\n').toString(),
+    testCases: Array.isArray(task?.testCases) ? task.testCases : [],
+    hints: Array.isArray(task?.hints) ? task.hints : [],
     draftCode: '',
     lastFeedback: '',
     lastFeedbackScore: null,
@@ -112,9 +116,9 @@ function getLanguagePathAndTask(learningPath, language, taskId) {
   return { languagePath, task };
 }
 
-async function evaluateCodeWithAi({ language, proficiencyLevel, taskTitle, taskDescription, code }) {
+async function evaluateCodeWithAi({ language, proficiencyLevel, taskTitle, taskDescription, code, testCases = [] }) {
   // Use AI task generator service which uses Groq
-  return await evaluateCodeWithAI({ language, proficiencyLevel, taskTitle, taskDescription, code });
+  return await evaluateCodeWithAI({ language, proficiencyLevel, taskTitle, taskDescription, code, testCases });
 }
 
 async function ensurePathForLanguage(userId, language, proficiencyLevel, topicBreakdown, assessmentScore) {
@@ -338,18 +342,41 @@ exports.getTaskExplanation = async (req, res) => {
 
 exports.getTaskCodeFeedback = async (req, res) => {
   try {
-    const { language, taskTitle, taskDescription, code, proficiencyLevel } = req.body;
+    const { userId, language, taskId, code, proficiencyLevel } = req.body;
 
-    if (!language || !taskTitle || !taskDescription || !code) {
+    if (!language || !taskId || !code) {
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Get task details including testCases
+    let task = null;
+    let taskTitle = '';
+    let taskDescription = '';
+    let testCases = [];
+
+    if (userId) {
+      const learningPath = await LearningPath.findOne({ userId });
+      if (learningPath) {
+        const languagePath = learningPath.paths.find((path) => path.language === language);
+        if (languagePath) {
+          task = languagePath.tasks.find((t) => t.taskId === taskId);
+        }
+      }
+    }
+
+    if (task) {
+      taskTitle = task.title;
+      taskDescription = task.description;
+      testCases = task.testCases || [];
     }
 
     const parsed = await evaluateCodeWithAi({
       language,
-      proficiencyLevel,
-      taskTitle,
-      taskDescription,
+      proficiencyLevel: proficiencyLevel || 'Beginner',
+      taskTitle: taskTitle || taskId,
+      taskDescription: taskDescription || 'Solve the coding task',
       code,
+      testCases,
     });
 
     return res.status(200).json({

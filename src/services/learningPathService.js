@@ -6,6 +6,30 @@ const learningPathService = {
     return response.data;
   },
 
+  // Wait for learning path to be created (with retries for AI generation)
+  waitForLearningPath: async (userId, maxRetries = 20, delayMs = 1000) => {
+    let attempts = 0;
+    while (attempts < maxRetries) {
+      try {
+        const response = await api.get(`/learning-path/${userId}`);
+        if (response.data?.learningPath) {
+          return response.data;
+        }
+      } catch (error) {
+        // Ignore errors during polling
+      }
+      
+      attempts++;
+      if (attempts < maxRetries) {
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, delayMs + attempts * 100));
+      }
+    }
+    
+    // After all retries, return empty or null
+    return { learningPath: null, message: 'Learning path not created yet. Please try again shortly.' };
+  },
+
   initializeLearningPath: async (payload) => {
     const response = await api.post('/learning-path/initialize', payload);
     return response.data;

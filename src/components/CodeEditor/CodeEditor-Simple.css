@@ -1,0 +1,118 @@
+/* Simplified CodeEditor Styles - HUGE CODE AREA */
+
+.code-editor-container-simple {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  gap: 0;
+}
+
+/* HUGE Textarea */
+.code-textarea-large {
+  flex: 1;
+  width: 100%;
+  padding: 20px;
+  border: none;
+  outline: none;
+  font-family: 'Courier New', 'Monaco', monospace;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #e0e0e0;
+  background: #1a1a1a;
+  resize: none;
+  overflow: auto;
+  min-height: 400px;
+}
+
+.code-textarea-large::placeholder {
+  color: #555;
+  font-size: 15px;
+}
+
+.code-textarea-large:focus {
+  outline: none;
+  background: #222;
+}
+
+/* Error/Hint Display */
+.code-error-hint {
+  padding: 12px 20px;
+  background: #fffbeb;
+  border-top: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
+  color: #a16207;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.code-error-hint strong {
+  color: #92400e;
+  font-weight: 700;
+}
+
+/* Footer - Minimal */
+.code-editor-footer-minimal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: #fafafa;
+  border-top: 1px solid #e0e0e0;
+}
+
+/* Submit Button - Only One */
+.btn-submit-only {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #a3ff00;
+  color: #0a1a0a;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.btn-submit-only:hover:not(:disabled) {
+  background: #c6ff4d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(163, 255, 0, 0.3);
+}
+
+.btn-submit-only:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-submit-only.btn-success {
+  background: #34d399;
+  color: white;
+}
+
+.spinner {
+  display: inline-block;
+}
+
+/* Score Badge */
+.score-badge {
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.score-badge strong {
+  color: #a3ff00;
+  font-weight: 700;
+}
+
