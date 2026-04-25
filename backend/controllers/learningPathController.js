@@ -1,15 +1,11 @@
 const LearningPath = require('../models/LearningPath');
-const OpenAI = require('openai');
+const { generatePersonalizedTasks, evaluateCodeWithAI } = require('../utils/aiTaskGenerator');
 
 const LANGUAGE_LABELS = {
   python: 'Python',
   java: 'Java',
   c: 'C Language',
 };
-
-const openaiClient = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
 const LEARNING_PASS_SCORE = Number(process.env.LEARNING_PASS_SCORE || 7);
 
 function getTaskTemplates(language, proficiencyLevel) {
@@ -117,90 +113,24 @@ function getLanguagePathAndTask(learningPath, language, taskId) {
 }
 
 async function evaluateCodeWithAi({ language, proficiencyLevel, taskTitle, taskDescription, code }) {
-  if (!openaiClient) {
-    return {
-      feedback:
-        'OpenAI is not configured yet. Add OPENAI_API_KEY in backend .env to enable AI review. Improve logic coverage and edge-case handling, then submit again.',
-      suggestions: [
-        'Handle invalid and empty input cases.',
-        'Split logic into small reusable functions.',
-        'Add sample tests and verify output manually.',
-      ],
-      qualityScore: 5,
-    };
-  }
-
-  const completion = await openaiClient.chat.completions.create({
-    model: 'gpt-4o-mini',
-    temperature: 0.3,
-    response_format: { type: 'json_object' },
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are an expert coding mentor. Return strict JSON only with keys: feedback (string), suggestions (array of 3 short strings), qualityScore (number 1-10).',
-      },
-      {
-        role: 'user',
-        content: `Language: ${language}\nLevel: ${proficiencyLevel || 'Beginner'}\nTask: ${taskTitle}\nTask Description: ${taskDescription}\nCode:\n${code}`,
-      },
-    ],
-  });
-
-  const content = completion.choices?.[0]?.message?.content || '{}';
-  const parsed = JSON.parse(content);
-
-  return {
-    feedback:
-      parsed.feedback ||
-      'Good attempt. Review readability, correctness, and edge cases for improvement.',
-    suggestions: Array.isArray(parsed.suggestions)
-      ? parsed.suggestions.slice(0, 3)
-      : [
-          'Handle edge cases explicitly.',
-          'Improve naming and structure.',
-          'Test with both normal and boundary inputs.',
-        ],
-    qualityScore: Number(parsed.qualityScore || 6),
-  };
+  // Use AI task generator service which uses Groq
+  return await evaluateCodeWithAI({ language, proficiencyLevel, taskTitle, taskDescription, code });
 }
 
-async function generateTasksWithOpenAI(language, proficiencyLevel) {
-  if (!openaiClient) {
-    return buildTasks(language, proficiencyLevel);
-  }
-
-  const languageLabel = LANGUAGE_LABELS[language] || language;
-
-  try {
-    const completion = await openaiClient.chat.completions.create({
-      model: 'gpt-4o-mini',
-      temperature: 0.6,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a coding curriculum designer. Return only strict JSON with key "tasks" (array of exactly 5 items). Each task item must contain title, description, explanation, starterCode.',
-        },
-        {
-          role: 'user',
-          content: `Generate 5 progressive coding tasks for ${languageLabel} at ${proficiencyLevel} level. Keep tasks practical and beginner-friendly in wording.`,
-        },
-      ],
-    });
-
-    const content = completion.choices?.[0]?.message?.content || '{}';
-    const parsed = JSON.parse(content);
-    return normalizeAiTasks(parsed.tasks, language, proficiencyLevel);
-  } catch (error) {
-    return buildTasks(language, proficiencyLevel);
-  }
-}
-
-async function ensurePathForLanguage(userId, language, proficiencyLevel) {
+async function ensurePathForLanguage(userId, language, proficiencyLevel, topicBreakdown, assessmentScore) {
   let learningPath = await LearningPath.findOne({ userId });
-  const generatedTasks = await generateTasksWithOpenAI(language, proficiencyLevel);
+  
+  console.log(`🚀 Generating personalized tasks for ${language} (${proficiencyLevel})`);
+  
+  // Generate personalized tasks based on assessment data
+  const generatedTasks = await generatePersonalizedTasks(
+    language,
+    proficiencyLevel,
+    topicBreakdown || new Map(),
+    assessmentScore || 50
+  );
+
+  console.log(`📚 Generated ${generatedTasks.length} tasks`);
 
   if (!learningPath) {
     learningPath = await LearningPath.create({
@@ -214,6 +144,7 @@ async function ensurePathForLanguage(userId, language, proficiencyLevel) {
       ],
     });
 
+    console.log(`✅ New learning path created for user ${userId}`);
     return learningPath;
   }
 
@@ -227,13 +158,16 @@ async function ensurePathForLanguage(userId, language, proficiencyLevel) {
     });
     learningPath.updatedAt = new Date();
     await learningPath.save();
+    console.log(`✅ New language path added for ${language}`);
     return learningPath;
   }
 
   if (existing.proficiencyLevel !== proficiencyLevel) {
     existing.proficiencyLevel = proficiencyLevel;
+    existing.tasks = generatedTasks;
     learningPath.updatedAt = new Date();
     await learningPath.save();
+    console.log(`✅ Learning path updated for ${language}`);
   }
 
   return learningPath;
@@ -249,12 +183,17 @@ exports.getLearningPath = async (req, res) => {
 
     if (!learningPath) {
       return res.status(200).json({
-        paths: [],
+        learningPath: null,
         message: 'No learning path found yet. Complete an assessment to create one.',
       });
     }
 
-    return res.status(200).json({ paths: learningPath.paths });
+    return res.status(200).json({ 
+      learningPath: {
+        userId: learningPath.userId,
+        paths: learningPath.paths
+      }
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -281,16 +220,30 @@ exports.initializeLearningPath = async (req, res) => {
 
 exports.addLanguagePath = async (req, res) => {
   try {
-    const { userId, language, proficiencyLevel } = req.body;
+    const { userId, language, proficiencyLevel, topicBreakdown, assessmentScore } = req.body;
 
     if (!userId || !language || !proficiencyLevel) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    const learningPath = await ensurePathForLanguage(userId, language, proficiencyLevel);
+    // Convert topicBreakdown object back to Map if provided
+    let topicMap = new Map();
+    if (topicBreakdown) {
+      Object.entries(topicBreakdown).forEach(([topic, stats]) => {
+        topicMap.set(topic, stats);
+      });
+    }
+
+    const learningPath = await ensurePathForLanguage(
+      userId,
+      language,
+      proficiencyLevel,
+      topicMap,
+      assessmentScore
+    );
 
     return res.status(200).json({
-      message: 'Language path ready',
+      message: 'Learning path created successfully',
       paths: learningPath.paths,
     });
   } catch (error) {
@@ -364,14 +317,19 @@ exports.getTaskExplanation = async (req, res) => {
     }
 
     return res.status(200).json({
-      explanation: task.explanation,
-      starterCode: task.starterCode,
-      taskTitle: task.title,
-      extensionHints: [
-        'Open the in-app code window for this task.',
-        'Start from starter code and solve step-by-step.',
-        'Use AI feedback before marking this task complete.',
-      ],
+      task: {
+        taskId: task.taskId,
+        title: task.title,
+        description: task.description,
+        explanation: task.explanation,
+        starterCode: task.starterCode,
+        hints: task.hints || [],
+        draftCode: task.draftCode || '',
+        lastFeedback: task.lastFeedback || '',
+        lastFeedbackScore: task.lastFeedbackScore,
+        status: task.status,
+        order: task.order,
+      }
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });

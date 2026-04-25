@@ -132,7 +132,13 @@ exports.submitAssessment = async (req, res) => {
       lastAssessmentDate: new Date(),
     });
 
-    await ensurePathForLanguage(userId, language, proficiencyLevel);
+    // Generate personalized learning path based on assessment performance
+    try {
+      await ensurePathForLanguage(userId, language, proficiencyLevel, topicBreakdown, percentage);
+      console.log('✅ Learning path created successfully for user:', userId);
+    } catch (pathError) {
+      console.error('❌ Error creating learning path:', pathError);
+    }
 
     res.status(201).json({
       message: 'Assessment completed successfully',
