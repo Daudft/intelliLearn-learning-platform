@@ -488,3 +488,152 @@ exports.getLearningStats = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+/**
+ * GET COMPREHENSIVE DASHBOARD DATA
+ * Returns all dashboard data in a single call
+ */
+exports.getDashboardData = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    // Fetch all required data
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const userProfile = await UserProfile.findOne({ userId });
+    const learningPath = await LearningPath.findOne({ userId });
+    const recentAssessment = await UserAssessment.findOne({ userId }).sort({ createdAt: -1 });
+    const allAssessments = await UserAssessment.find({ userId }).sort({ createdAt: -1 }).limit(10);
+    const achievements = await Achievement.find({ userId }).sort({ unlockedAt: -1 });
+    const activities = await ActivityLog.find({ userId }).sort({ createdAt: -1 }).limit(10);
+
+    // Calculate learning path progress
+    let pathProgress = 0;
+    let currentTask = null;
+    let completedCount = 0;
+    let totalCount = 0;
+    const languagePaths = [];
+
+    if (learningPath && learningPath.paths.length > 0) {
+      learningPath.paths.forEach((path) => {
+        const completed = path.tasks.filter(t => t.status === 'completed').length;
+        const total = path.tasks.length;
+        completedCount += completed;
+        totalCount += total;
+
+        // Find current task (first unlocked or next locked)
+        if (!currentTask) {
+          currentTask = path.tasks.find(t => t.status === 'unlocked') || 
+                       path.tasks.find(t => t.status === 'locked') ||
+                       path.tasks[0];
+        }
+
+        languagePaths.push({
+          language: path.language,
+          proficiencyLevel: path.proficiencyLevel,
+          completedTasks: completed,
+          totalTasks: total,
+          progress: total > 0 ? Math.round((completed / total) * 100) : 0,
+          tasks: path.tasks.map(t => ({
+            _id: t.taskId,
+            title: t.title,
+            status: t.status,
+            order: t.order,
+          })),
+        });
+      });
+
+      pathProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    }
+
+    // Calculate streak and stats
+    const totalBadges = achievements.length;
+    const totalPoints = achievements.reduce((sum, a) => sum + (a.points || 10), 0);
+    const streakDays = userProfile?.streakDays || 0;
+    const lastActivityDate = userProfile?.lastActivityDate || null;
+
+    // Assessment performance by topic
+    const topicPerformance = {};
+    if (recentAssessment && recentAssessment.topicBreakdown) {
+      Object.entries(recentAssessment.topicBreakdown).forEach(([topic, stats]) => {
+        if (stats.total > 0) {
+          topicPerformance[topic] = {
+            correct: stats.correct,
+            total: stats.total,
+            percentage: Math.round((stats.correct / stats.total) * 100),
+          };
+        }
+      });
+    }
+
+    return res.status(200).json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        proficiencyLevel: user.proficiencyLevel,
+        assessmentLanguage: user.assessmentLanguage,
+        learningStyle: user.learningStyle,
+        experienceLevel: user.experienceLevel,
+      },
+      learningPath: {
+        paths: languagePaths,
+        overallProgress: pathProgress,
+        completedTasks: completedCount,
+        totalTasks: totalCount,
+        currentTask: currentTask ? {
+          taskId: currentTask.taskId,
+          title: currentTask.title,
+          description: currentTask.description,
+          order: currentTask.order,
+          status: currentTask.status,
+        } : null,
+      },
+      assessment: {
+        lastScore: recentAssessment?.percentage || null,
+        lastLevel: recentAssessment?.proficiencyLevel || null,
+        totalAssessments: allAssessments.length,
+        averageScore: allAssessments.length > 0 
+          ? Math.round(allAssessments.reduce((sum, a) => sum + a.percentage, 0) / allAssessments.length)
+          : 0,
+        topicPerformance,
+        recentAttempts: allAssessments.slice(0, 3).map(a => ({
+          score: a.score,
+          total: a.totalQuestions,
+          percentage: a.percentage,
+          date: a.createdAt,
+          level: a.proficiencyLevel,
+        })),
+      },
+      gamification: {
+        streak: streakDays,
+        totalBadges,
+        totalPoints,
+        recentBadges: achievements.slice(0, 3).map(a => ({
+          id: a.badgeId,
+          name: a.badgeName,
+          icon: a.badgeIcon,
+          description: a.description,
+          unlockedAt: a.unlockedAt,
+        })),
+      },
+      recentActivity: activities.map(a => ({
+        type: a.activityType,
+        title: a.title,
+        description: a.description,
+        date: a.createdAt,
+        score: a.score,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

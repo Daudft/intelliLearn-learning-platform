@@ -10,6 +10,7 @@ const {
   unlockAchievement,
   updateLearningPreferences,
   getLearningStats,
+  getDashboardData,
 } = require('../controllers/userController');
 const { protect } = require('../middleware/auth');
 
@@ -29,5 +30,8 @@ router.post('/unlock-achievement', unlockAchievement);
 // Learning preferences routes
 router.patch('/learning-preferences/:userId', protect, updateLearningPreferences);
 router.get('/learning-stats/:userId', protect, getLearningStats);
+
+// Dashboard route
+router.get('/dashboard/:userId', protect, getDashboardData);
 
 module.exports = router;
