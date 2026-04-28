@@ -79,34 +79,70 @@ async function generateRealQuestions(language, proficiencyLevel, topicBreakdown,
 
   const systemPrompt = `You are an expert programming problem setter like those on LeetCode or HackerRank.
 Generate exactly 5 REAL, SOLVABLE programming problems with clear test cases.
+CRITICAL: Problems must be appropriate for the specified proficiency level.
+
+LEVEL GUIDELINES:
+- Beginner (0-40% score): Simple syntax, basic concepts, no complex logic, single function problems
+  Examples: sum array, reverse string, find max, check palindrome, count elements
+  NO: recursion, OOP, algorithms, nested loops, complex data structures
+  
+- Intermediate (41-70% score): Logic puzzles, small programs, basic algorithms, debugging
+  Examples: sorting, searching, string manipulation, simple OOP, basic recursion
+  NO: advanced algorithms, optimization, complex design patterns
+  
+- Advanced (71-100% score): Algorithms, optimization, OOP design, complex problems
+  Examples: advanced data structures, algorithms, system design thinking, optimization
 
 RULES:
 1. Return ONLY valid JSON with key "questions" containing exactly 5 problem objects
 2. Each problem must have: title, description, difficulty, topic, starterCode, testCases, hints
-3. Problems progress from easy to hard
+3. Problems progress from easy to harder within level
 4. Each problem should focus on ONE specific concept
 5. testCases: array with at least 2-3 items, each with: input (string), expectedOutput (string), description
 6. starterCode must be valid, runnable skeleton code specific to ${languageLabel}
-7. Focus on ${focusAreas}
-8. Include 2-3 helpful hints per problem
-9. Output NOTHING except the JSON object`;
+7. Include 2-3 helpful hints per problem (light, medium, heavy)
+8. Output NOTHING except the JSON object - no markdown, no explanations`;
+
+  const levelGuidelines = {
+    Beginner: 'Problems should be simple syntax exercises. Use basic variables, loops, and if statements. NO recursion or complex data structures.',
+    Intermediate: 'Problems should include logic puzzles, simple algorithms like sorting/searching, basic OOP concepts, and simple recursion.',
+    Advanced: 'Problems should cover advanced algorithms, optimization, complex OOP patterns, and require algorithmic thinking.',
+  };
 
   const userPrompt = `Generate 5 REAL ${languageLabel} coding problems for a ${proficiencyLevel} level learner.
 
+PROFICIENCY LEVEL: ${proficiencyLevel}
+${levelGuidelines[proficiencyLevel]}
+
 Student Performance:
 - Overall Score: ${assessmentScore}%
-- Weak Areas: ${focusAreas}
+- Weak Areas to Focus On: ${focusAreas || 'fundamentals'}
 
-Requirements for each problem:
-1. Real, practical problem (not abstract)
-2. Clear problem statement with examples
-3. 2-3 test cases with input/output
-4. Appropriate difficulty level
-5. Starter code (valid skeleton)
-6. 2-3 helpful hints
+For EACH problem:
+1. Difficulty should match ${proficiencyLevel} level (easy, medium, or hard within this level)
+2. Create a REAL practical problem (not abstract exercises)
+3. Provide clear problem statement with input/output examples
+4. Include 2-3 test cases with actual input/output values
+5. Write working starter code (skeleton) they can build on
+6. Add 2-3 progressive hints (light → medium → heavy)
+7. Focus on weak areas when possible
 
-Generate 5 such problems. Focus on concepts they struggled with.
-Return strict JSON with key "questions".`;
+IMPORTANT: Do NOT exceed the ${proficiencyLevel} level complexity. Better to be simpler than too complex.
+
+Return JSON object with key "questions" containing array of 5 problem objects.
+Structure: {
+  "questions": [
+    {
+      "title": "Problem Title",
+      "description": "Problem description with example",
+      "difficulty": "easy|medium|hard",
+      "topic": "Variables|Loops|Functions|Arrays|etc",
+      "starterCode": "code skeleton",
+      "testCases": [{"input": "example input", "expectedOutput": "example output", "description": "what this tests"}],
+      "hints": [{"text": "hint 1", "difficulty": "light"}, ...]
+    }
+  ]
+}`;
 
   try {
     console.log('📡 Calling Groq API for real questions...');
@@ -144,26 +180,31 @@ Return strict JSON with key "questions".`;
       const jsonObjectMatch = content.match(/\{[\s\S]*"questions"[\s\S]*\}/);
       if (jsonObjectMatch) {
         console.log('   Trying to extract JSON object from content...');
-        parsed = JSON.parse(jsonObjectMatch[0]);
+        try {
+          parsed = JSON.parse(jsonObjectMatch[0]);
+        } catch (e2) {
+          console.error('   Failed to parse extracted JSON:', e2.message);
+          throw new Error('Could not parse JSON response from Groq');
+        }
       } else {
-        throw new Error('Could not parse JSON response from Groq');
+        throw new Error('Could not find JSON object in Groq response');
       }
     }
     
-    if (!parsed.questions || parsed.questions.length === 0) {
-      throw new Error('No questions in response');
+    if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+      throw new Error('No questions array in response or empty');
     }
 
     const questions = normalizeRealQuestions(parsed.questions, language, proficiencyLevel, weakTopics);
     console.log(`✅ [SUCCESS] Generated ${questions.length} REAL questions from Groq API`);
     questions.forEach((q, idx) => {
-      console.log(`   ${idx + 1}. ${q.title} (${q.difficulty}) - ${q.testCases?.length || 0} test cases`);
+      console.log(`   ${idx + 1}. "${q.title}" (${q.difficulty}) - Topic: ${q.topic} - ${q.testCases?.length || 0} test cases`);
     });
     return questions;
   } catch (error) {
     console.error('❌ Real questions generation error:', error.message);
-    console.error('   Stack:', error.stack?.split('\n')[0]);
-    console.log('⚠️ Falling back to template questions');
+    console.error('   Retrying with fallback questions...');
+    console.log('⚠️ Using template questions as fallback');
     return generateFallbackQuestions(language, proficiencyLevel, topicBreakdown);
   }
 }
@@ -639,8 +680,433 @@ function normalizeAiTasks(tasks, language, proficiencyLevel) {
   }));
 }
 
+/**
+ * Logical topic sequence - order matters for learning progression
+ */
+const TOPIC_SEQUENCE = [
+  'Variables',
+  'Conditionals',
+  'Loops',
+  'Functions',
+  'Arrays',
+  'Objects',
+  'OOP',
+  'Error Handling',
+  'Recursion',
+  'Sorting'
+];
+
+/**
+ * Generate a structured learning path with difficulty stages
+ * Creates multiple difficulty stages per topic with progressive challenges
+ */
+async function generateStructuredLearningPath(language, proficiencyLevel, topicBreakdown, assessmentScore) {
+  try {
+    console.log(`📚 Generating structured learning path for ${language} (${proficiencyLevel})`);
+    
+    const weakTopics = analyzeWeakTopics(topicBreakdown);
+    const weakTopicNames = weakTopics.map(t => t.topic);
+    
+    console.log(`🎯 Weak topics identified: ${weakTopicNames.length > 0 ? weakTopicNames.join(', ') : 'none'}`);
+
+    // Build topic priority list: weak topics first, then other relevant topics
+    const priorityTopics = [];
+    
+    // Add weak topics in order of weakness
+    weakTopics.slice(0, 3).forEach(wt => {
+      const idx = TOPIC_SEQUENCE.findIndex(t => t.toLowerCase() === wt.topic.toLowerCase());
+      if (idx !== -1 && !priorityTopics.find(t => t.name === TOPIC_SEQUENCE[idx])) {
+        priorityTopics.push({ name: TOPIC_SEQUENCE[idx], isWeak: true });
+      }
+    });
+
+    // Add next relevant topics from sequence for learning progression
+    const baseCount = proficiencyLevel === 'Advanced' ? 5 : proficiencyLevel === 'Intermediate' ? 4 : 3;
+    const sequenceIdx = priorityTopics.length > 0 
+      ? TOPIC_SEQUENCE.findIndex(t => t === priorityTopics[0].name)
+      : 0;
+
+    for (let i = sequenceIdx + 1; priorityTopics.length < baseCount && i < TOPIC_SEQUENCE.length; i++) {
+      if (!priorityTopics.find(t => t.name === TOPIC_SEQUENCE[i])) {
+        priorityTopics.push({ name: TOPIC_SEQUENCE[i], isWeak: false });
+      }
+    }
+
+    console.log(`📋 Priority topics: ${priorityTopics.map(t => t.name).join(' → ')}`);
+
+    // Generate questions for each topic with difficulty progression
+    const allTasks = [];
+    let taskOrder = 1;
+
+    for (const topicInfo of priorityTopics) {
+      const topic = topicInfo.name;
+      const difficulties = ['easy', 'medium', 'hard'];
+      
+      for (const difficulty of difficulties) {
+        console.log(`   Generating: ${topic} (${difficulty})`);
+        
+        try {
+          const questions = await generateQuestionsForTopic(
+            language,
+            proficiencyLevel,
+            topic,
+            difficulty,
+            topicInfo.isWeak ? 2 : 1  // Generate more questions for weak topics
+          );
+
+          questions.forEach((q, idx) => {
+            allTasks.push({
+              ...q,
+              taskId: `${language}-${taskOrder}`,
+              order: taskOrder,
+              status: taskOrder === 1 ? 'unlocked' : 'locked',
+            });
+            taskOrder++;
+          });
+        } catch (topicErr) {
+          console.warn(`   Failed to generate for ${topic}/${difficulty}:`, topicErr.message);
+        }
+      }
+    }
+
+    console.log(`✅ Structured path generated with ${allTasks.length} tasks`);
+    
+    // If we couldn't generate enough, fall back to personalized tasks
+    if (allTasks.length < 3) {
+      console.warn('⚠️ Insufficient tasks generated, using fallback approach');
+      return await generatePersonalizedTasks(language, proficiencyLevel, topicBreakdown, assessmentScore);
+    }
+
+    return allTasks;
+  } catch (error) {
+    console.error('❌ Structured path generation error:', error.message);
+    console.log('   Falling back to personalized tasks');
+    return await generatePersonalizedTasks(language, proficiencyLevel, topicBreakdown, assessmentScore);
+  }
+}
+
+/**
+ * Generate questions for a specific topic and difficulty level
+ */
+async function generateQuestionsForTopic(language, proficiencyLevel, topic, difficulty, count = 1) {
+  if (!groqClient) {
+    return generateFallbackQuestions(language, proficiencyLevel, new Map()).slice(0, count);
+  }
+
+  const languageLabel = LANGUAGE_LABELS[language] || language;
+  const systemPrompt = `You are an expert programming educator generating educational problems.
+Generate exactly ${count} ${difficulty.toUpperCase()} level ${language} problems focused on "${topic}" for ${proficiencyLevel} learners.
+
+DIFFICULTY LEVELS:
+- Easy: Basic syntax, simple operations, single function, obvious solution path
+- Medium: Combines concepts, requires some logic, mini-algorithm  
+- Hard: Complex logic, optimization, design thinking, edge cases
+
+Requirements:
+- Return ONLY valid JSON: { "questions": [question objects] }
+- Each question: { "title", "description", "topic", "difficulty", "starterCode", "testCases": [], "hints": [] }
+- TestCases: each with "input", "expectedOutput", "description"
+- StarterCode: valid skeleton code in ${languageLabel}
+- Hints: array of 2-3 hints with "text" and "difficulty" (light|medium|heavy)
+- NO markdown, NO extra text, ONLY JSON`;
+
+  const userPrompt = `Generate ${count} ${difficulty} ${languageLabel} problem(s) on topic: "${topic}"
+Level: ${proficiencyLevel}
+Ensure difficulty matches level and topic. Focus on practical, real-world scenarios.`;
+
+  try {
+    const message = await groqClient.chat.completions.create({
+      model: 'mixtral-8x7b-32768',
+      max_tokens: 2000,
+      temperature: 0.6,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+    });
+
+    const content = message.choices?.[0]?.message?.content || '{}';
+    let jsonStr = content;
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1];
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      const jsonObjectMatch = content.match(/\{[\s\S]*"questions"[\s\S]*\}/);
+      if (jsonObjectMatch) {
+        parsed = JSON.parse(jsonObjectMatch[0]);
+      } else {
+        throw new Error('No valid JSON found');
+      }
+    }
+
+    if (!Array.isArray(parsed.questions)) {
+      throw new Error('Invalid questions structure');
+    }
+
+    return parsed.questions.map((q, idx) => ({
+      title: (q?.title || `${topic} - ${difficulty}`).toString().slice(0, 120),
+      description: (q?.description || 'Solve this problem').toString().slice(0, 500),
+      explanation: (q?.description || 'Write solution').toString().slice(0, 500),
+      topic,
+      difficulty,
+      starterCode: (q?.starterCode || `// ${topic} - ${difficulty}\n`).toString(),
+      testCases: Array.isArray(q?.testCases) ? q.testCases.map(tc => ({
+        input: (tc?.input || '').toString().slice(0, 200),
+        expectedOutput: (tc?.expectedOutput || '').toString().slice(0, 200),
+        description: (tc?.description || 'test').toString().slice(0, 100),
+      })) : [],
+      hints: Array.isArray(q?.hints) ? q.hints.map(h => ({
+        hint: (h?.text || h?.hint || '').toString().slice(0, 150),
+        difficulty: h?.difficulty || 'light',
+      })) : [],
+      proficiencyLevel,
+      draftCode: '',
+      lastFeedback: '',
+      lastFeedbackScore: null,
+      lastWorkedAt: null,
+      attempts: 0,
+      completedAt: null,
+    }));
+  } catch (error) {
+    console.warn(`Failed to generate questions for ${topic}/${difficulty}:`, error.message);
+    return [];
+  }
+}
+
+/**
+ * Generate MCQ questions for a learning path stage
+ */
+async function generateMCQQuestions(language, proficiencyLevel, topic, difficulty, count = 3) {
+  if (!groqClient) {
+    return generateFallbackMCQQuestions(language, proficiencyLevel, topic, difficulty, count);
+  }
+
+  const languageLabel = LANGUAGE_LABELS[language] || language;
+  
+  const systemPrompt = `You are an expert programming educator creating MCQ questions.
+Generate exactly ${count} multiple choice questions about "${topic}" for ${proficiencyLevel} level ${language} students.
+
+DIFFICULTY GUIDELINES:
+- Easy: Basic syntax, fundamental concepts, straightforward answer
+- Medium: Requires understanding, some logic, common mistakes included
+- Hard: Complex scenarios, edge cases, requires deep understanding
+
+EACH QUESTION MUST HAVE:
+- Clear, unambiguous question
+- 4 options (A, B, C, D)
+- Only one correct answer
+- A helpful explanation
+
+Return ONLY valid JSON:
+{
+  "questions": [
+    {
+      "question": "Question text here",
+      "options": {
+        "A": "Option A",
+        "B": "Option B",
+        "C": "Option C",
+        "D": "Option D"
+      },
+      "correct": "A",
+      "explanation": "Why A is correct and why others aren't"
+    }
+  ]
+}`;
+
+  const difficultyMap = {
+    easy: 'basic syntax and simple concepts',
+    medium: 'combines concepts and requires logic',
+    hard: 'edge cases, optimization, and advanced thinking'
+  };
+
+  const userPrompt = `Generate ${count} ${difficulty} MCQ questions on "${topic}" for ${proficiencyLevel} level ${language} learners.
+
+Focus: ${difficultyMap[difficulty]}
+Include realistic code examples where relevant.
+Make the questions practical and educational.
+Do NOT include trick questions - all questions should have one clearly correct answer.`;
+
+  try {
+    console.log(`📝 Generating ${count} MCQ questions: ${topic}/${difficulty}`);
+    
+    const message = await groqClient.chat.completions.create({
+      model: 'mixtral-8x7b-32768',
+      max_tokens: 2000,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+    });
+
+    const content = message.choices?.[0]?.message?.content || '{}';
+    let jsonStr = content;
+    
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1];
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      const jsonObjectMatch = content.match(/\{[\s\S]*"questions"[\s\S]*\}/);
+      if (jsonObjectMatch) {
+        parsed = JSON.parse(jsonObjectMatch[0]);
+      } else {
+        throw new Error('No valid JSON found');
+      }
+    }
+
+    if (!Array.isArray(parsed.questions)) {
+      throw new Error('Invalid questions structure');
+    }
+
+    return parsed.questions.slice(0, count).map((q, idx) => ({
+      question: (q?.question || 'Question').toString().slice(0, 500),
+      options: {
+        A: (q?.options?.A || 'Option A').toString().slice(0, 200),
+        B: (q?.options?.B || 'Option B').toString().slice(0, 200),
+        C: (q?.options?.C || 'Option C').toString().slice(0, 200),
+        D: (q?.options?.D || 'Option D').toString().slice(0, 200),
+      },
+      correctAnswer: String(q?.correct || q?.correct_answer || 'A').toUpperCase()[0],
+      explanation: (q?.explanation || 'See course materials for more details').toString().slice(0, 300),
+    }));
+  } catch (error) {
+    console.warn(`⚠️ MCQ generation failed:`, error.message);
+    return generateFallbackMCQQuestions(language, proficiencyLevel, topic, difficulty, count);
+  }
+}
+
+/**
+ * Fallback MCQ questions
+ */
+function generateFallbackMCQQuestions(language, proficiencyLevel, topic, difficulty, count = 3) {
+  const templates = {
+    Variables: [
+      {
+        question: 'What is a variable?',
+        options: {
+          A: 'A named container that stores a value',
+          B: 'A function that returns values',
+          C: 'A type of loop in programming',
+          D: 'A syntax error'
+        },
+        correctAnswer: 'A',
+        explanation: 'Variables are containers for storing data values with a name.'
+      },
+      {
+        question: 'Which is a valid variable name in most programming languages?',
+        options: {
+          A: '2myvar',
+          B: 'my-var',
+          C: 'my_var',
+          D: 'my.var'
+        },
+        correctAnswer: 'C',
+        explanation: 'Variable names should start with a letter or underscore, and can contain letters, numbers, and underscores.'
+      },
+      {
+        question: 'What happens if you use a variable before declaring it?',
+        options: {
+          A: 'It automatically gets a default value',
+          B: 'You get an error (undefined/not declared)',
+          C: 'It creates the variable automatically',
+          D: 'Nothing happens'
+        },
+        correctAnswer: 'B',
+        explanation: 'In most languages, using an undeclared variable causes an error.'
+      }
+    ],
+    Loops: [
+      {
+        question: 'How many times does this loop execute? for(let i=0; i<5; i++)',
+        options: {
+          A: '4 times',
+          B: '5 times',
+          C: '6 times',
+          D: 'Infinite times'
+        },
+        correctAnswer: 'B',
+        explanation: 'The loop runs while i is less than 5 (0,1,2,3,4), so 5 times total.'
+      },
+      {
+        question: 'What is the difference between while and for loops?',
+        options: {
+          A: 'While loops are faster',
+          B: 'For loops are for counting, while loops for conditions',
+          C: 'No real difference',
+          D: 'While loops can\'t be exited'
+        },
+        correctAnswer: 'B',
+        explanation: 'For loops are typically used for counted iterations, while loops for condition-based iterations.'
+      },
+      {
+        question: 'Which keyword exits a loop immediately?',
+        options: {
+          A: 'exit',
+          B: 'stop',
+          C: 'break',
+          D: 'return'
+        },
+        correctAnswer: 'C',
+        explanation: 'The break keyword immediately exits the current loop.'
+      }
+    ],
+    Functions: [
+      {
+        question: 'What is a function?',
+        options: {
+          A: 'A block of reusable code',
+          B: 'A mathematical operation',
+          C: 'A type of variable',
+          D: 'A loop structure'
+        },
+        correctAnswer: 'A',
+        explanation: 'Functions are reusable blocks of code that perform specific tasks.'
+      },
+      {
+        question: 'What does a return statement do?',
+        options: {
+          A: 'It ends the program',
+          B: 'It sends a value back to the caller',
+          C: 'It creates a new function',
+          D: 'It deletes a variable'
+        },
+        correctAnswer: 'B',
+        explanation: 'The return statement returns a value from a function to the code that called it.'
+      },
+      {
+        question: 'Can a function call itself?',
+        options: {
+          A: 'No, that causes an error',
+          B: 'Yes, this is called recursion',
+          C: 'Only in advanced languages',
+          D: 'Only once'
+        },
+        correctAnswer: 'B',
+        explanation: 'A function can call itself, which is called recursion.'
+      }
+    ]
+  };
+
+  const topicQuestions = templates[topic] || templates['Variables'];
+  return topicQuestions.slice(0, count);
+}
+
 module.exports = {
   generatePersonalizedTasks,
   evaluateCodeWithAI,
   analyzeWeakTopics,
+  generateStructuredLearningPath,
+  generateQuestionsForTopic,
+  generateMCQQuestions,
 };

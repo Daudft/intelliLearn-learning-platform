@@ -12,6 +12,7 @@ const connectDB = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 const assessmentRoutes = require('./routes/assessmentRoutes');
 const learningPathRoutes = require('./routes/learningPathRoutes');
+const questionsRoutes = require('./routes/questionsRoutes');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 
@@ -39,6 +40,7 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/api/learning-path', learningPathRoutes);
+app.use('/api/questions', questionsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 

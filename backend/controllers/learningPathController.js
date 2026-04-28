@@ -1,5 +1,5 @@
 const LearningPath = require('../models/LearningPath');
-const { generatePersonalizedTasks, evaluateCodeWithAI } = require('../utils/aiTaskGenerator');
+const { generatePersonalizedTasks, evaluateCodeWithAI, generateStructuredLearningPath } = require('../utils/aiTaskGenerator');
 
 const LANGUAGE_LABELS = {
   python: 'Python',
@@ -124,15 +124,26 @@ async function evaluateCodeWithAi({ language, proficiencyLevel, taskTitle, taskD
 async function ensurePathForLanguage(userId, language, proficiencyLevel, topicBreakdown, assessmentScore) {
   let learningPath = await LearningPath.findOne({ userId });
   
-  console.log(`🚀 Generating personalized tasks for ${language} (${proficiencyLevel})`);
+  console.log(`🚀 Generating learning path for ${language} (${proficiencyLevel}) - Score: ${assessmentScore}%`);
   
-  // Generate personalized tasks based on assessment data
-  const generatedTasks = await generatePersonalizedTasks(
-    language,
-    proficiencyLevel,
-    topicBreakdown || new Map(),
-    assessmentScore || 50
-  );
+  // Use structured learning path for more comprehensive progression
+  let generatedTasks;
+  try {
+    generatedTasks = await generateStructuredLearningPath(
+      language,
+      proficiencyLevel,
+      topicBreakdown || {},
+      assessmentScore || 50
+    );
+  } catch (structError) {
+    console.warn('⚠️ Structured path failed, falling back to personalized tasks:', structError.message);
+    generatedTasks = await generatePersonalizedTasks(
+      language,
+      proficiencyLevel,
+      topicBreakdown || {},
+      assessmentScore || 50
+    );
+  }
 
   console.log(`📚 Generated ${generatedTasks.length} tasks`);
 
