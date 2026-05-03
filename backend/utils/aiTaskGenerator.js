@@ -146,11 +146,11 @@ Structure: {
 
   try {
     console.log('📡 Calling Groq API for real questions...');
-    console.log(`   Model: mixtral-8x7b-32768`);
+    console.log(`   Model: llama-3.3-70b-versatile`);
     console.log(`   Language: ${language}`);
     
     const message = await groqClient.chat.completions.create({
-      model: 'mixtral-8x7b-32768',
+      model: 'llama-3.3-70b-versatile',
       max_tokens: 4000,
       temperature: 0.7,
       messages: [
@@ -524,7 +524,7 @@ Provide feedback as JSON only.`;
   try {
     console.log(`📝 Evaluating ${language} code for: ${taskTitle}`);
     const message = await groqClient.chat.completions.create({
-      model: 'mixtral-8x7b-32768',
+      model: 'llama-3.3-70b-versatile',
       max_tokens: 1000,
       temperature: 0.3,
       messages: [
@@ -816,7 +816,7 @@ Ensure difficulty matches level and topic. Focus on practical, real-world scenar
 
   try {
     const message = await groqClient.chat.completions.create({
-      model: 'mixtral-8x7b-32768',
+      model: 'llama-3.3-70b-versatile',
       max_tokens: 2000,
       temperature: 0.6,
       messages: [
@@ -936,7 +936,7 @@ Do NOT include trick questions - all questions should have one clearly correct a
     console.log(`📝 Generating ${count} MCQ questions: ${topic}/${difficulty}`);
     
     const message = await groqClient.chat.completions.create({
-      model: 'mixtral-8x7b-32768',
+      model: 'llama-3.3-70b-versatile',
       max_tokens: 2000,
       temperature: 0.7,
       messages: [
