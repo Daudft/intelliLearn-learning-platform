@@ -49,6 +49,9 @@ const assessmentSchema = new mongoose.Schema({
   },
 });
 
+// Ensure no duplicate questions per language
+assessmentSchema.index({ language: 1, questionNumber: 1 }, { unique: true });
+
 // Compound index for efficient querying
 assessmentSchema.index({ language: 1, questionNumber: 1 });
 

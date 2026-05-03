@@ -31,10 +31,30 @@ exports.getQuestions = async (req, res) => {
       return res.status(400).json({ message: 'Invalid language' });
     }
 
-    const questions = await Assessment.find({ language })
-      .sort({ questionNumber: 1 })
-      .limit(15)
-      .select('-correctAnswer -explanation');
+    // Use aggregation to get unique questions, avoiding duplicates
+    const questions = await Assessment.aggregate([
+      { $match: { language } },
+      // Group by questionNumber to get first document of each question
+      {
+        $group: {
+          _id: '$questionNumber',
+          doc: { $first: '$$ROOT' }
+        }
+      },
+      // Replace root with the document
+      { $replaceRoot: { newRoot: '$doc' } },
+      // Sort by questionNumber
+      { $sort: { questionNumber: 1 } },
+      // Limit to 15 unique questions
+      { $limit: 15 },
+      // Remove sensitive fields
+      {
+        $project: {
+          correctAnswer: 0,
+          explanation: 0
+        }
+      }
+    ]);
 
     if (questions.length === 0) {
       return res.status(404).json({ message: 'No questions found for this language' });
@@ -66,10 +86,23 @@ exports.submitAssessment = async (req, res) => {
 
     const attemptNumber = lastAttempt ? lastAttempt.attemptNumber + 1 : 1;
 
-    // Get correct answers
-    const questions = await Assessment.find({ language })
-      .sort({ questionNumber: 1 })
-      .limit(15);
+    // Get correct answers using aggregation to ensure uniqueness
+    const questions = await Assessment.aggregate([
+      { $match: { language } },
+      // Group by questionNumber to get first document of each question
+      {
+        $group: {
+          _id: '$questionNumber',
+          doc: { $first: '$$ROOT' }
+        }
+      },
+      // Replace root with the document
+      { $replaceRoot: { newRoot: '$doc' } },
+      // Sort by questionNumber
+      { $sort: { questionNumber: 1 } },
+      // Limit to 15 unique questions
+      { $limit: 15 }
+    ]);
 
     if (questions.length === 0) {
       return res.status(404).json({ message: 'No questions found for this language' });
@@ -137,10 +170,16 @@ exports.submitAssessment = async (req, res) => {
 
     // Generate personalized learning path based on assessment performance
     try {
+      console.log(`📚 Starting learning path generation for user ${userId}...`);
+      console.log(`   Language: ${language}, Proficiency: ${proficiencyLevel}, Score: ${percentage}%`);
+      
       await ensurePathForLanguage(userId, language, proficiencyLevel, topicBreakdownObj, percentage);
+      
       console.log('✅ Learning path created successfully for user:', userId);
     } catch (pathError) {
-      console.error('❌ Error creating learning path:', pathError);
+      console.error('❌ Error creating learning path:', pathError.message);
+      console.error('   Stack:', pathError.stack);
+      // Don't throw - assessment is still valid even if path generation fails
     }
 
     res.status(201).json({
@@ -446,7 +485,6 @@ exports.submitAdaptiveAnswer = async (req, res) => {
 async function getAdaptiveQuestion(language, topic, difficulty, usedIds) {
   const query = {
     language,
-    topic,
     difficulty,
     _id: { $nin: Array.from(usedIds) }
   };
@@ -454,15 +492,27 @@ async function getAdaptiveQuestion(language, topic, difficulty, usedIds) {
   // Handle Variables_and_Datatypes combined query
   if (topic === 'Variables_and_Datatypes') {
     query.topic = { $in: ['Variables_and_Datatypes', 'DataTypes_String'] };
-    query._id = { $nin: Array.from(usedIds) };
+  } else {
+    query.topic = topic;
   }
 
-  const questions = await Assessment.find(query);
-  
+  // Use aggregation pipeline to ensure unique questions and avoid duplicates
+  const questions = await Assessment.aggregate([
+    { $match: query },
+    // Remove duplicates by questionNumber within this query
+    {
+      $group: {
+        _id: '$questionNumber',
+        doc: { $first: '$$ROOT' }
+      }
+    },
+    { $replaceRoot: { newRoot: '$doc' } },
+    { $sample: { size: 1 } }
+  ]);
+
   if (questions.length === 0) return null;
 
-  // Return random question
-  return questions[Math.floor(Math.random() * questions.length)];
+  return questions[0];
 }
 
 /* HELPER: Get next topic based on distribution */
