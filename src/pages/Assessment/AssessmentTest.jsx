@@ -15,7 +15,7 @@ export default function AssessmentTest() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [startTime, setStartTime] = useState(Date.now());
+  
   const [previousAnswerFeedback, setPreviousAnswerFeedback] = useState(null);
 
   useEffect(() => {
@@ -23,7 +23,6 @@ export default function AssessmentTest() {
     setPreviousAnswerFeedback(null);
     setQuestionIndex(0);
     setSubmitting(false);
-    setStartTime(Date.now());
     startAssessment();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -175,8 +174,32 @@ export default function AssessmentTest() {
           </div>
         )}
 
-        {/* Main Question Area */}
-        <div className="flex-1 bg-white rounded-xl shadow-lg border border-gray-100 flex flex-col overflow-hidden">
+        {/* Main Question Area with Side Numbering */}
+        <div className="flex-1 flex gap-4">
+
+          {/* Side numbering (non-interactive to preserve adaptive flow) */}
+          <aside className="w-20 hidden sm:flex flex-col items-center gap-2 p-3">
+            <div className="bg-white rounded-xl shadow-lg p-2 w-full">
+              <div className="text-xs text-gray-500 font-semibold mb-2 text-center">Questions</div>
+              <div className="flex flex-col gap-2 max-h-[420px] overflow-auto">
+                {Array.from({ length: 15 }).map((_, i) => {
+                  const num = i + 1;
+                  const isCurrent = num === questionIndex;
+                  return (
+                    <div
+                      key={num}
+                      className={("w-full flex items-center justify-center h-8 rounded-md text-sm font-semibold ") + (isCurrent ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700')}
+                      aria-current={isCurrent ? 'true' : 'false'}
+                    >
+                      {num}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+
+          <div className="flex-1 bg-white rounded-xl shadow-lg border border-gray-100 flex flex-col overflow-hidden">
 
           {/* Question Header */}
           <div className="p-4 sm:p-6 border-b border-gray-100 flex-shrink-0">
@@ -209,11 +232,12 @@ export default function AssessmentTest() {
                     key={index}
                     onClick={() => handleAnswerSelect(option)}
                     disabled={submitting}
-                    className={`group w-full text-left p-4 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
-                      submitting
+                    className={
+                      "group w-full text-left p-4 rounded-lg border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 " +
+                      (submitting
                         ? "cursor-not-allowed opacity-50"
-                        : "cursor-pointer hover:shadow-md border-gray-200 hover:border-gray-300 bg-white"
-                    }`}
+                        : "cursor-pointer hover:shadow-md border-gray-200 hover:border-gray-300 bg-white")
+                    }
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center" />
@@ -232,8 +256,8 @@ export default function AssessmentTest() {
             Your answer difficulty will adapt based on correctness. Click any answer to proceed.
           </div>
         </div>
-
       </div>
     </div>
+  </div>
   );
 }
