@@ -239,3 +239,328 @@ exports.checkAssessmentStatus = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+/* =============================================
+   ADAPTIVE ASSESSMENT - NEW FLOW
+   ============================================= */
+
+// In-memory storage for active assessment sessions
+const activeSessions = new Map();
+
+/* Topic distribution for adaptive assessment */
+const TOPIC_DISTRIBUTION = {
+  'Variables_and_Datatypes': 3,  // 2-3 questions
+  'DataTypes_String': 3,          // 2-3 questions (combined with Variables)
+  'Loops': 3,
+  'Operations': 3,
+  'Functions': 3,
+  'Arrays': 3,
+  'Objects': 3,
+};
+
+/* Difficulty progression */
+const DIFFICULTY_LEVELS = ['easy', 'medium', 'hard'];
+
+/* START ADAPTIVE ASSESSMENT */
+exports.startAdaptiveAssessment = async (req, res) => {
+  try {
+    const { userId, language } = req.body;
+
+    if (!userId || !language) {
+      return res.status(400).json({ message: 'Missing userId or language' });
+    }
+
+    if (!['python', 'java', 'c'].includes(language)) {
+      return res.status(400).json({ message: 'Invalid language' });
+    }
+
+    // Create session
+    const sessionId = `${userId}_${language}_${Date.now()}`;
+    
+    const session = {
+      sessionId,
+      userId,
+      language,
+      currentQuestionIndex: 0,
+      currentDifficulty: 'easy',
+      answers: [],
+      topicProgress: {},
+      questionsUsed: new Set(),
+      startTime: Date.now(),
+    };
+
+    activeSessions.set(sessionId, session);
+
+    // Get first question from Variables/Datatypes (easy)
+    const firstQuestion = await getAdaptiveQuestion(language, 'Variables_and_Datatypes', 'easy', new Set());
+
+    if (!firstQuestion) {
+      activeSessions.delete(sessionId);
+      return res.status(404).json({ message: 'No questions available' });
+    }
+
+    session.questionsUsed.add(firstQuestion._id.toString());
+    session.topicProgress['Variables_and_Datatypes'] = 1;
+
+    res.status(200).json({
+      message: 'Assessment started',
+      sessionId,
+      question: {
+        _id: firstQuestion._id,
+        question: firstQuestion.question,
+        options: firstQuestion.options,
+        topic: firstQuestion.topic,
+        difficulty: firstQuestion.difficulty,
+        questionIndex: 1,
+      },
+    });
+
+  } catch (error) {
+    console.error('Error starting adaptive assessment:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/* SUBMIT ANSWER AND GET NEXT QUESTION */
+exports.submitAdaptiveAnswer = async (req, res) => {
+  try {
+    const { sessionId, questionId, userAnswer } = req.body;
+
+    if (!sessionId || !questionId || userAnswer === undefined) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const session = activeSessions.get(sessionId);
+    if (!session) {
+      return res.status(400).json({ message: 'Invalid session' });
+    }
+
+    // Get question and check answer
+    const question = await Assessment.findById(questionId);
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
+    }
+
+    const isCorrect = userAnswer === question.correctAnswer;
+
+    // Store answer
+    session.answers.push({
+      questionId,
+      userAnswer,
+      isCorrect,
+      topic: question.topic,
+      difficulty: question.difficulty,
+    });
+
+    // Update difficulty based on correctness
+    const currentDifficultyIndex = DIFFICULTY_LEVELS.indexOf(session.currentDifficulty);
+    
+    if (isCorrect) {
+      // Correct: increase difficulty
+      if (currentDifficultyIndex < DIFFICULTY_LEVELS.length - 1) {
+        session.currentDifficulty = DIFFICULTY_LEVELS[currentDifficultyIndex + 1];
+      }
+    } else {
+      // Wrong: decrease difficulty
+      if (currentDifficultyIndex > 0) {
+        session.currentDifficulty = DIFFICULTY_LEVELS[currentDifficultyIndex - 1];
+      }
+    }
+
+    // Determine next topic
+    const nextTopic = getNextTopic(session);
+    
+    // Check if assessment is complete (15 questions asked)
+    if (session.answers.length >= 15) {
+      // Finalize assessment
+      return finalizeAdaptiveAssessment(session, res);
+    }
+
+    // Get next question
+    const nextQuestion = await getAdaptiveQuestion(
+      session.language,
+      nextTopic,
+      session.currentDifficulty,
+      session.questionsUsed
+    );
+
+    if (!nextQuestion) {
+      // If no question available in current topic/difficulty, try any available
+      const allTopics = Object.keys(TOPIC_DISTRIBUTION);
+      for (const topic of allTopics) {
+        const altQuestion = await getAdaptiveQuestion(session.language, topic, session.currentDifficulty, session.questionsUsed);
+        if (altQuestion) {
+          session.questionsUsed.add(altQuestion._id.toString());
+          session.topicProgress[topic] = (session.topicProgress[topic] || 0) + 1;
+          
+          return res.status(200).json({
+            message: 'Next question',
+            sessionId,
+            isCorrect,
+            question: {
+              _id: altQuestion._id,
+              question: altQuestion.question,
+              options: altQuestion.options,
+              topic: altQuestion.topic,
+              difficulty: altQuestion.difficulty,
+              questionIndex: session.answers.length + 1,
+            },
+          });
+        }
+      }
+      
+      // No more questions available
+      return finalizeAdaptiveAssessment(session, res);
+    }
+
+    session.questionsUsed.add(nextQuestion._id.toString());
+    session.topicProgress[nextTopic] = (session.topicProgress[nextTopic] || 0) + 1;
+
+    res.status(200).json({
+      message: 'Next question',
+      sessionId,
+      isCorrect,
+      question: {
+        _id: nextQuestion._id,
+        question: nextQuestion.question,
+        options: nextQuestion.options,
+        topic: nextQuestion.topic,
+        difficulty: nextQuestion.difficulty,
+        questionIndex: session.answers.length + 1,
+      },
+    });
+
+  } catch (error) {
+    console.error('Error submitting adaptive answer:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/* HELPER: Get random question by topic and difficulty */
+async function getAdaptiveQuestion(language, topic, difficulty, usedIds) {
+  const query = {
+    language,
+    topic,
+    difficulty,
+    _id: { $nin: Array.from(usedIds) }
+  };
+
+  // Handle Variables_and_Datatypes combined query
+  if (topic === 'Variables_and_Datatypes') {
+    query.topic = { $in: ['Variables_and_Datatypes', 'DataTypes_String'] };
+    query._id = { $nin: Array.from(usedIds) };
+  }
+
+  const questions = await Assessment.find(query);
+  
+  if (questions.length === 0) return null;
+
+  // Return random question
+  return questions[Math.floor(Math.random() * questions.length)];
+}
+
+/* HELPER: Get next topic based on distribution */
+function getNextTopic(session) {
+  const topics = Object.keys(TOPIC_DISTRIBUTION);
+  const topicsToAsk = [];
+
+  // First 3 questions: Variables_and_Datatypes
+  if (session.answers.length < 3) {
+    return 'Variables_and_Datatypes';
+  }
+
+  // Remaining questions: cycle through other topics
+  const otherTopics = topics.filter(t => t !== 'Variables_and_Datatypes');
+  const questionNumber = session.answers.length;
+  const topicIndex = (questionNumber - 3) % otherTopics.length;
+
+  return otherTopics[topicIndex];
+}
+
+/* FINALIZE ADAPTIVE ASSESSMENT */
+async function finalizeAdaptiveAssessment(session, res) {
+  try {
+    const { userId, language, answers } = session;
+
+    // Calculate score
+    let score = 0;
+    const topicBreakdown = {};
+
+    answers.forEach(answer => {
+      if (answer.isCorrect) score++;
+      
+      const topic = answer.topic;
+      if (!topicBreakdown[topic]) {
+        topicBreakdown[topic] = { correct: 0, total: 0 };
+      }
+      topicBreakdown[topic].total++;
+      if (answer.isCorrect) topicBreakdown[topic].correct++;
+    });
+
+    const totalQuestions = answers.length;
+    const percentage = Math.round((score / totalQuestions) * 100);
+
+    let proficiencyLevel = 'Beginner';
+    if (percentage > 70) proficiencyLevel = 'Advanced';
+    else if (percentage > 40) proficiencyLevel = 'Intermediate';
+
+    // Get attempt number
+    const lastAttempt = await UserAssessment.findOne({ userId, language })
+      .sort({ attemptNumber: -1 });
+    const attemptNumber = lastAttempt ? lastAttempt.attemptNumber + 1 : 1;
+
+    // Save assessment
+    const gradedAnswers = answers.map(answer => ({
+      questionId: answer.questionId,
+      userAnswer: answer.userAnswer,
+      isCorrect: answer.isCorrect,
+    }));
+
+    const userAssessment = await UserAssessment.create({
+      userId,
+      language,
+      attemptNumber,
+      answers: gradedAnswers,
+      score,
+      totalQuestions,
+      percentage,
+      proficiencyLevel,
+      topicBreakdown,
+      timeTaken: Math.round((Date.now() - session.startTime) / 1000),
+    });
+
+    // Update user profile
+    await User.findByIdAndUpdate(userId, {
+      hasCompletedAssessment: true,
+      assessmentLanguage: language,
+      proficiencyLevel,
+      lastAssessmentDate: new Date(),
+    });
+
+    // Generate learning path
+    try {
+      await ensurePathForLanguage(userId, language, proficiencyLevel, topicBreakdown, percentage);
+    } catch (pathError) {
+      console.error('❌ Error creating learning path:', pathError);
+    }
+
+    // Clean up session
+    activeSessions.delete(session.sessionId);
+
+    res.status(201).json({
+      message: 'Assessment completed',
+      result: {
+        attemptNumber,
+        score,
+        totalQuestions,
+        percentage,
+        proficiencyLevel,
+        topicBreakdown,
+      }
+    });
+
+  } catch (error) {
+    console.error('Error finalizing assessment:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+}
