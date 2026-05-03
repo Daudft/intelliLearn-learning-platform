@@ -308,6 +308,8 @@ exports.startAdaptiveAssessment = async (req, res) => {
       question: {
         _id: firstQuestion._id,
         question: firstQuestion.question,
+        questionType: firstQuestion.questionType,
+        code: firstQuestion.code || null,
         options: firstQuestion.options,
         topic: firstQuestion.topic,
         difficulty: firstQuestion.difficulty,
@@ -400,6 +402,8 @@ exports.submitAdaptiveAnswer = async (req, res) => {
             question: {
               _id: altQuestion._id,
               question: altQuestion.question,
+              questionType: altQuestion.questionType,
+              code: altQuestion.code || null,
               options: altQuestion.options,
               topic: altQuestion.topic,
               difficulty: altQuestion.difficulty,
@@ -423,6 +427,8 @@ exports.submitAdaptiveAnswer = async (req, res) => {
       question: {
         _id: nextQuestion._id,
         question: nextQuestion.question,
+        questionType: nextQuestion.questionType,
+        code: nextQuestion.code || null,
         options: nextQuestion.options,
         topic: nextQuestion.topic,
         difficulty: nextQuestion.difficulty,

@@ -17,21 +17,21 @@ const connectDB = async () => {
 // PYTHON QUESTIONS (300 questions)
 const pythonQuestions = [
   // ===== VARIABLES (40 questions) =====
-  { language: 'python', questionNumber: 1, questionType: 'mcq', topic: 'Variables', difficulty: 'easy', question: 'Which of the following is the correct way to declare a variable in Python?', options: ['int x = 5', 'x = 5', 'var x = 5', 'declare x = 5'], correctAnswer: 'x = 5', explanation: 'Python uses dynamic typing, no need to specify type' },
-  { language: 'python', questionNumber: 2, questionType: 'mcq', topic: 'Variables', difficulty: 'easy', question: 'What is the output of x after running: x = 10; x = x + 5?', options: ['10', '15', '5', 'Error'], correctAnswer: '15', explanation: 'x is reassigned to x + 5 = 15' },
-  { language: 'python', questionNumber: 3, questionType: 'mcq', topic: 'Variables', difficulty: 'easy', question: 'Can you assign multiple values to multiple variables in a single line in Python?', options: ['No', 'Yes, with semicolon', 'Yes, with comma', 'Only in functions'], correctAnswer: 'Yes, with comma', explanation: 'x, y, z = 1, 2, 3 is valid Python' },
-  { language: 'python', questionNumber: 4, questionType: 'mcq', topic: 'Variables', difficulty: 'easy', question: 'What is the default value of an uninitialized variable in Python?', options: ['0', 'None', 'Empty string', 'Error'], correctAnswer: 'Error', explanation: 'Uninitialized variables cause NameError' },
-  { language: 'python', questionNumber: 5, questionType: 'mcq', topic: 'Variables', difficulty: 'easy', question: 'Which symbol is used for variable assignment in Python?', options: ['==', '=', ':=', '->'], correctAnswer: '=', explanation: '= is used for assignment, == for comparison' },
-  { language: 'python', questionNumber: 6, questionType: 'mcq', topic: 'Variables', difficulty: 'medium', question: 'What is the output of: a, b = 5, 10; a, b = b, a?', options: ['5, 10', '10, 5', 'Error', '5, 5'], correctAnswer: '10, 5', explanation: 'This is tuple unpacking, values are swapped' },
-  { language: 'python', questionNumber: 7, questionType: 'mcq', topic: 'Variables', difficulty: 'medium', question: 'Are variable names in Python case-sensitive?', options: ['No', 'Yes', 'Only for built-ins', 'Depends on OS'], correctAnswer: 'Yes', explanation: 'x and X are different variables' },
-  { language: 'python', questionNumber: 8, questionType: 'mcq', topic: 'Variables', difficulty: 'medium', question: 'Which naming convention is recommended for Python variables?', options: ['camelCase', 'PascalCase', 'snake_case', 'UPPERCASE'], correctAnswer: 'snake_case', explanation: 'PEP 8 recommends snake_case for variables' },
-  { language: 'python', questionNumber: 9, questionType: 'mcq', topic: 'Variables', difficulty: 'medium', question: 'What happens when you assign a variable that references an object to another variable?', options: ['Copy is made', 'Reference is shared', 'Error occurs', 'None'], correctAnswer: 'Reference is shared', explanation: 'Both variables point to same object in memory' },
-  { language: 'python', questionNumber: 10, questionType: 'mcq', topic: 'Variables', difficulty: 'medium', question: 'Can variable names start with a number in Python?', options: ['Yes', 'No', 'Only if quoted', 'Only globally'], correctAnswer: 'No', explanation: 'Variables must start with letter or underscore' },
-  { language: 'python', questionNumber: 11, questionType: 'mcq', topic: 'Variables', difficulty: 'easy', question: 'What is a global variable in Python?', options: ['Variable inside a function', 'Variable accessible from anywhere', 'Constant variable', 'Static variable'], correctAnswer: 'Variable accessible from anywhere', explanation: 'Global variables have global scope' },
-  { language: 'python', questionNumber: 12, questionType: 'mcq', topic: 'Variables', difficulty: 'easy', question: 'Can you reassign a variable in Python?', options: ['No, never', 'Yes, always', 'Only local variables', 'Only once'], correctAnswer: 'Yes, always', explanation: 'Variables in Python are dynamic' },
-  { language: 'python', questionNumber: 13, questionType: 'mcq', topic: 'Variables', difficulty: 'medium', question: 'What is the scope of a variable defined inside a function?', options: ['Global', 'Local', 'Module', 'Built-in'], correctAnswer: 'Local', explanation: 'Variables defined in functions have local scope' },
-  { language: 'python', questionNumber: 14, questionType: 'mcq', topic: 'Variables', difficulty: 'medium', question: 'How do you make a variable global inside a function?', options: ['use global keyword', 'use @ symbol', 'prefix with $', 'Not possible'], correctAnswer: 'use global keyword', explanation: 'global keyword allows modifying global variables' },
-  { language: 'python', questionNumber: 15, questionType: 'mcq', topic: 'Variables', difficulty: 'hard', question: 'What is the difference between local and nonlocal variables?', options: ['Same thing', 'nonlocal accesses outer function scope', 'local is global', 'nonlocal is faster'], correctAnswer: 'nonlocal accesses outer function scope', explanation: 'nonlocal is for nested functions' },
+  { language: 'python', questionNumber: 1, questionType: 'code_output', topic: 'Variables', difficulty: 'easy', question: 'What is the output of the following code?', code: "x = 5\nx = x + 2\nprint(x)", options: ['5', '7', 'Error', 'None'], correctAnswer: '7', explanation: 'x is incremented by 2 then printed' },
+  { language: 'python', questionNumber: 2, questionType: 'mcq', topic: 'Syntax', difficulty: 'easy', question: 'What happens when this code is executed?', code: "def foo():\nprint('hi')", options: ['Prints hi', 'IndentationError', 'SyntaxError', 'Nothing'], correctAnswer: 'IndentationError', explanation: 'The print is not indented inside the function body' },
+  { language: 'python', questionNumber: 3, questionType: 'code_output', topic: 'Lists', difficulty: 'easy', question: 'What is the output of the following code?', code: "a = [1,2]\nb = a\nb.append(3)\nprint(a)", options: ['[1, 2]', '[1, 2, 3]', '[3]', 'Error'], correctAnswer: '[1, 2, 3]', explanation: 'b references same list as a; append mutates list' },
+  { language: 'python', questionNumber: 4, questionType: 'code_output', topic: 'Strings', difficulty: 'easy', question: 'What does this print?', code: "s = 'hello'\nprint(s[1:-1])", options: ['hel', 'ell', 'el', 'ello'], correctAnswer: 'ell', explanation: 'Slice [1:-1] returns characters from index 1 to second-last' },
+  { language: 'python', questionNumber: 5, questionType: 'code_output', topic: 'Operations', difficulty: 'easy', question: 'What is the output?', code: "print(5/2)", options: ['2', '2.5', '2.0', 'Error'], correctAnswer: '2.5', explanation: '/ produces float division' },
+  { language: 'python', questionNumber: 6, questionType: 'mcq', topic: 'Syntax', difficulty: 'medium', question: 'What is wrong with this snippet?', code: "for i in range(3)\n  print(i)", options: ['Missing colon after range(3)', 'Indentation too deep', 'print spelled incorrectly', 'Nothing wrong'], correctAnswer: 'Missing colon after range(3)', explanation: 'for loop requires a colon at the end of the declaration' },
+  { language: 'python', questionNumber: 7, questionType: 'code_output', topic: 'Tuples', difficulty: 'medium', question: 'What is printed?', code: "a, b = 5, 10\na, b = b, a\nprint(a, b)", options: ['5 10', '10 5', 'Error', '5 5'], correctAnswer: '10 5', explanation: 'Tuple unpacking swaps values' },
+  { language: 'python', questionNumber: 8, questionType: 'code_output', topic: 'Mutability', difficulty: 'medium', question: 'What is the output?', code: "x = [1,2]\ny = x\ny[0] = 99\nprint(x)", options: ['[1,2]', '[99,2]', 'Error', '[1,99]'], correctAnswer: '[99,2]', explanation: 'Lists are mutable and both names reference same object' },
+  { language: 'python', questionNumber: 9, questionType: 'mcq', topic: 'Tricky', difficulty: 'hard', question: 'What does this print?', code: "def f(a, L=[]):\n  L.append(a)\n  return L\nprint(f(1))\nprint(f(2))", options: ['[1]\n[2]', '[1]\n[1,2]', '[1,2]\n[1,2]', 'Error'], correctAnswer: '[1]\n[1,2]', explanation: 'Mutable default argument persists across calls' },
+  { language: 'python', questionNumber: 10, questionType: 'code_output', topic: 'Indexing', difficulty: 'medium', question: 'What is the output?', code: "lst = [0,1,2]\nprint(lst[-1])", options: ['0', '1', '2', 'Error'], correctAnswer: '2', explanation: 'Negative index -1 returns last element' },
+  { language: 'python', questionNumber: 11, questionType: 'mcq', topic: 'Syntax', difficulty: 'medium', question: 'What error will this raise (if any)?', code: "print('Hello' + 5)", options: ['Hello5', 'TypeError', 'SyntaxError', 'None'], correctAnswer: 'TypeError', explanation: "Can't concatenate str and int" },
+  { language: 'python', questionNumber: 12, questionType: 'code_output', topic: 'Comprehension', difficulty: 'hard', question: 'What is the result?', code: "print([x for x in 'hello' if x != 'l'])", options: ['[h,e,o]', '["h","e","o"]', '["h","e","l","l","o"]', 'Error'], correctAnswer: '["h","e","o"]', explanation: 'List comprehension filters out "l" characters' },
+  { language: 'python', questionNumber: 13, questionType: 'code_output', topic: 'Operators', difficulty: 'medium', question: 'What prints?', code: "print('2' + '3')", options: ['5', '23', 'Error', '2 3'], correctAnswer: '23', explanation: 'String concatenation' },
+  { language: 'python', questionNumber: 14, questionType: 'mcq', topic: 'Tricky', difficulty: 'hard', question: 'What is printed and why?', code: "a = '5'\nprint(int(a) * 2)", options: ['10', '55', 'Error', 'None'], correctAnswer: '10', explanation: 'int(a) converts string to integer before multiplication' },
+  { language: 'python', questionNumber: 15, questionType: 'mcq', topic: 'Syntax', difficulty: 'hard', question: 'Which line produces an error?', code: "x = (1,2,3)\nx[0] = 5\nprint(x)", options: ['First line', 'Second line', 'Third line', 'No error'], correctAnswer: 'Second line', explanation: 'Tuples are immutable; assignment to element raises TypeError' },
   { language: 'python', questionNumber: 16, questionType: 'mcq', topic: 'Variables', difficulty: 'easy', question: 'In Python, what is the naming style for constants?', options: ['lowercase', 'UPPERCASE', 'camelCase', 'no convention'], correctAnswer: 'UPPERCASE', explanation: 'MAX_SIZE, PI are constant naming style' },
   { language: 'python', questionNumber: 17, questionType: 'mcq', topic: 'Variables', difficulty: 'medium', question: 'What is the result of: x = 5; y = x; y = 10?', options: ['x = 5, y = 10', 'x = 10, y = 10', 'Error', 'x = 5, y = 5'], correctAnswer: 'x = 5, y = 10', explanation: 'Primitives are copied, not referenced' },
   { language: 'python', questionNumber: 18, questionType: 'mcq', topic: 'Variables', difficulty: 'hard', question: 'What is variable shadowing?', options: ['Deleting a variable', 'Inner scope variable hiding outer scope', 'Encryption', 'Memory management'], correctAnswer: 'Inner scope variable hiding outer scope', explanation: 'Local variables hide outer scope variables with same name' },
@@ -501,6 +501,55 @@ const generateJavaQuestions = () => {
     });
   });
 
+  // Convert most MCQs into small code-output / syntax / tricky variants while preserving structure
+  const makeCodeExample = (qObj, idx) => {
+    const t = qObj.topic;
+    // simple templates based on topic
+    if (t === 'Variables') {
+      const code = `int x = ${idx % 5 + 1};\nSystem.out.println(x + 1);`;
+      return { code, options: [`${idx % 5 + 1}`, `${idx % 5 + 2}`, 'Compilation error', 'Runtime error'], correct: `${idx % 5 + 2}` };
+    }
+    if (t === 'DataTypes_String') {
+      const code = `String s = "hi";\nSystem.out.println(s + "!");`;
+      return { code, options: ['hi', 'hi!', 'Error', 'null'], correct: 'hi!' };
+    }
+    if (t === 'Loops') {
+      const code = `for (int i = 0; i < 2; i++) { System.out.print(i); }`;
+      return { code, options: ['0 1', '01', '0,1', '2'], correct: '01' };
+    }
+    if (t === 'Operations') {
+      const a = idx % 4 + 1;
+      const b = (idx % 3) + 2;
+      const code = `System.out.println(${a} + ${b});`;
+      return { code, options: [`${a + b}`, `${a * b}`, 'Error', 'None'], correct: `${a + b}` };
+    }
+    if (t === 'Functions') {
+      const code = `static int add(int a, int b) { return a + b; }\nSystem.out.println(add(2,3));`;
+      return { code, options: ['5', '23', '2', 'Error'], correct: '5' };
+    }
+    if (t === 'Arrays') {
+      const code = `int[] a = {1,2,3};\nSystem.out.println(a[${idx % 3}]);`;
+      return { code, options: ['1', '2', '3', 'Error'], correct: `${1 + (idx % 3)}` };
+    }
+    // Objects or default
+    const code = `class A { }\nSystem.out.println("ok");`;
+    return { code, options: ['ok', 'A', 'null', 'Error'], correct: 'ok' };
+  };
+
+  // Apply conversion to about 75% of generated Java questions
+  for (let i = 0; i < javaQuestions.length; i++) {
+    if (i % 4 !== 0) {
+      const q = javaQuestions[i];
+      const ex = makeCodeExample(q, i + 1);
+      q.questionType = 'code_output';
+      q.code = ex.code;
+      q.question = 'What is the output of the following Java code?';
+      q.options = ex.options;
+      q.correctAnswer = ex.correct;
+      q.explanation = `Code-output example for Java (${q.topic})`;
+    }
+  }
+
   return javaQuestions;
 };
 
@@ -515,7 +564,7 @@ const generateCQuestions = () => {
     const questionsPerTopic = topic === 'Objects' ? 30 : 40;
     
     for (let i = 0; i < questionsPerTopic; i++) {
-      cQuestions.push({
+      const base = {
         language: 'c',
         questionNumber: questionNum++,
         questionType: 'mcq',
@@ -525,7 +574,70 @@ const generateCQuestions = () => {
         options: [`Option A for ${topic}`, `Option B for ${topic}`, `Option C for ${topic}`, `Option D for ${topic}`],
         correctAnswer: `Option A for ${topic}`,
         explanation: `C ${topic} example - Question ${questionNum}`
-      });
+      };
+
+      // Convert most into small code-output/syntax variants
+      if (i % 3 !== 0) {
+        // create a simple C code snippet
+        let code = '';
+        let options = [];
+        let correct = '';
+        switch (topic) {
+          case 'Variables': {
+            code = `int x = ${i % 5 + 1};\nprintf("%d", x + 1);`;
+            correct = `${i % 5 + 2}`;
+            options = [correct, `${i % 5 + 1}`, 'Compilation error', 'Runtime error'];
+            break;
+          }
+          case 'DataTypes_String': {
+            code = `char *s = "hi";\nprintf("%s!", s);`;
+            correct = 'hi!';
+            options = ['hi', 'hi!', 'Error', ''];
+            break;
+          }
+          case 'Loops': {
+            code = `for (int j = 0; j < 2; j++) printf("%d", j);`;
+            correct = '01';
+            options = ['0 1', '01', '2', 'Error'];
+            break;
+          }
+          case 'Operations': {
+            const a = i % 4 + 1;
+            const b = (i % 3) + 2;
+            code = `printf("%d", ${a} + ${b});`;
+            correct = `${a + b}`;
+            options = [correct, `${a * b}`, 'Error', 'None'];
+            break;
+          }
+          case 'Functions': {
+            code = `int add(int a, int b) { return a + b; }\nprintf("%d", add(2,3));`;
+            correct = '5';
+            options = ['5', '23', '2', 'Error'];
+            break;
+          }
+          case 'Arrays': {
+            code = `int a[] = {1,2,3};\nprintf("%d", a[${i % 3}]);`;
+            correct = `${1 + (i % 3)}`;
+            options = [correct, '0', 'Error', 'Out of bounds'];
+            break;
+          }
+          default: {
+            code = `printf("ok");`;
+            correct = 'ok';
+            options = ['ok', '0', 'Error', ''];
+            break;
+          }
+        }
+
+        base.questionType = 'code_output';
+        base.code = code;
+        base.question = 'What is the output of the following C code?';
+        base.options = options;
+        base.correctAnswer = correct;
+        base.explanation = `Code-output C example for ${topic}`;
+      }
+
+      cQuestions.push(base);
     }
   });
 
