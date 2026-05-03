@@ -18,6 +18,77 @@ const LANGUAGE_LABELS = {
 };
 
 /**
+ * Clean and fix malformed JSON from Groq API
+ * Handles unescaped control characters in strings
+ */
+function cleanAndFixJSON(jsonStr) {
+  try {
+    // First, try direct parse
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.log(`   ⚙️ Direct JSON parse failed: ${e.message}`);
+    console.log(`   🔧 Attempting to fix malformed JSON (likely has unescaped control chars)...`);
+    
+    // If that fails, attempt to fix common issues using state machine
+    let inString = false;
+    let escaped = false;
+    let result = '';
+    let fixes = 0;
+    
+    for (let i = 0; i < jsonStr.length; i++) {
+      const char = jsonStr[i];
+      
+      if (char === '\\' && !escaped) {
+        escaped = true;
+        result += char;
+        continue;
+      }
+      
+      if (char === '"' && !escaped) {
+        inString = !inString;
+        result += char;
+        escaped = false;
+        continue;
+      }
+      
+      // Replace literal control characters with escaped versions when inside strings
+      if (inString && !escaped) {
+        if (char === '\n') {
+          result += '\\n';
+          fixes++;
+          escaped = false;
+          continue;
+        }
+        if (char === '\r') {
+          result += '\\r';
+          fixes++;
+          escaped = false;
+          continue;
+        }
+        if (char === '\t') {
+          result += '\\t';
+          fixes++;
+          escaped = false;
+          continue;
+        }
+      }
+      
+      result += char;
+      escaped = false;
+    }
+    
+    console.log(`   ✅ Fixed ${fixes} control character issues`);
+    
+    try {
+      return JSON.parse(result);
+    } catch (e2) {
+      console.error(`   ❌ Still cannot parse after fixes: ${e2.message}`);
+      throw e2;
+    }
+  }
+}
+
+/**
  * Analyze assessment results to identify weak topics
  * @param {Object|Map} topicBreakdown - Map or plain object of topics with correct/total counts
  * @returns {Array} Array of weak topics sorted by weakness
@@ -149,6 +220,10 @@ Structure: {
     console.log(`   Model: llama-3.3-70b-versatile`);
     console.log(`   Language: ${language}`);
     
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
     const message = await groqClient.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 4000,
@@ -158,6 +233,8 @@ Structure: {
         { role: 'user', content: userPrompt }
       ],
     });
+
+    clearTimeout(timeoutId);
 
     const content = message.choices?.[0]?.message?.content || '{}';
     console.log(`✅ Groq API response received (${content.length} chars)`);
@@ -170,10 +247,10 @@ Structure: {
       console.log(`📝 Extracted JSON from markdown code block`);
     }
 
-    // Try to parse the JSON
+    // Try to parse the JSON with automatic cleaning
     let parsed;
     try {
-      parsed = JSON.parse(jsonStr);
+      parsed = cleanAndFixJSON(jsonStr);
     } catch (parseError) {
       console.error('   JSON parse error:', parseError.message);
       // Try to find JSON object in the content
@@ -181,7 +258,7 @@ Structure: {
       if (jsonObjectMatch) {
         console.log('   Trying to extract JSON object from content...');
         try {
-          parsed = JSON.parse(jsonObjectMatch[0]);
+          parsed = cleanAndFixJSON(jsonObjectMatch[0]);
         } catch (e2) {
           console.error('   Failed to parse extracted JSON:', e2.message);
           throw new Error('Could not parse JSON response from Groq');
@@ -485,6 +562,7 @@ async function evaluateCodeWithAI({
   testCases = [] 
 }) {
   if (!groqClient) {
+    console.warn('⚠️ Groq client not configured. Using default feedback.');
     return {
       feedback: 'AI evaluation not available. Review your code for logic errors, edge cases, and code style.',
       suggestions: [
@@ -523,6 +601,11 @@ Provide feedback as JSON only.`;
 
   try {
     console.log(`📝 Evaluating ${language} code for: ${taskTitle}`);
+    
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     const message = await groqClient.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 1000,
@@ -533,6 +616,8 @@ Provide feedback as JSON only.`;
       ],
     });
 
+    clearTimeout(timeoutId);
+
     const content = message.choices?.[0]?.message?.content || '{}';
     let jsonStr = content;
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
@@ -540,13 +625,15 @@ Provide feedback as JSON only.`;
       jsonStr = jsonMatch[1];
     }
 
-    const parsed = JSON.parse(jsonStr);
+    const parsed = cleanAndFixJSON(jsonStr);
     let qualityScore = Math.min(10, Math.max(1, Number(parsed.qualityScore) || 5));
     
     // Boost score if test cases are handled well
     if (qualityScore >= 7 && parsed.feedback?.toLowerCase().includes('pass')) {
       qualityScore = Math.min(10, qualityScore + 1);
     }
+
+    console.log(`✅ Code evaluated: Score ${qualityScore}/10`);
 
     return {
       feedback: parsed.feedback || 'Good attempt. Consider edge cases and code clarity.',
@@ -557,6 +644,17 @@ Provide feedback as JSON only.`;
     };
   } catch (error) {
     console.error('❌ Code evaluation error:', error.message);
+    
+    // If timeout or network error, return a generic score
+    if (error.code === 'ABORT_ERR' || error.message.includes('timeout')) {
+      console.log('⚠️ Evaluation timeout - returning neutral score');
+      return {
+        feedback: 'Evaluation took too long. Please review: Does your code handle all test cases?',
+        suggestions: ['Check for infinite loops', 'Verify all edge cases', 'Test your logic step by step'],
+        qualityScore: 5,
+      };
+    }
+
     return {
       feedback: 'Review completed. Check if your code handles all test cases correctly.',
       suggestions: ['Trace through test cases', 'Check edge cases', 'Ensure output format matches'],

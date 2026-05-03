@@ -126,26 +126,25 @@ async function ensurePathForLanguage(userId, language, proficiencyLevel, topicBr
   
   console.log(`🚀 Generating learning path for ${language} (${proficiencyLevel}) - Score: ${assessmentScore}%`);
   
-  // Use structured learning path for more comprehensive progression
+  // Generate tasks using Groq
   let generatedTasks;
   try {
-    generatedTasks = await generateStructuredLearningPath(
-      language,
-      proficiencyLevel,
-      topicBreakdown || {},
-      assessmentScore || 50
-    );
-  } catch (structError) {
-    console.warn('⚠️ Structured path failed, falling back to personalized tasks:', structError.message);
+    console.log(`📡 Attempting to generate personalized tasks via Groq API...`);
     generatedTasks = await generatePersonalizedTasks(
       language,
       proficiencyLevel,
       topicBreakdown || {},
       assessmentScore || 50
     );
+    console.log(`✅ Groq generated ${generatedTasks.length} personalized tasks successfully`);
+  } catch (groqError) {
+    console.error('❌ Groq generation failed:', groqError.message);
+    console.warn('⚠️ Falling back to template questions...');
+    generatedTasks = generateFallbackQuestions(language, proficiencyLevel, topicBreakdown || {});
+    console.log(`✅ Using ${generatedTasks.length} fallback template tasks`);
   }
 
-  console.log(`📚 Generated ${generatedTasks.length} tasks`);
+  console.log(`📚 Generated ${generatedTasks.length} tasks for user`);
 
   if (!learningPath) {
     learningPath = await LearningPath.create({
@@ -442,7 +441,7 @@ exports.submitTaskSolution = async (req, res) => {
 
     const learningPath = await LearningPath.findOne({ userId });
     if (!learningPath) {
-      return res.status(404).json({ message: 'Learning path not found' });
+      return res.status(404).json({ message: 'Learning path not found. Complete an assessment first.' });
     }
 
     const result = getLanguagePathAndTask(learningPath, language, taskId);
@@ -455,12 +454,15 @@ exports.submitTaskSolution = async (req, res) => {
     task.lastWorkedAt = new Date();
     task.attempts = Number(task.attempts || 0) + 1;
 
+    console.log(`📝 Evaluating code submission for task: ${taskId} (Attempt ${task.attempts})`);
+
     const review = await evaluateCodeWithAi({
       language,
       proficiencyLevel: languagePath.proficiencyLevel,
       taskTitle: task.title,
       taskDescription: task.description,
       code,
+      testCases: task.testCases || [],
     });
 
     task.lastFeedback = review.feedback;
@@ -468,6 +470,8 @@ exports.submitTaskSolution = async (req, res) => {
 
     const passed = Number(review.qualityScore || 0) >= LEARNING_PASS_SCORE;
     let unlockedTaskId = null;
+
+    console.log(`🎯 Score: ${task.lastFeedbackScore}/10 | Pass Threshold: ${LEARNING_PASS_SCORE}/10 | Status: ${passed ? '✅ PASS' : '❌ FAIL'}`);
 
     if (passed && task.status !== 'completed') {
       task.status = 'completed';
@@ -480,23 +484,35 @@ exports.submitTaskSolution = async (req, res) => {
       if (nextTask) {
         nextTask.status = 'unlocked';
         unlockedTaskId = nextTask.taskId;
+        console.log(`🔓 Next task unlocked: ${nextTask.taskId}`);
+      } else {
+        console.log(`✅ All tasks completed!`);
       }
+    } else if (!passed) {
+      console.log(`💡 Feedback provided. Score ${task.lastFeedbackScore}/${LEARNING_PASS_SCORE} needed to pass.`);
     }
 
     learningPath.updatedAt = new Date();
     await learningPath.save();
 
     return res.status(200).json({
-      message: passed ? 'Task passed and progression updated' : 'Task reviewed. Improve and submit again.',
+      message: passed 
+        ? '🎉 Excellent! Task passed! Next question unlocked.' 
+        : `❌ Score: ${task.lastFeedbackScore}/${LEARNING_PASS_SCORE}. ${LEARNING_PASS_SCORE} needed to pass. Try again!`,
       passed,
       passScore: LEARNING_PASS_SCORE,
       qualityScore: Number(review.qualityScore || 0),
       unlockedTaskId,
       feedback: review.feedback,
       suggestions: review.suggestions,
+      attempts: task.attempts,
       paths: learningPath.paths,
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('❌ Submit error:', error.message);
+    return res.status(500).json({ 
+      message: 'Error evaluating code. Please try again.', 
+      error: error.message 
+    });
   }
 };
