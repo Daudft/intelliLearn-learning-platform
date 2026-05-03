@@ -36,6 +36,19 @@ const assessmentService = {
     const response = await api.get(`/assessment/all-attempts/${userId}`);
     return response.data;
   },
+
+  // ========== ADAPTIVE ASSESSMENT ==========
+  // Start new adaptive assessment
+  startAdaptiveAssessment: async (data) => {
+    const response = await api.post('/assessment/adaptive/start', data);
+    return response.data;
+  },
+
+  // Submit answer and get next question
+  submitAdaptiveAnswer: async (data) => {
+    const response = await api.post('/assessment/adaptive/submit-answer', data);
+    return response.data;
+  },
 };
 
 export default assessmentService;
