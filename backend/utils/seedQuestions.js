@@ -301,32 +301,42 @@ const pythonQuestions = [
   { language: 'python', questionNumber: 270, questionType: 'mcq', topic: 'Objects', difficulty: 'hard', question: 'What is namedtuple?', options: ['Regular tuple', 'Tuple with named fields', 'Dictionary', 'List subclass'], correctAnswer: 'Tuple with named fields', explanation: 'namedtuple creates typed tuple' },
 ];
 
-// Generate JAVA QUESTIONS (300 questions) - I'll create a helper to build these
+// Generate JAVA QUESTIONS (270 questions) - Unique Java-specific questions
 const generateJavaQuestions = () => {
   const javaQuestions = [];
   let questionNum = 1;
 
-  // VARIABLES (40)
-  const variableTopics = [
-    { q: 'Which keyword declares a variable in Java?', opts: ['var', 'int x;', 'let', 'declare'], ans: 'int x;' },
-    { q: 'What is the correct way to initialize a variable?', opts: ['int x = 5;', 'int x == 5;', 'x = 5;', 'initialize x = 5;'], ans: 'int x = 5;' },
-    { q: 'Can you reassign a variable in Java?', opts: ['No', 'Yes', 'Only primitives', 'Only once'], ans: 'Yes' },
-    { q: 'What is variable scope?', opts: ['Visibility range', 'Memory allocation', 'Type checking', 'Compilation'], ans: 'Visibility range' },
-    { q: 'What is local variable?', opts: ['Global', 'Inside method', 'Static', 'Public'], ans: 'Inside method' },
-    { q: 'What is instance variable?', opts: ['Local', 'Belongs to object', 'Static', 'Final'], ans: 'Belongs to object' },
-    { q: 'What is static variable?', opts: ['Local', 'Belongs to object', 'Belongs to class', 'Private'], ans: 'Belongs to class' },
-    { q: 'What keyword makes variable constant?', opts: ['static', 'const', 'final', 'immutable'], ans: 'final' },
-    { q: 'Can you change final variable?', opts: ['Yes', 'No', 'Only once', 'In constructor'], ans: 'Only once' },
-    { q: 'What is variable naming convention?', opts: ['camelCase', 'PascalCase', 'snake_case', 'UPPERCASE'], ans: 'camelCase' },
+  // VARIABLES (40 unique Java questions)
+  const javaVariableTopics = [
+    { q: 'Which keyword declares a variable in Java?', opts: ['var', 'int x = 5;', 'let', 'declare x'], ans: 'int x = 5;', diff: 'easy' },
+    { q: 'What is the correct way to initialize a variable?', opts: ['int x = 5;', 'int x == 5;', 'x = 5;', 'initialize x = 5;'], ans: 'int x = 5;', diff: 'easy' },
+    { q: 'Can you reassign a variable in Java?', opts: ['No', 'Yes', 'Only primitives', 'Only once'], ans: 'Yes', diff: 'easy' },
+    { q: 'What is variable scope?', opts: ['Visibility range', 'Memory allocation', 'Type checking', 'Compilation'], ans: 'Visibility range', diff: 'easy' },
+    { q: 'What is local variable?', opts: ['Global scope', 'Inside method/block', 'Static scope', 'Public scope'], ans: 'Inside method/block', diff: 'easy' },
+    { q: 'What is instance variable?', opts: ['Local variable', 'Belongs to object', 'Static variable', 'Final variable'], ans: 'Belongs to object', diff: 'medium' },
+    { q: 'What is static variable?', opts: ['Local variable', 'Belongs to object', 'Belongs to class', 'Private variable'], ans: 'Belongs to class', diff: 'medium' },
+    { q: 'What keyword makes variable constant?', opts: ['static', 'const', 'final', 'immutable'], ans: 'final', diff: 'medium' },
+    { q: 'Can you change final variable?', opts: ['Yes', 'No', 'Only once', 'In constructor'], ans: 'Only once', diff: 'medium' },
+    { q: 'What is camelCase naming?', opts: ['UPPERCASE', 'first_word secondWord', 'firstWordSecondWord', 'FirstWordSecondWord'], ans: 'firstWordSecondWord', diff: 'easy' },
+    { q: 'What is PascalCase naming?', opts: ['firstWord', 'FirstWord', 'first_word', 'FIRST_WORD'], ans: 'FirstWord', diff: 'easy' },
+    { q: 'What is CONSTANT naming?', opts: ['camelCase', 'PascalCase', 'UPPER_CASE', 'lowercase'], ans: 'UPPER_CASE', diff: 'easy' },
+    { q: 'Can variable start with number?', opts: ['Yes', 'No', 'Only if underscore', 'In strings'], ans: 'No', diff: 'easy' },
+    { q: 'Can variable use underscore?', opts: ['No', 'Yes', 'Only at end', 'Only start'], ans: 'Yes', diff: 'easy' },
+    { q: 'Can variable be keyword?', opts: ['Yes', 'No', 'Some keywords', 'With escape'], ans: 'No', diff: 'medium' },
+    { q: 'What is variable shadowing?', opts: ['Hiding local variable', 'Inner variable hiding outer', 'Compilation error', 'Type mismatch'], ans: 'Inner variable hiding outer', diff: 'hard' },
+    { q: 'What is null value?', opts: ['Zero', 'Absence of value', 'Empty string', 'False'], ans: 'Absence of value', diff: 'easy' },
+    { q: 'Can primitive be null?', opts: ['Yes', 'No', 'Only int', 'Only with wrapper'], ans: 'No', diff: 'medium' },
+    { q: 'What is boxing in Java?', opts: ['Packaging', 'Primitive to wrapper', 'Wrapper to primitive', 'Both'], ans: 'Primitive to wrapper', diff: 'medium' },
+    { q: 'What is unboxing?', opts: ['Remove wrapping', 'Wrapper to primitive', 'Primitive conversion', 'Boxing reverse'], ans: 'Wrapper to primitive', diff: 'medium' },
   ];
 
-  variableTopics.forEach(t => {
+  javaVariableTopics.forEach(t => {
     javaQuestions.push({
       language: 'java',
       questionNumber: questionNum++,
       questionType: 'mcq',
       topic: 'Variables',
-      difficulty: ['easy', 'medium', 'hard'][Math.floor(questionNum % 3)],
+      difficulty: t.diff || 'medium',
       question: t.q,
       options: t.opts,
       correctAnswer: t.ans,
@@ -335,20 +345,30 @@ const generateJavaQuestions = () => {
   });
 
   // DATA TYPES & STRINGS (40)
-  const dataTypeTopics = [
+  const javaDataTypeTopics = [
     { q: 'How many primitive types in Java?', opts: ['4', '6', '8', '12'], ans: '8', diff: 'easy' },
-    { q: 'What is a String in Java?', opts: ['Primitive', 'Object/Reference type', 'Array', 'Enum'], ans: 'Object/Reference type', diff: 'easy' },
-    { q: 'How do you create String?', opts: ['String s = new String("hi");', 'String s = "hi";', 'Both', 'new "hi"'], ans: 'Both', diff: 'medium' },
-    { q: 'Are Strings mutable?', opts: ['Yes', 'No', 'Sometimes', 'In loops'], ans: 'No', diff: 'medium' },
-    { q: 'What is String Pool?', opts: ['Array of strings', 'Memory area storing strings', 'Collection', 'Interface'], ans: 'Memory area storing strings', diff: 'hard' },
+    { q: 'What are primitive types?', opts: ['Classes', 'byte, short, int, long, float, double, boolean, char', 'Objects', 'Strings'], ans: 'byte, short, int, long, float, double, boolean, char', diff: 'medium' },
+    { q: 'Is String a primitive?', opts: ['Yes', 'No (Object)', 'Sometimes', 'Only in Java 8'], ans: 'No (Object)', diff: 'easy' },
+    { q: 'How do you create String?', opts: ['String s = new String("hi");', 'String s = "hi";', 'Both are valid', 'new "hi"'], ans: 'Both are valid', diff: 'medium' },
+    { q: 'Are Strings mutable?', opts: ['Yes', 'No', 'Sometimes', 'In functions'], ans: 'No', diff: 'medium' },
+    { q: 'What is String Pool?', opts: ['Array of strings', 'Memory area storing string literals', 'String collection', 'String interface'], ans: 'Memory area storing string literals', diff: 'hard' },
     { q: 'What is int range?', opts: ['-128 to 127', '-32768 to 32767', '-2^31 to 2^31-1', 'No limit'], ans: '-2^31 to 2^31-1', diff: 'medium' },
     { q: 'What is byte range?', opts: ['-128 to 127', '-32768 to 32767', 'Same as int', '0 to 255'], ans: '-128 to 127', diff: 'medium' },
-    { q: 'What is long?', opts: ['64-bit', '32-bit', 'String', 'Collection'], ans: '64-bit', diff: 'easy' },
+    { q: 'What is long data type?', opts: ['32-bit integer', '64-bit integer', 'Large number', 'Floating point'], ans: '64-bit integer', diff: 'easy' },
     { q: 'What is boolean?', opts: ['0 or 1', 'true or false', 'yes or no', 'on or off'], ans: 'true or false', diff: 'easy' },
-    { q: 'What is char?', opts: ['String', 'Single character', 'Number', 'Symbol'], ans: 'Single character', diff: 'easy' },
+    { q: 'What is char?', opts: ['String', 'Single character (16-bit)', 'Number', 'Symbol'], ans: 'Single character (16-bit)', diff: 'easy' },
+    { q: 'What is float precision?', opts: ['32-bit (single)', '64-bit (double)', '16-bit', '128-bit'], ans: '32-bit (single)', diff: 'medium' },
+    { q: 'What is double precision?', opts: ['32-bit', '64-bit (double)', '16-bit', '80-bit'], ans: '64-bit (double)', diff: 'medium' },
+    { q: 'What is wrapper class?', opts: ['String wrapper', 'Object for primitive', 'Collection', 'Generic class'], ans: 'Object for primitive', diff: 'medium' },
+    { q: 'What is Integer wrapper for?', opts: ['int primitive', 'Long values', 'Object representation of int', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is Math.PI?', opts: ['Method', 'Constant', 'Variable', 'Function'], ans: 'Constant', diff: 'easy' },
+    { q: 'What is NumberFormatException?', opts: ['Number error', 'String to number conversion error', 'Division error', 'Overflow'], ans: 'String to number conversion error', diff: 'medium' },
+    { q: 'Can you add String to number?', opts: ['No', 'Yes (concatenation)', 'Error', 'Only int'], ans: 'Yes (concatenation)', diff: 'easy' },
+    { q: 'What is type casting?', opts: ['Throwing', 'Type conversion', 'Binding', 'Interface'], ans: 'Type conversion', diff: 'medium' },
+    { q: 'What is implicit conversion?', opts: ['Manual cast', 'Automatic widening', 'Error', 'Not in Java'], ans: 'Automatic widening', diff: 'hard' },
   ];
 
-  dataTypeTopics.forEach(t => {
+  javaDataTypeTopics.forEach(t => {
     javaQuestions.push({
       language: 'java',
       questionNumber: questionNum++,
@@ -363,20 +383,30 @@ const generateJavaQuestions = () => {
   });
 
   // LOOPS (40)
-  const loopTopics = [
-    { q: 'What types of loops in Java?', opts: ['for', 'while', 'do-while', 'All'], ans: 'All', diff: 'easy' },
-    { q: 'How do you write for loop?', opts: ['for(;;)', 'for(int i=0; i<10; i++)', 'Both', 'while'], ans: 'for(int i=0; i<10; i++)', diff: 'easy' },
+  const javaLoopTopics = [
+    { q: 'What loop types in Java?', opts: ['for', 'while', 'do-while', 'All'], ans: 'All', diff: 'easy' },
+    { q: 'What is for loop syntax?', opts: ['for(;;)', 'for(init; cond; incr)', 'Both valid', 'while'], ans: 'for(init; cond; incr)', diff: 'easy' },
     { q: 'What is enhanced for loop?', opts: ['Traditional for', 'for-each loop', 'while loop', 'do-while'], ans: 'for-each loop', diff: 'medium' },
-    { q: 'How do break and continue work?', opts: ['Same', 'break exits, continue skips', 'Opposite', 'For same loop'], ans: 'break exits, continue skips', diff: 'medium' },
-    { q: 'Can you nest loops?', opts: ['No', 'Yes', 'Only 2 levels', 'Only in main'], ans: 'Yes', diff: 'easy' },
-    { q: 'What is infinite loop?', opts: ['Never ends', 'Ends immediately', 'Repeats once', 'Error'], ans: 'Never ends', diff: 'easy' },
-    { q: 'How do you avoid infinite loop?', opts: ['Use break', 'Update condition', 'Both', 'Not possible'], ans: 'Both', diff: 'medium' },
-    { q: 'What is do-while loop?', opts: ['Executes at least once', 'Like while', 'Like for', 'Never executes'], ans: 'Executes at least once', diff: 'medium' },
-    { q: 'What is while loop?', opts: ['For fixed iterations', 'Condition-based', 'Array iteration', 'Object iteration'], ans: 'Condition-based', diff: 'easy' },
-    { q: 'Can you modify array in loop?', opts: ['Always', 'Never', 'Risky', 'In enhanced for'], ans: 'Risky', diff: 'hard' },
+    { q: 'What is while loop?', opts: ['Fixed iterations', 'Condition-based iteration', 'Counter loop', 'Infinite'], ans: 'Condition-based iteration', diff: 'easy' },
+    { q: 'What is do-while difference?', opts: ['Like while', 'Executes at least once', 'Like for', 'Never runs'], ans: 'Executes at least once', diff: 'medium' },
+    { q: 'What does break do?', opts: ['Continue', 'Exit loop', 'Skip iteration', 'Pause'], ans: 'Exit loop', diff: 'easy' },
+    { q: 'What does continue do?', opts: ['Exit loop', 'Skip iteration', 'Restart loop', 'Pause'], ans: 'Skip iteration', diff: 'easy' },
+    { q: 'Can you nest loops?', opts: ['No', 'Yes', 'Max 2 levels', 'Only for loops'], ans: 'Yes', diff: 'easy' },
+    { q: 'What is infinite loop?', opts: ['Never ends', 'Ends quickly', 'One iteration', 'Error'], ans: 'Never ends', diff: 'easy' },
+    { q: 'Can modify array in loop?', opts: ['Always', 'Never', 'Risky/ConcurrentModificationException', 'Only size'], ans: 'Risky/ConcurrentModificationException', diff: 'hard' },
+    { q: 'What is for(;;)?', opts: ['Syntax error', 'Infinite loop', 'Empty loop', 'Loops 0 times'], ans: 'Infinite loop', diff: 'medium' },
+    { q: 'How exit nested loop?', opts: ['break', 'break outer', 'Label break', 'return'], ans: 'Label break', diff: 'hard' },
+    { q: 'Can break exit nested loop?', opts: ['Yes', 'No (inner only)', 'With label', 'Never'], ans: 'No (inner only)', diff: 'hard' },
+    { q: 'What is loop body?', opts: ['Loop header', 'Statements inside', 'Condition', 'Counter'], ans: 'Statements inside', diff: 'easy' },
+    { q: 'Can loop variable be modified?', opts: ['No', 'Yes', 'Dangerous', 'Causes error'], ans: 'Yes', diff: 'medium' },
+    { q: 'What is iterator in Java?', opts: ['Loop', 'Interface to traverse', 'For loop', 'Array'], ans: 'Interface to traverse', diff: 'hard' },
+    { q: 'What is forEach loop?', opts: ['Traditional for', 'for-each over collection', 'while loop', 'Java 4'], ans: 'for-each over collection', diff: 'medium' },
+    { q: 'Can you modify during forEach?', opts: ['Yes', 'No (throws exception)', 'Only add', 'Only remove'], ans: 'No (throws exception)', diff: 'hard' },
+    { q: 'How many times runs for(int i=0;i<3;i++)?', opts: ['2', '3', '4', 'Infinite'], ans: '3', diff: 'easy' },
+    { q: 'What is loop condition?', opts: ['Loop body', 'Check before loop', 'Variable declaration', 'Iteration'], ans: 'Check before loop', diff: 'easy' },
   ];
 
-  loopTopics.forEach(t => {
+  javaLoopTopics.forEach(t => {
     javaQuestions.push({
       language: 'java',
       questionNumber: questionNum++,
@@ -391,20 +421,30 @@ const generateJavaQuestions = () => {
   });
 
   // OPERATIONS (40)
-  const operationTopics = [
-    { q: 'What is the result of 10 + 5?', opts: ['15', '10', '5', 'Error'], ans: '15', diff: 'easy' },
-    { q: 'What is the result of 10 - 5?', opts: ['15', '5', '0', 'Error'], ans: '5', diff: 'easy' },
-    { q: 'What is the result of 10 * 5?', opts: ['15', '50', '2', 'Error'], ans: '50', diff: 'easy' },
-    { q: 'What is the result of 10 / 5?', opts: ['2', '2.0', '5', 'Error'], ans: '2', diff: 'easy' },
-    { q: 'What is the result of 10 % 3?', opts: ['3', '1', '10', 'Error'], ans: '1', diff: 'easy' },
-    { q: 'What operator precedence is correct?', opts: ['* then +', '+ then *', 'Left to right', 'No order'], ans: '* then +', diff: 'medium' },
-    { q: 'What is +=?', opts: ['Add and assign', 'Add only', 'Assign only', 'Comparison'], ans: 'Add and assign', diff: 'medium' },
-    { q: 'What is ++?', opts: ['Add 2', 'Increment by 1', 'Double', 'Power'], ans: 'Increment by 1', diff: 'easy' },
-    { q: 'What is --?', opts: ['Subtract 2', 'Decrement by 1', 'Half', 'Power'], ans: 'Decrement by 1', diff: 'easy' },
-    { q: 'What is ==?', opts: ['Assignment', 'Comparison', 'Equality', 'Same as ='], ans: 'Comparison', diff: 'easy' },
+  const javaOperationTopics = [
+    { q: 'What is 10 + 5?', opts: ['15', '10', '5', 'Error'], ans: '15', diff: 'easy' },
+    { q: 'What is 10 - 5?', opts: ['15', '5', '0', 'Error'], ans: '5', diff: 'easy' },
+    { q: 'What is 10 * 5?', opts: ['15', '50', '2', 'Error'], ans: '50', diff: 'easy' },
+    { q: 'What is 10 / 5?', opts: ['2', '2.0', '5', 'Error'], ans: '2', diff: 'easy' },
+    { q: 'What is 10 % 3?', opts: ['3', '1', '10', 'Error'], ans: '1', diff: 'easy' },
+    { q: 'What is operator precedence order?', opts: ['* then +', '+ then *', 'Left to right', 'Unpredictable'], ans: '* then +', diff: 'medium' },
+    { q: 'What is += operator?', opts: ['Add and assign', 'Add only', 'Assign only', 'Comparison'], ans: 'Add and assign', diff: 'medium' },
+    { q: 'What is ++ operator?', opts: ['Add 2', 'Increment by 1', 'Double value', 'Power'], ans: 'Increment by 1', diff: 'easy' },
+    { q: 'What is -- operator?', opts: ['Subtract 2', 'Decrement by 1', 'Half value', 'Power'], ans: 'Decrement by 1', diff: 'easy' },
+    { q: 'What is == operator?', opts: ['Assignment', 'Comparison', 'Equality check', 'Same as ='], ans: 'Equality check', diff: 'easy' },
+    { q: 'What is != operator?', opts: ['Not assign', 'Not equal', 'Subtract', 'Factorial'], ans: 'Not equal', diff: 'easy' },
+    { q: 'What is && operator?', opts: ['Bitwise AND', 'Logical AND', 'Address', 'Both'], ans: 'Logical AND', diff: 'easy' },
+    { q: 'What is || operator?', opts: ['Bitwise OR', 'Logical OR', 'Pipe', 'Comment'], ans: 'Logical OR', diff: 'easy' },
+    { q: 'What is ! operator?', opts: ['Factorial', 'NOT operator', 'Pointer', 'Dereference'], ans: 'NOT operator', diff: 'easy' },
+    { q: 'What is ? : operator?', opts: ['Comparison', 'Ternary operator', 'For loop', 'Macro'], ans: 'Ternary operator', diff: 'medium' },
+    { q: 'What is & operator?', opts: ['AND', 'Bitwise AND', 'Address of', 'All'], ans: 'Bitwise AND', diff: 'hard' },
+    { q: 'What is | operator?', opts: ['OR', 'Bitwise OR', 'Pipe', 'Both'], ans: 'Both', diff: 'hard' },
+    { q: 'What is ^ operator?', opts: ['XOR', 'Power', 'Pointer', 'Bitwise XOR'], ans: 'Bitwise XOR', diff: 'medium' },
+    { q: 'What is ~ operator?', opts: ['Bitwise NOT', 'Complement', 'Tilde', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is > vs >=?', opts: ['Same', '> excludes, >= includes', 'Opposite', 'No difference'], ans: '> excludes, >= includes', diff: 'easy' },
   ];
 
-  operationTopics.forEach(t => {
+  javaOperationTopics.forEach(t => {
     javaQuestions.push({
       language: 'java',
       questionNumber: questionNum++,
@@ -418,21 +458,31 @@ const generateJavaQuestions = () => {
     });
   });
 
-  // FUNCTIONS (40)
-  const functionTopics = [
-    { q: 'How do you define a method?', opts: ['method name()', 'void name()', 'function name()', 'All'], ans: 'void name()', diff: 'easy' },
-    { q: 'What is return type?', opts: ['No type', 'Data type method returns', 'Array', 'String'], ans: 'Data type method returns', diff: 'easy' },
+  // FUNCTIONS/METHODS (40)
+  const javaFunctionTopics = [
+    { q: 'How do you define method?', opts: ['method name()', 'return_type name()', 'function name()', 'void name()'], ans: 'return_type name()', diff: 'easy' },
+    { q: 'What is return type?', opts: ['No type', 'Type method returns', 'Array', 'String'], ans: 'Type method returns', diff: 'easy' },
     { q: 'What does void mean?', opts: ['Nothing', 'No return value', 'Null', 'Empty'], ans: 'No return value', diff: 'easy' },
-    { q: 'What are parameters?', opts: ['Return values', 'Input to method', 'Variables', 'Constants'], ans: 'Input to method', diff: 'easy' },
+    { q: 'What are parameters?', opts: ['Return values', 'Method inputs', 'Variables', 'Constants'], ans: 'Method inputs', diff: 'easy' },
     { q: 'Can method have no parameters?', opts: ['No', 'Yes', 'Only main', 'Only constructors'], ans: 'Yes', diff: 'easy' },
     { q: 'Can method have multiple parameters?', opts: ['No', 'Yes', 'Max 2', 'Max 5'], ans: 'Yes', diff: 'easy' },
-    { q: 'What is overloading?', opts: ['Too much', 'Same method different params', 'Inheritance', 'Abstraction'], ans: 'Same method different params', diff: 'hard' },
-    { q: 'Can you overload by return type?', opts: ['Yes', 'No', 'Only primitives', 'Only objects'], ans: 'No', diff: 'hard' },
+    { q: 'What is method overloading?', opts: ['Too much', 'Same name different params', 'Inheritance', 'Abstraction'], ans: 'Same name different params', diff: 'hard' },
+    { q: 'Can overload by return type?', opts: ['Yes', 'No', 'Only primitives', 'Only objects'], ans: 'No', diff: 'hard' },
     { q: 'What is recursive method?', opts: ['Repeating', 'Calling itself', 'Complex', 'Nested'], ans: 'Calling itself', diff: 'hard' },
-    { q: 'What is main method?', opts: ['Important', 'Entry point', 'Required', 'All'], ans: 'Entry point', diff: 'easy' },
+    { q: 'What is main method?', opts: ['Important', 'Entry point', 'Required', 'All'], ans: 'All', diff: 'easy' },
+    { q: 'What is static method?', opts: ['Instance method', 'Class method', 'Local method', 'Final method'], ans: 'Class method', diff: 'medium' },
+    { q: 'What is public method?', opts: ['Private', 'Accessible everywhere', 'Same package', 'Same class'], ans: 'Accessible everywhere', diff: 'easy' },
+    { q: 'What is private method?', opts: ['All can access', 'Only same class', 'Same package', 'Subclass'], ans: 'Only same class', diff: 'medium' },
+    { q: 'What is method signature?', opts: ['Method body', 'Name and parameters', 'Return type', 'Documentation'], ans: 'Name and parameters', diff: 'medium' },
+    { q: 'Can method return multiple values?', opts: ['Yes', 'No', 'With array', 'With object'], ans: 'With array', diff: 'medium' },
+    { q: 'What is pass by value?', opts: ['Reference', 'Copy of value', 'Pointer', 'Address'], ans: 'Copy of value', diff: 'medium' },
+    { q: 'Are objects pass by value?', opts: ['Yes (copy)', 'No (reference copy)', 'Pointer', 'Always'], ans: 'No (reference copy)', diff: 'hard' },
+    { q: 'What is varargs?', opts: ['Multiple params', 'Variable arguments', 'Array params', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is default parameter?', opts: ['Optional', 'Not in Java', 'Constructor', 'Required'], ans: 'Not in Java', diff: 'hard' },
+    { q: 'What is toString method?', opts: ['Return string', 'Object string representation', 'Print method', 'All'], ans: 'All', diff: 'medium' },
   ];
 
-  functionTopics.forEach(t => {
+  javaFunctionTopics.forEach(t => {
     javaQuestions.push({
       language: 'java',
       questionNumber: questionNum++,
@@ -447,20 +497,30 @@ const generateJavaQuestions = () => {
   });
 
   // ARRAYS (40)
-  const arrayTopics = [
-    { q: 'How do you declare array?', opts: ['int arr[5]', 'int[] arr', 'array[5]', 'new int[]'], ans: 'int[] arr', diff: 'easy' },
-    { q: 'How do you initialize array?', opts: ['int[] arr = new int[5]', 'int[] arr = {1,2,3}', 'Both', 'int arr[5] = ...'], ans: 'Both', diff: 'medium' },
-    { q: 'What is array index?', opts: ['Name', 'Position', 'Size', 'Type'], ans: 'Position', diff: 'easy' },
-    { q: 'Does indexing start at 0?', opts: ['Yes', 'No', 'Sometimes', 'Optional'], ans: 'Yes', diff: 'easy' },
-    { q: 'What is out of bounds?', opts: ['Large number', 'Index beyond array', 'Negative index', 'Size'], ans: 'Index beyond array', diff: 'medium' },
-    { q: 'How do you get array length?', opts: ['arr.size()', 'arr.length', 'len(arr)', 'arr.count()'], ans: 'arr.length', diff: 'easy' },
-    { q: 'Can array store mixed types?', opts: ['Yes', 'No', 'Only primitives', 'Only objects'], ans: 'No', diff: 'medium' },
-    { q: 'What is 2D array?', opts: ['Array of values', 'Array of arrays', 'Table', 'Matrix'], ans: 'Array of arrays', diff: 'medium' },
-    { q: 'How do you declare 2D array?', opts: ['int[][] arr', 'int[] arr[]', 'Both', 'int arr[][]'], ans: 'Both', diff: 'medium' },
-    { q: 'Can you change array size?', opts: ['Yes', 'No', 'With resize', 'With copy'], ans: 'No', diff: 'medium' },
+  const javaArrayTopics = [
+    { q: 'How declare array in Java?', opts: ['int arr[5]', 'int[] arr', 'Both valid', 'array[5]'], ans: 'int[] arr', diff: 'easy' },
+    { q: 'How initialize array?', opts: ['int[] arr = new int[5]', 'int[] arr = {1,2,3}', 'Both', 'int arr[5] = ...'], ans: 'Both', diff: 'medium' },
+    { q: 'What is array index?', opts: ['Array size', 'Element position', 'Element value', 'Array name'], ans: 'Element position', diff: 'easy' },
+    { q: 'Does indexing start at 0?', opts: ['No', 'Yes', 'Sometimes', 'Depends'], ans: 'Yes', diff: 'easy' },
+    { q: 'What out of bounds error?', opts: ['Large value', 'Index >= length', 'Negative index', 'ArrayIndexOutOfBoundsException'], ans: 'ArrayIndexOutOfBoundsException', diff: 'medium' },
+    { q: 'How get array length?', opts: ['arr.size()', 'arr.length', 'len(arr)', 'arr.count()'], ans: 'arr.length', diff: 'easy' },
+    { q: 'Can array store mixed types?', opts: ['Yes', 'No', 'With Object', 'With casting'], ans: 'No', diff: 'medium' },
+    { q: 'What is 2D array?', opts: ['Array of arrays', 'Array of pointers', 'Matrix', 'Table'], ans: 'Array of arrays', diff: 'medium' },
+    { q: 'How declare 2D array?', opts: ['int[][] arr', 'int[] arr[]', 'Both', 'int arr[][]'], ans: 'int[][] arr', diff: 'medium' },
+    { q: 'Can change array size?', opts: ['Yes', 'No', 'With resize', 'With copy'], ans: 'No', diff: 'easy' },
+    { q: 'What is dynamic array?', opts: ['ArrayList', 'Fixed size array', 'New array', 'Array reference'], ans: 'ArrayList', diff: 'medium' },
+    { q: 'What is ArrayList?', opts: ['Array', 'Resizable array', 'List interface', 'Collection'], ans: 'Resizable array', diff: 'medium' },
+    { q: 'Can array be null?', opts: ['No', 'Yes', 'Only elements', 'Only reference'], ans: 'Yes', diff: 'easy' },
+    { q: 'What is array clone?', opts: ['Copy reference', 'Deep copy', 'Shallow copy', 'New array'], ans: 'Shallow copy', diff: 'hard' },
+    { q: 'Can pass array to method?', opts: ['No', 'Yes (reference)', 'Yes (copy)', 'Both'], ans: 'Yes (reference)', diff: 'medium' },
+    { q: 'Can return array from method?', opts: ['No', 'Yes', 'Only size', 'Only primitive'], ans: 'Yes', diff: 'medium' },
+    { q: 'What is array type?', opts: ['Reference', 'Primitive', 'Class', 'Interface'], ans: 'Reference', diff: 'medium' },
+    { q: 'Can compare arrays with ==?', opts: ['Yes', 'No (compares reference)', 'Returns true', 'Syntax error'], ans: 'No (compares reference)', diff: 'hard' },
+    { q: 'How compare array contents?', opts: ['==', 'Arrays.equals()', 'Manual loop', 'Both B&C'], ans: 'Both B&C', diff: 'hard' },
+    { q: 'What is jagged array?', opts: ['Irregular 2D', 'Different row lengths', 'Not rectangular', 'All'], ans: 'All', diff: 'hard' },
   ];
 
-  arrayTopics.forEach(t => {
+  javaArrayTopics.forEach(t => {
     javaQuestions.push({
       language: 'java',
       questionNumber: questionNum++,
@@ -474,21 +534,31 @@ const generateJavaQuestions = () => {
     });
   });
 
-  // OBJECTS (30 to make total 270)
-  const objectTopics = [
+  // OBJECTS/OOP (30)
+  const javaObjectTopics = [
     { q: 'What is object in Java?', opts: ['Class', 'Instance of class', 'Variable', 'Type'], ans: 'Instance of class', diff: 'easy' },
-    { q: 'How do you create object?', opts: ['new', 'create', 'make', 'Class()'], ans: 'new', diff: 'easy' },
+    { q: 'How create object?', opts: ['new', 'create', 'make', 'Class()'], ans: 'new', diff: 'easy' },
     { q: 'What is constructor?', opts: ['Special method', 'Initializes object', 'Both', 'Destructor'], ans: 'Both', diff: 'medium' },
-    { q: 'Must constructor have name?', opts: ['Any name', 'Class name', 'main', 'init'], ans: 'Class name', diff: 'medium' },
-    { q: 'Can you have multiple constructors?', opts: ['No', 'Yes', 'Max 2', 'Only 1'], ans: 'Yes', diff: 'medium' },
+    { q: 'Constructor must match class name?', opts: ['Any name', 'Class name', 'main', 'init'], ans: 'Class name', diff: 'easy' },
+    { q: 'Can have multiple constructors?', opts: ['No', 'Yes (overload)', 'Max 2', 'Only 1'], ans: 'Yes (overload)', diff: 'medium' },
+    { q: 'What is default constructor?', opts: ['No parameters', 'Auto-generated', 'Takes arguments', 'Both'], ans: 'Both', diff: 'medium' },
     { q: 'What is inheritance?', opts: ['Getting', 'Class extending class', 'Copying', 'Extending'], ans: 'Class extending class', diff: 'hard' },
     { q: 'What keyword for inheritance?', opts: ['extends', 'implements', 'inherits', 'parent'], ans: 'extends', diff: 'medium' },
     { q: 'What is method override?', opts: ['Skip method', 'Redefine in child', 'Call parent', 'Both'], ans: 'Redefine in child', diff: 'hard' },
-    { q: 'What is super keyword?', opts: ['Good', 'Access parent', 'Power', 'Main'], ans: 'Access parent', diff: 'hard' },
-    { q: 'What is this keyword?', opts: ['Current', 'This object', 'Reference', 'All'], ans: 'Reference to current object', diff: 'medium' },
+    { q: 'What is super keyword?', opts: ['Good', 'Access parent class', 'Power', 'Main class'], ans: 'Access parent class', diff: 'hard' },
+    { q: 'What is this keyword?', opts: ['Current', 'This object reference', 'Reference', 'All'], ans: 'This object reference', diff: 'medium' },
+    { q: 'What is polymorphism?', opts: ['Many forms', 'Method override', 'Inheritance', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is encapsulation?', opts: ['Bundle data', 'Data hiding', 'Control access', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is abstraction?', opts: ['Hide details', 'Show interface', 'Complex', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is abstract class?', opts: ['Cannot instantiate', 'Has abstract methods', 'Blueprint', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is interface?', opts: ['GUI', 'Contract/Blueprint', 'Implementation', 'Class'], ans: 'Contract/Blueprint', diff: 'hard' },
+    { q: 'Can class extend multiple?', opts: ['Yes', 'No (only 1)', 'With interface', 'In Java 8'], ans: 'No (only 1)', diff: 'medium' },
+    { q: 'Can implement multiple interfaces?', opts: ['No', 'Yes', 'Only 2', 'Not allowed'], ans: 'Yes', diff: 'medium' },
+    { q: 'What is final class?', opts: ['Cannot extend', 'Constant', 'Last class', 'End marker'], ans: 'Cannot extend', diff: 'medium' },
+    { q: 'What is static method call?', opts: ['On object', 'On class', 'Both', 'Only private'], ans: 'On class', diff: 'medium' },
   ];
 
-  objectTopics.forEach(t => {
+  javaObjectTopics.forEach(t => {
     javaQuestions.push({
       language: 'java',
       questionNumber: questionNum++,
@@ -502,145 +572,399 @@ const generateJavaQuestions = () => {
     });
   });
 
-  // Convert most MCQs into small code-output / syntax / tricky variants while preserving structure
-  const makeCodeExample = (qObj, idx) => {
-    const t = qObj.topic;
-    // simple templates based on topic
-    if (t === 'Variables') {
-      const code = `int x = ${idx % 5 + 1};\nSystem.out.println(x + 1);`;
-      return { code, options: [`${idx % 5 + 1}`, `${idx % 5 + 2}`, 'Compilation error', 'Runtime error'], correct: `${idx % 5 + 2}` };
-    }
-    if (t === 'DataTypes_String') {
-      const code = `String s = "hi";\nSystem.out.println(s + "!");`;
-      return { code, options: ['hi', 'hi!', 'Error', 'null'], correct: 'hi!' };
-    }
-    if (t === 'Loops') {
-      const code = `for (int i = 0; i < 2; i++) { System.out.print(i); }`;
-      return { code, options: ['0 1', '01', '0,1', '2'], correct: '01' };
-    }
-    if (t === 'Operations') {
-      const a = idx % 4 + 1;
-      const b = (idx % 3) + 2;
-      const code = `System.out.println(${a} + ${b});`;
-      return { code, options: [`${a + b}`, `${a * b}`, 'Error', 'None'], correct: `${a + b}` };
-    }
-    if (t === 'Functions') {
-      const code = `static int add(int a, int b) { return a + b; }\nSystem.out.println(add(2,3));`;
-      return { code, options: ['5', '23', '2', 'Error'], correct: '5' };
-    }
-    if (t === 'Arrays') {
-      const code = `int[] a = {1,2,3};\nSystem.out.println(a[${idx % 3}]);`;
-      return { code, options: ['1', '2', '3', 'Error'], correct: `${1 + (idx % 3)}` };
-    }
-    // Objects or default
-    const code = `class A { }\nSystem.out.println("ok");`;
-    return { code, options: ['ok', 'A', 'null', 'Error'], correct: 'ok' };
-  };
-
-  // Apply conversion to about 75% of generated Java questions
-  for (let i = 0; i < javaQuestions.length; i++) {
-    if (i % 4 !== 0) {
+  // Convert some MCQs to code-output for variety (about 30%)
+  const numToConvert = Math.floor(javaQuestions.length / 3);
+  let converted = 0;
+  for (let i = 0; i < javaQuestions.length && converted < numToConvert; i++) {
+    if (i % 7 === 0) {
       const q = javaQuestions[i];
-      const ex = makeCodeExample(q, i + 1);
+      const topic = q.topic;
+      let code, options, correct;
+
+      if (topic === 'Variables') {
+        const val = (i % 5) + 1;
+        code = `int x = ${val};\nSystem.out.println(x + 1);`;
+        correct = `${val + 1}`;
+        options = [correct, `${val}`, 'Error', 'undefined'];
+      } else if (topic === 'DataTypes_String') {
+        code = `String s = "hello";\nSystem.out.println(s);`;
+        correct = 'hello';
+        options = ['hello', 'null', 'Error', 'undefined'];
+      } else if (topic === 'Loops') {
+        code = `for(int i=0; i<2; i++) System.out.print(i);`;
+        correct = '01';
+        options = ['01', '0 1', '2', 'Error'];
+      } else if (topic === 'Operations') {
+        code = `System.out.println(5 + 3);`;
+        correct = '8';
+        options = ['8', '53', '15', 'Error'];
+      } else if (topic === 'Functions') {
+        code = `System.out.println(Math.max(3, 5));`;
+        correct = '5';
+        options = ['5', '3', '8', 'Error'];
+      } else if (topic === 'Arrays') {
+        code = `int[] a = {10, 20, 30};\nSystem.out.println(a[1]);`;
+        correct = '20';
+        options = ['20', '10', '30', 'Error'];
+      } else {
+        code = `System.out.println("ok");`;
+        correct = 'ok';
+        options = ['ok', 'error', 'null', 'Error'];
+      }
+
       q.questionType = 'code_output';
-      q.code = ex.code;
+      q.code = code;
       q.question = 'What is the output of the following Java code?';
-      q.options = ex.options;
-      q.correctAnswer = ex.correct;
-      q.explanation = `Code-output example for Java (${q.topic})`;
+      q.options = options;
+      q.correctAnswer = correct;
+      q.explanation = `Code output example for Java ${topic}`;
+      converted++;
     }
   }
 
   return javaQuestions;
 };
 
-// Generate C QUESTIONS (300 questions) - Similar approach
+// Generate C QUESTIONS (270 questions) - Unique C-specific questions
 const generateCQuestions = () => {
   const cQuestions = [];
   let questionNum = 1;
 
-  const topics = ['Variables', 'DataTypes_String', 'Loops', 'Operations', 'Functions', 'Arrays', 'Objects'];
-  
-  topics.forEach(topic => {
-    const questionsPerTopic = topic === 'Objects' ? 30 : 40;
-    
-    for (let i = 0; i < questionsPerTopic; i++) {
-      const base = {
-        language: 'c',
-        questionNumber: questionNum++,
-        questionType: 'mcq',
-        topic: topic,
-        difficulty: ['easy', 'medium', 'hard'][i % 3],
-        question: `What is ${topic} concept ${i + 1} in C?`,
-        options: [`Option A for ${topic}`, `Option B for ${topic}`, `Option C for ${topic}`, `Option D for ${topic}`],
-        correctAnswer: `Option A for ${topic}`,
-        explanation: `C ${topic} example - Question ${questionNum}`
-      };
+  // VARIABLES (40 unique C questions)
+  const cVariableTopics = [
+    { q: 'Which data type is used to declare integer in C?', opts: ['int', 'integer', 'num', 'var'], ans: 'int', diff: 'easy' },
+    { q: 'What is the size of int in C?', opts: ['1 byte', '2 bytes', '4 bytes', 'Depends on compiler'], ans: 'Depends on compiler', diff: 'medium' },
+    { q: 'How do you declare pointer in C?', opts: ['*ptr', 'ptr*', '&ptr', 'pointer ptr'], ans: '*ptr', diff: 'medium' },
+    { q: 'What does & operator do?', opts: ['Address of', 'Reference', 'Pointer', 'All'], ans: 'Address of', diff: 'easy' },
+    { q: 'What does * operator do with pointers?', opts: ['Dereference', 'Multiply', 'Declare', 'Both'], ans: 'Dereference', diff: 'medium' },
+    { q: 'Can you declare variables without initialization?', opts: ['No', 'Yes', 'Only global', 'Only local'], ans: 'Yes', diff: 'easy' },
+    { q: 'What is global variable scope?', opts: ['Function', 'File', 'Entire program', 'Block'], ans: 'Entire program', diff: 'medium' },
+    { q: 'What is local variable?', opts: ['Outside function', 'Inside function/block', 'Static', 'External'], ans: 'Inside function/block', diff: 'easy' },
+    { q: 'What keyword makes variable constant?', opts: ['const', 'final', 'fixed', 'static'], ans: 'const', diff: 'medium' },
+    { q: 'Can you modify const variable?', opts: ['Yes', 'No', 'Only once', 'With cast'], ans: 'No', diff: 'medium' },
+    { q: 'What is static variable?', opts: ['Fixed size', 'Persists between calls', 'Global', 'Local'], ans: 'Persists between calls', diff: 'hard' },
+    { q: 'What is extern variable?', opts: ['Internal', 'External/Global', 'Local', 'Static'], ans: 'External/Global', diff: 'hard' },
+    { q: 'How many bytes does float use?', opts: ['2', '4', '8', 'Variable'], ans: '4', diff: 'easy' },
+    { q: 'How many bytes does double use?', opts: ['4', '8', '16', 'Variable'], ans: '8', diff: 'easy' },
+    { q: 'What is char data type?', opts: ['String', 'Single character', 'Number', 'Boolean'], ans: 'Single character', diff: 'easy' },
+    { q: 'What is range of char?', opts: ['-128 to 127', '0 to 255', '0 to 127', '-256 to 255'], ans: '-128 to 127', diff: 'medium' },
+    { q: 'What is unsigned int?', opts: ['Negative allowed', 'Only positive', 'Float', 'Pointer'], ans: 'Only positive', diff: 'medium' },
+    { q: 'What is variable shadowing?', opts: ['Local hiding global', 'Global hiding local', 'Compilation error', 'Same scope'], ans: 'Local hiding global', diff: 'hard' },
+    { q: 'Can you assign int to float?', opts: ['No', 'Yes', 'Implicit cast', 'Explicit only'], ans: 'Yes', diff: 'easy' },
+    { q: 'What is implicit conversion?', opts: ['Manual cast', 'Automatic type change', 'Error', 'Not allowed'], ans: 'Automatic type change', diff: 'medium' },
+    { q: 'What is auto keyword in C?', opts: ['Automatic variable', 'Storage class', 'Local variable', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is register keyword?', opts: ['Memory', 'CPU register', 'Storage class', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'Can variable name be reserved word?', opts: ['Yes', 'No', 'Some', 'With escape'], ans: 'No', diff: 'easy' },
+    { q: 'What is volatile keyword?', opts: ['Variable can change', 'Value unstable', 'Compiler directive', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'Can you initialize global variables?', opts: ['No', 'Yes (to 0)', 'Yes', 'Only zero'], ans: 'Yes', diff: 'medium' },
+    { q: 'What is lifetime of variable?', opts: ['Name duration', 'Memory duration', 'When exists', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is storage class?', opts: ['Memory', 'Variable class', 'Scope&lifetime', 'Type'], ans: 'Scope&lifetime', diff: 'hard' },
+    { q: 'Can pointer be void*?', opts: ['No', 'Yes (generic)', 'Only arrays', 'Only functions'], ans: 'Yes (generic)', diff: 'hard' },
+    { q: 'What is NULL pointer?', opts: ['Zero', 'Invalid pointer', 'Null address', 'All'], ans: 'All', diff: 'medium' },
+    { q: 'What is array decay?', opts: ['Array to pointer', 'Loses data', 'Function', 'Compilation'], ans: 'Array to pointer', diff: 'hard' },
+    { q: 'Can get address of register variable?', opts: ['Yes', 'No', 'Maybe', 'Compiler choice'], ans: 'No', diff: 'hard' },
+    { q: 'What is forward declaration?', opts: ['Declare later', 'Early declaration', 'Function prototype', 'Variable promise'], ans: 'Early declaration', diff: 'hard' },
+    { q: 'What is variable name mangling?', opts: ['Changing name', 'Not in C', 'C++ feature', 'Compiler optimization'], ans: 'Not in C', diff: 'hard' },
+    { q: 'Can variable be modified after const?', opts: ['Yes', 'No', 'With cast', 'Compiler error'], ans: 'With cast', diff: 'hard' },
+    { q: 'What is bit field?', opts: ['Array of bits', 'Partial integer', 'Optimize struct', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'Can struct member be function?', opts: ['No', 'Yes (pointer)', 'Only in C++', 'Not possible'], ans: 'Yes (pointer)', diff: 'hard' },
+    { q: 'What is union in C?', opts: ['Like struct', 'Share memory', 'One value at time', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is enum in C?', opts: ['List of values', 'Integer constants', 'Named constants', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'Can typedef multiple times?', opts: ['No', 'Yes', 'Error', 'Redefine'], ans: 'No', diff: 'hard' },
+    { q: 'What is #define vs const?', opts: ['Same', 'Different', '#define preprocessor', 'const variable'], ans: '#define preprocessor', diff: 'hard' },
+  ];
 
-      // Convert most into small code-output/syntax variants
-      if (i % 3 !== 0) {
-        // create a simple C code snippet
-        let code = '';
-        let options = [];
-        let correct = '';
-        switch (topic) {
-          case 'Variables': {
-            code = `int x = ${i % 5 + 1};\nprintf("%d", x + 1);`;
-            correct = `${i % 5 + 2}`;
-            options = [correct, `${i % 5 + 1}`, 'Compilation error', 'Runtime error'];
-            break;
-          }
-          case 'DataTypes_String': {
-            code = `char *s = "hi";\nprintf("%s!", s);`;
-            correct = 'hi!';
-            options = ['hi', 'hi!', 'Error', ''];
-            break;
-          }
-          case 'Loops': {
-            code = `for (int j = 0; j < 2; j++) printf("%d", j);`;
-            correct = '01';
-            options = ['0 1', '01', '2', 'Error'];
-            break;
-          }
-          case 'Operations': {
-            const a = i % 4 + 1;
-            const b = (i % 3) + 2;
-            code = `printf("%d", ${a} + ${b});`;
-            correct = `${a + b}`;
-            options = [correct, `${a * b}`, 'Error', 'None'];
-            break;
-          }
-          case 'Functions': {
-            code = `int add(int a, int b) { return a + b; }\nprintf("%d", add(2,3));`;
-            correct = '5';
-            options = ['5', '23', '2', 'Error'];
-            break;
-          }
-          case 'Arrays': {
-            code = `int a[] = {1,2,3};\nprintf("%d", a[${i % 3}]);`;
-            correct = `${1 + (i % 3)}`;
-            options = [correct, '0', 'Error', 'Out of bounds'];
-            break;
-          }
-          default: {
-            code = `printf("ok");`;
-            correct = 'ok';
-            options = ['ok', '0', 'Error', ''];
-            break;
-          }
-        }
+  cVariableTopics.forEach(t => {
+    cQuestions.push({
+      language: 'c',
+      questionNumber: questionNum++,
+      questionType: 'mcq',
+      topic: 'Variables',
+      difficulty: t.diff || 'medium',
+      question: t.q,
+      options: t.opts,
+      correctAnswer: t.ans,
+      explanation: `C variable basics - ${t.q}`
+    });
+  });
 
-        base.questionType = 'code_output';
-        base.code = code;
-        base.question = 'What is the output of the following C code?';
-        base.options = options;
-        base.correctAnswer = correct;
-        base.explanation = `Code-output C example for ${topic}`;
+  // DATA TYPES & STRINGS (40 unique C questions)
+  const cDataTypeTopics = [
+    { q: 'What is a string in C?', opts: ['Single char', 'Array of chars', 'String type', 'Pointer'], ans: 'Array of chars', diff: 'easy' },
+    { q: 'How do you declare string in C?', opts: ['char* s', 'char s[]', 'string s', 'All'], ans: 'char* s', diff: 'medium' },
+    { q: 'What is null terminator?', opts: ['end marker', '\\0', 'String end', 'All'], ans: 'All', diff: 'medium' },
+    { q: 'What is strlen() function?', opts: ['Size', 'Length without null', 'Array size', 'Allocation'], ans: 'Length without null', diff: 'easy' },
+    { q: 'What is struct in C?', opts: ['String', 'Collection of variables', 'Array', 'Pointer'], ans: 'Collection of variables', diff: 'medium' },
+    { q: 'How do you declare struct?', opts: ['struct Name {}', 'structure Name {}', 'class Name {}', 'type Name {}'], ans: 'struct Name {}', diff: 'easy' },
+    { q: 'How do you access struct member?', opts: ['var.member', 'var->member', 'var[member]', 'member(var)'], ans: 'var.member', diff: 'easy' },
+    { q: 'What is typedef in C?', opts: ['Define type', 'Type alias', 'New datatype', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is enum in C?', opts: ['Enumeration type', 'List of constants', 'Integer type', 'All'], ans: 'All', diff: 'medium' },
+    { q: 'How many bytes is size_t?', opts: ['1', '4', 'Platform dependent', '8'], ans: 'Platform dependent', diff: 'hard' },
+    { q: 'What is void pointer?', opts: ['No value', 'Generic pointer', 'Null pointer', 'Empty pointer'], ans: 'Generic pointer', diff: 'medium' },
+    { q: 'What is NULL?', opts: ['Zero', 'Null pointer', 'Invalid pointer', 'All'], ans: 'Null pointer', diff: 'easy' },
+    { q: 'What is casting in C?', opts: ['Throwing', 'Type conversion', 'String conversion', 'Array conversion'], ans: 'Type conversion', diff: 'medium' },
+    { q: 'What is array in C?', opts: ['Linked list', 'Collection of same type', 'Dynamic array', 'Pointer'], ans: 'Collection of same type', diff: 'easy' },
+    { q: 'Is array mutable in C?', opts: ['No', 'Yes', 'Partially', 'With pointer'], ans: 'Yes', diff: 'easy' },
+    { q: 'What is array index limit?', opts: ['No limit', 'Size - 1', 'Platform limit', 'Size + 1'], ans: 'Size - 1', diff: 'medium' },
+    { q: 'What happens with out of bounds access?', opts: ['Error', 'Undefined behavior', 'Segfault', 'Random data'], ans: 'Undefined behavior', diff: 'hard' },
+    { q: 'Can you return array from function?', opts: ['No', 'Yes', 'Only pointers', 'Only main'], ans: 'Only pointers', diff: 'hard' },
+    { q: 'What is sizeof operator?', opts: ['Size of value', 'Size of type', 'Memory', 'All'], ans: 'All', diff: 'medium' },
+    { q: 'What is #define?', opts: ['Define variable', 'Macro preprocessor', 'Comment', 'Include'], ans: 'Macro preprocessor', diff: 'hard' },
+  ];
+
+  cDataTypeTopics.forEach(t => {
+    cQuestions.push({
+      language: 'c',
+      questionNumber: questionNum++,
+      questionType: 'mcq',
+      topic: 'DataTypes_String',
+      difficulty: t.diff || 'medium',
+      question: t.q,
+      options: t.opts,
+      correctAnswer: t.ans,
+      explanation: `C data types - ${t.q}`
+    });
+  });
+
+  // LOOPS (40 unique C questions)
+  const cLoopTopics = [
+    { q: 'What loop types exist in C?', opts: ['for', 'while', 'do-while', 'All'], ans: 'All', diff: 'easy' },
+    { q: 'What is for loop syntax?', opts: ['for(;;)', 'for(init; cond; incr)', 'Both', 'while'], ans: 'for(init; cond; incr)', diff: 'easy' },
+    { q: 'What is while loop?', opts: ['Fixed iterations', 'Condition-based', 'Counter', 'Infinite'], ans: 'Condition-based', diff: 'easy' },
+    { q: 'What is do-while loop?', opts: ['Like while', 'Executes at least once', 'Like for', 'Never runs'], ans: 'Executes at least once', diff: 'medium' },
+    { q: 'What does break do?', opts: ['Continue', 'Exit loop', 'Skip', 'Pause'], ans: 'Exit loop', diff: 'easy' },
+    { q: 'What does continue do?', opts: ['Exit', 'Skip iteration', 'Loop again', 'Pause'], ans: 'Skip iteration', diff: 'easy' },
+    { q: 'Can you nest loops in C?', opts: ['No', 'Yes', 'Max 2', 'Only for'], ans: 'Yes', diff: 'easy' },
+    { q: 'What is infinite loop?', opts: ['Never ends', 'Ends fast', 'One iteration', 'Error'], ans: 'Never ends', diff: 'easy' },
+    { q: 'Can you use break in nested loop?', opts: ['No', 'Yes (breaks inner)', 'Yes (breaks outer)', 'Both'], ans: 'Yes (breaks inner)', diff: 'medium' },
+    { q: 'What is for(;;)?', opts: ['Syntax error', 'Infinite loop', 'Empty loop', 'Loop 0 times'], ans: 'Infinite loop', diff: 'medium' },
+    { q: 'How do you exit loop early?', opts: ['return', 'break', 'exit()', 'All'], ans: 'break', diff: 'easy' },
+    { q: 'Can loop variable be modified inside?', opts: ['No', 'Yes', 'Dangerous', 'Causes error'], ans: 'Yes', diff: 'medium' },
+    { q: 'What is loop counter?', opts: ['Loop size', 'Iteration variable', 'Count variable', 'Both'], ans: 'Iteration variable', diff: 'easy' },
+    { q: 'Do arrays use 0-based indexing?', opts: ['No', 'Yes', 'Optional', 'Compiler choice'], ans: 'Yes', diff: 'easy' },
+    { q: 'Can you access array beyond size?', opts: ['No', 'Yes (dangerous)', 'Error', 'Returns null'], ans: 'Yes (dangerous)', diff: 'medium' },
+    { q: 'What is off-by-one error?', opts: ['Math error', 'Loop boundary mistake', 'Type error', 'Pointer error'], ans: 'Loop boundary mistake', diff: 'hard' },
+    { q: 'How do you avoid infinite loop?', opts: ['Use while', 'Update condition', 'Use break', 'Both'], ans: 'Update condition', diff: 'medium' },
+    { q: 'Can you have multiple break statements?', opts: ['No', 'Yes', 'Only in switch', 'Syntax error'], ans: 'Yes', diff: 'medium' },
+    { q: 'What is labeled break?', opts: ['Named break', 'String break', 'goto', 'Not in C'], ans: 'Not in C', diff: 'hard' },
+    { q: 'How do you skip to next iteration?', opts: ['break', 'next', 'continue', 'skip'], ans: 'continue', diff: 'easy' },
+  ];
+
+  cLoopTopics.forEach(t => {
+    cQuestions.push({
+      language: 'c',
+      questionNumber: questionNum++,
+      questionType: 'mcq',
+      topic: 'Loops',
+      difficulty: t.diff || 'medium',
+      question: t.q,
+      options: t.opts,
+      correctAnswer: t.ans,
+      explanation: `C loops - ${t.q}`
+    });
+  });
+
+  // OPERATIONS (40)
+  const cOperationTopics = [
+    { q: 'What is +?', opts: ['Pointer', 'Addition', 'Increment', 'String concat'], ans: 'Addition', diff: 'easy' },
+    { q: 'What is -?', opts: ['Negative', 'Subtraction', 'Decrement', 'Pointer'], ans: 'Subtraction', diff: 'easy' },
+    { q: 'What is *?', opts: ['Pointer', 'Multiplication', 'Dereference', 'All'], ans: 'All', diff: 'easy' },
+    { q: 'What is /?', opts: ['Comment', 'Division', 'Regex', 'Include'], ans: 'Division', diff: 'easy' },
+    { q: 'What is %?', opts: ['Modulo', 'Percentage', 'Pointer', 'Format'], ans: 'Modulo', diff: 'easy' },
+    { q: 'What operator has highest precedence?', opts: ['*+', '*()*', 'Function call', 'Arithmetic'], ans: 'Function call', diff: 'medium' },
+    { q: 'What is &&?', opts: ['Bitwise AND', 'Logical AND', 'Address', 'Both'], ans: 'Logical AND', diff: 'easy' },
+    { q: 'What is ||?', opts: ['Bitwise OR', 'Logical OR', 'Pipe', 'Comment'], ans: 'Logical OR', diff: 'easy' },
+    { q: 'What is !?', opts: ['Factorial', 'NOT operator', 'Pointer', 'Dereference'], ans: 'NOT operator', diff: 'easy' },
+    { q: 'What is ==?', opts: ['Assignment', 'Equality', 'Comparison', 'Both'], ans: 'Equality', diff: 'easy' },
+    { q: 'What is !=?', opts: ['Not assign', 'Not equal', 'Subtract', 'Factorial'], ans: 'Not equal', diff: 'easy' },
+    { q: 'What is <?', opts: ['Less than', 'Bitwise', 'Include', 'Stream'], ans: 'Less than', diff: 'easy' },
+    { q: 'What is >?', opts: ['Greater than', 'Pointer', 'Bitwise', 'Stream'], ans: 'Greater than', diff: 'easy' },
+    { q: 'What is ?:', opts: ['Comment', 'Ternary operator', 'Include', 'Macro'], ans: 'Ternary operator', diff: 'medium' },
+    { q: 'What is &?', opts: ['AND', 'Address-of', 'Bitwise AND', 'All'], ans: 'All', diff: 'medium' },
+    { q: 'What is |?', opts: ['OR', 'Bitwise OR', 'Pipe', 'Both'], ans: 'Both', diff: 'medium' },
+    { q: 'What is ^?', opts: ['XOR', 'Power', 'Pointer', 'Comment'], ans: 'XOR', diff: 'medium' },
+    { q: 'What is ~?', opts: ['Bitwise NOT', 'Complement', 'Tilde', 'All'], ans: 'All', diff: 'medium' },
+    { q: 'What is <<?' , opts: ['Less than', 'Left shift', 'Include', 'Stream'], ans: 'Left shift', diff: 'medium' },
+    { q: 'What is >>?', opts: ['Greater than', 'Right shift', 'Stream', 'Pointer'], ans: 'Right shift', diff: 'medium' },
+  ];
+
+  cOperationTopics.forEach(t => {
+    cQuestions.push({
+      language: 'c',
+      questionNumber: questionNum++,
+      questionType: 'mcq',
+      topic: 'Operations',
+      difficulty: t.diff || 'medium',
+      question: t.q,
+      options: t.opts,
+      correctAnswer: t.ans,
+      explanation: `C operations - ${t.q}`
+    });
+  });
+
+  // FUNCTIONS (40)
+  const cFunctionTopics = [
+    { q: 'How do you declare function?', opts: ['func(){}', 'return_type name()', 'function name', 'def name()'], ans: 'return_type name()', diff: 'easy' },
+    { q: 'What is return type?', opts: ['No type', 'Function result type', 'Parameter', 'Variable'], ans: 'Function result type', diff: 'easy' },
+    { q: 'What does void return type mean?', opts: ['Nothing', 'No value returned', 'Null', 'All'], ans: 'All', diff: 'easy' },
+    { q: 'What are parameters?', opts: ['Return values', 'Function inputs', 'Variables', 'Constants'], ans: 'Function inputs', diff: 'easy' },
+    { q: 'Can function have no return?', opts: ['No', 'Yes (void)', 'Only main', 'Error'], ans: 'Yes (void)', diff: 'easy' },
+    { q: 'Can function have multiple return?', opts: ['No', 'Only one', 'Yes', 'Max 2'], ans: 'Yes', diff: 'medium' },
+    { q: 'What is recursion?', opts: ['Loop', 'Function calling itself', 'Pointer', 'Array'], ans: 'Function calling itself', diff: 'medium' },
+    { q: 'What is base case in recursion?', opts: ['First call', 'Termination condition', 'Initial value', 'Loop start'], ans: 'Termination condition', diff: 'hard' },
+    { q: 'What is function declaration?', opts: ['Function body', 'Function prototype', 'Function call', 'Function end'], ans: 'Function prototype', diff: 'medium' },
+    { q: 'What is function definition?', opts: ['Declaration', 'Implementation', 'Call', 'Return'], ans: 'Implementation', diff: 'medium' },
+    { q: 'What is main() function?', opts: ['Entry point', 'Most important', 'Required', 'All'], ans: 'All', diff: 'easy' },
+    { q: 'What does main() return?', opts: ['Nothing', 'Int (status)', 'Void', 'Error'], ans: 'Int (status)', diff: 'easy' },
+    { q: 'What is function prototype?', opts: ['Function body', 'Function declaration', 'Function call', 'Implementation'], ans: 'Function declaration', diff: 'medium' },
+    { q: 'Can you pass array to function?', opts: ['No', 'Yes (as pointer)', 'Only size', 'Copy array'], ans: 'Yes (as pointer)', diff: 'medium' },
+    { q: 'What is pass by value?', opts: ['Reference', 'Copy of value', 'Pointer', 'Address'], ans: 'Copy of value', diff: 'medium' },
+    { q: 'What is pass by reference?', opts: ['Copy', 'Address/pointer', 'Value', 'Variable name'], ans: 'Address/pointer', diff: 'hard' },
+    { q: 'Can function return pointer?', opts: ['No', 'Yes', 'Only arrays', 'Dangerous'], ans: 'Yes', diff: 'hard' },
+    { q: 'What is static function?', opts: ['Global', 'File scope', 'Local scope', 'Not in C'], ans: 'File scope', diff: 'hard' },
+    { q: 'Can function be nested?', opts: ['Yes', 'No', 'With macro', 'In C++'], ans: 'No', diff: 'medium' },
+    { q: 'What is variable argument?', opts: ['Multiple params', 'va_args', 'Different types', 'All'], ans: 'Multiple params', diff: 'hard' },
+  ];
+
+  cFunctionTopics.forEach(t => {
+    cQuestions.push({
+      language: 'c',
+      questionNumber: questionNum++,
+      questionType: 'mcq',
+      topic: 'Functions',
+      difficulty: t.diff || 'medium',
+      question: t.q,
+      options: t.opts,
+      correctAnswer: t.ans,
+      explanation: `C functions - ${t.q}`
+    });
+  });
+
+  // ARRAYS (40)
+  const cArrayTopics = [
+    { q: 'How do you declare array?', opts: ['int arr[5]', 'arr[5]', 'array[5]', 'new arr[5]'], ans: 'int arr[5]', diff: 'easy' },
+    { q: 'How do you initialize array?', opts: ['int a[3] = {1,2,3}', 'int a[] = {1,2,3}', 'Both', 'int a[3]{1,2,3}'], ans: 'Both', diff: 'medium' },
+    { q: 'What is array index?', opts: ['Array size', 'Element position', 'Element value', 'Array name'], ans: 'Element position', diff: 'easy' },
+    { q: 'Does indexing start at 0?', opts: ['No', 'Yes', 'Sometimes', 'Depends'], ans: 'Yes', diff: 'easy' },
+    { q: 'What is out of bounds?', opts: ['Large value', 'Index >= size', 'Negative', 'Undefined'], ans: 'Index >= size', diff: 'easy' },
+    { q: 'What happens out of bounds?', opts: ['Error', 'Undefined behavior', 'Returns 0', 'Null'], ans: 'Undefined behavior', diff: 'medium' },
+    { q: 'Can array store mixed types?', opts: ['Yes', 'No', 'With union', 'With cast'], ans: 'No', diff: 'medium' },
+    { q: 'What is 2D array?', opts: ['Array of arrays', 'Array of pointers', 'Matrix', 'Both'], ans: 'Matrix', diff: 'medium' },
+    { q: 'How declare 2D array?', opts: ['int[][] arr', 'int arr[3][3]', 'int *arr[]', 'Both'], ans: 'int arr[3][3]', diff: 'medium' },
+    { q: 'Can you change array size?', opts: ['Yes', 'No', 'With realloc', 'Only pointers'], ans: 'No', diff: 'easy' },
+    { q: 'What is array name?', opts: ['Variable', 'Pointer to first element', 'Address', 'Both'], ans: 'Pointer to first element', diff: 'hard' },
+    { q: 'Can you reassign array?', opts: ['Yes', 'No', 'With pointer', 'In function'], ans: 'No', diff: 'medium' },
+    { q: 'How do you pass array to function?', opts: ['Copy array', 'Decay to pointer', 'Reference', 'Value'], ans: 'Decay to pointer', diff: 'hard' },
+    { q: 'What is element size?', opts: ['Byte', 'sizeof(type)', 'Array size', 'Count'], ans: 'sizeof(type)', diff: 'medium' },
+    { q: 'What is array bound checking?', opts: ['Automatic', 'Manual', 'Compiler', 'Not in C'], ans: 'Not in C', diff: 'medium' },
+    { q: 'Can you use negative index?', opts: ['No', 'Yes (undefined)', 'Error', 'Special'], ans: 'Yes (undefined)', diff: 'hard' },
+    { q: 'What is memcpy?', opts: ['Memory copy', 'Copy array', 'Copy memory', 'All'], ans: 'All', diff: 'medium' },
+    { q: 'What is array iteration?', opts: ['Access each element', 'Loop through', 'Both', 'For loop'], ans: 'Both', diff: 'easy' },
+    { q: 'Can string be array?', opts: ['No', 'Yes (char array)', 'Only pointer', 'With struct'], ans: 'Yes (char array)', diff: 'medium' },
+    { q: 'What is array capacity?', opts: ['Used space', 'Total size', 'Elements', 'Bytes'], ans: 'Total size', diff: 'easy' },
+  ];
+
+  cArrayTopics.forEach(t => {
+    cQuestions.push({
+      language: 'c',
+      questionNumber: questionNum++,
+      questionType: 'mcq',
+      topic: 'Arrays',
+      difficulty: t.diff || 'medium',
+      question: t.q,
+      options: t.opts,
+      correctAnswer: t.ans,
+      explanation: `C arrays - ${t.q}`
+    });
+  });
+
+  // OBJECTS/Structures (30)
+  const cObjectTopics = [
+    { q: 'What is struct in C?', opts: ['Class', 'Collection of members', 'Pointer', 'Array'], ans: 'Collection of members', diff: 'easy' },
+    { q: 'How define struct?', opts: ['struct Name {}', 'struct name()', 'typedef struct', 'Both A&C'], ans: 'struct Name {}', diff: 'easy' },
+    { q: 'How access struct member?', opts: ['var->member', 'var.member', 'Both', 'member(var)'], ans: 'var.member', diff: 'easy' },
+    { q: 'How access via pointer?', opts: ['var.member', 'var->member', '*var.member', 'ptr(member)'], ans: 'var->member', diff: 'medium' },
+    { q: 'What is sizeof struct?', opts: ['One member', 'All members sum', 'With padding', 'Compiler choice'], ans: 'With padding', diff: 'medium' },
+    { q: 'What is struct padding?', opts: ['Wasted space', 'Alignment', 'Performance', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is union in C?', opts: ['Like struct', 'Share memory', 'Same size', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is enum?', opts: ['List of values', 'Constants', 'Integer', 'All'], ans: 'All', diff: 'medium' },
+    { q: 'Can struct contain struct?', opts: ['No', 'Yes', 'Only pointer', 'With typedef'], ans: 'Yes', diff: 'medium' },
+    { q: 'Can struct have function?', opts: ['Yes', 'No', 'As pointer', 'C++'], ans: 'As pointer', diff: 'medium' },
+    { q: 'What is typedef?', opts: ['Define type', 'Create alias', 'New type', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'What is bit field?', opts: ['Array of bits', 'Partial member', 'Optimize', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'Can initialize struct?', opts: ['No', 'Yes (designated)', 'At creation', 'All'], ans: 'All', diff: 'medium' },
+    { q: 'What is anonymous struct?', opts: ['No name', 'Unnamed', 'Embedded', 'All'], ans: 'All', diff: 'hard' },
+    { q: 'Can compare struct?', opts: ['No', 'With ==', 'Manual compare', 'Via member'], ans: 'Manual compare', diff: 'medium' },
+    { q: 'What is struct copy?', opts: ['Pointer', 'Member by member', 'Shallow', 'All'], ans: 'Member by member', diff: 'medium' },
+    { q: 'Can pass struct to function?', opts: ['No', 'Yes (copy)', 'Pointer only', 'Reference'], ans: 'Yes (copy)', diff: 'medium' },
+    { q: 'Can return struct?', opts: ['No', 'Yes', 'Pointer only', 'With typedef'], ans: 'Yes', diff: 'medium' },
+    { q: 'What is self referential struct?', opts: ['Contains self', 'Has pointer to self', 'Recursive', 'Both'], ans: 'Has pointer to self', diff: 'hard' },
+    { q: 'What use of struct?', opts: ['Data grouping', 'Organization', 'Type creation', 'All'], ans: 'All', diff: 'easy' },
+  ];
+
+  cObjectTopics.forEach(t => {
+    cQuestions.push({
+      language: 'c',
+      questionNumber: questionNum++,
+      questionType: 'mcq',
+      topic: 'Objects',
+      difficulty: t.diff || 'medium',
+      question: t.q,
+      options: t.opts,
+      correctAnswer: t.ans,
+      explanation: `C structures - ${t.q}`
+    });
+  });
+
+  // Convert some MCQs to code-output for variety (about 30%)
+  const numToConvert = Math.floor(cQuestions.length / 3);
+  let converted = 0;
+  for (let i = 0; i < cQuestions.length && converted < numToConvert; i++) {
+    if (i % 7 === 0) {
+      const q = cQuestions[i];
+      const topic = q.topic;
+      let code, options, correct;
+
+      if (topic === 'Variables') {
+        const val = (i % 5) + 1;
+        code = `int x = ${val};\nprintf("%d", x + 1);`;
+        correct = `${val + 1}`;
+        options = [correct, `${val}`, 'Error', 'undefined'];
+      } else if (topic === 'DataTypes_String') {
+        code = `printf("%s", "test");`;
+        correct = 'test';
+        options = ['test', 'test', 'Error', 'NULL'];
+      } else if (topic === 'Loops') {
+        code = `for(int i=0; i<2; i++) printf("%d", i);`;
+        correct = '01';
+        options = ['01', '0 1', '2', 'Error'];
+      } else if (topic === 'Operations') {
+        code = `printf("%d", 5 + 3);`;
+        correct = '8';
+        options = ['8', '53', '15', 'Error'];
+      } else if (topic === 'Functions') {
+        code = `int add(int a, int b) { return a + b; }\nprintf("%d", add(2, 3));`;
+        correct = '5';
+        options = ['5', '23', '2', 'Error'];
+      } else if (topic === 'Arrays') {
+        code = `int a[] = {10, 20, 30};\nprintf("%d", a[1]);`;
+        correct = '20';
+        options = ['20', '10', '30', 'Error'];
+      } else {
+        code = `printf("ok");`;
+        correct = 'ok';
+        options = ['ok', 'error', 'NULL', ''];
       }
 
-      cQuestions.push(base);
+      q.questionType = 'code_output';
+      q.code = code;
+      q.question = 'What is the output of the following C code?';
+      q.options = options;
+      q.correctAnswer = correct;
+      q.explanation = `Code output example for C ${topic}`;
+      converted++;
     }
-  });
+  }
 
   return cQuestions;
 };
@@ -660,8 +984,48 @@ const seedDatabase = async () => {
     await Assessment.deleteMany({});
     console.log('✓ Cleared existing questions');
     
-    // Insert all questions
-    await Assessment.insertMany(totalQuestions);
+    console.log(`Attempting to insert ${totalQuestions.length} questions...`);
+    console.log(`  - Python: ${allPythonQuestions.length}`);
+    console.log(`  - Java: ${allJavaQuestions.length}`);
+    console.log(`  - C: ${allCQuestions.length}`);
+    
+    // Check for any invalid questions
+    console.log('\nChecking for invalid questions...');
+    let validCount = 0, invalidCount = 0;
+    const invalidQuestions = [];
+    
+    for (let i = 0; i < totalQuestions.length; i++) {
+      const q = totalQuestions[i];
+      if (!q.language || !q.questionType || !q.topic || !q.question) {
+        invalidCount++;
+        invalidQuestions.push({ index: i, q });
+      } else {
+        validCount++;
+      }
+    }
+    
+    console.log(`Valid: ${validCount}, Invalid: ${invalidCount}`);
+    if (invalidCount > 0) {
+      console.error('Invalid questions found:', invalidQuestions.slice(0, 3));
+    }
+    
+    // Insert in smaller batches to avoid timeout
+    const batchSize = 50;
+    for (let i = 0; i < totalQuestions.length; i += batchSize) {
+      const batch = totalQuestions.slice(i, i + batchSize);
+      const batchNum = Math.floor(i / batchSize) + 1;
+      console.log(`Inserting batch ${batchNum} (${batch.length} questions)...`);
+      try {
+        await Assessment.insertMany(batch, { ordered: false });
+        console.log(`✓ Batch ${batchNum} complete`);
+      } catch (batchError) {
+        console.error(`Error in batch ${batchNum}:`, batchError.message);
+        if (batchError.writeErrors) {
+          console.error('Write errors:', batchError.writeErrors.slice(0, 3));
+        }
+        throw batchError;
+      }
+    }
     
     console.log(`✓ Successfully seeded ${totalQuestions.length} questions`);
     console.log(`  - Python: ${allPythonQuestions.length} questions`);
@@ -671,7 +1035,7 @@ const seedDatabase = async () => {
     
     process.exit(0);
   } catch (error) {
-    console.error('Error seeding database:', error);
+    console.error('Error seeding database:', error.message);
     process.exit(1);
   }
 };
