@@ -1200,6 +1200,140 @@ function generateFallbackMCQQuestions(language, proficiencyLevel, topic, difficu
   return topicQuestions.slice(0, count);
 }
 
+/**
+ * AI Agent - Explain and break down questions using Groq
+ * Provides concept explanations, problem breakdowns, hints, and feedback
+ */
+async function getAIAgentExplanation({ question, description, language, proficiencyLevel, userQuery, taskCompleted, action }) {
+  if (!groqClient) {
+    return {
+      explanation: '❌ AI Agent not available. Please ensure GROQ_API_KEY is configured.',
+      suggestions: []
+    };
+  }
+
+  const systemPrompt = `You are an expert programming tutor and learning assistant.
+Your job is to help students understand coding concepts, break down problems, and learn effectively.
+
+GUIDELINES:
+- Be clear, concise, and encouraging
+- Explain concepts at the appropriate level for ${proficiencyLevel} learners
+- Use examples and analogies when helpful
+- Focus on understanding, not just giving answers
+- When breaking down problems, show the thought process
+- Provide practical tips and common mistakes to avoid
+- If feedback requested, be constructive and suggest improvements
+
+RESPONSE FORMAT:
+Return JSON with:
+{
+  "explanation": "Your detailed explanation/breakdown/feedback here",
+  "suggestions": ["Tip 1", "Tip 2", "Tip 3"]  (optional)
+}`;
+
+  let userPrompt = '';
+
+  switch (action) {
+    case 'explain':
+   userPrompt = `Help me understand the important concepts in this problem:
+
+Title: \${question}
+Description: \${description}
+Language: \${language}
+Level: \${proficiencyLevel}
+
+What are the key concepts I need to know? Break down the important ideas and explain them clearly.\`;
+      break;
+      
+    case 'breakdown':
+      userPrompt = \`Break down this problem into simple steps:
+
+Title: \${question}
+Description: \${description}
+Language: \${language}
+
+Show me the thinking process step-by-step. What should I consider first, second, etc?\`;
+      break;
+      
+    case 'hints':
+      userPrompt = \`Give me strategic hints for solving this problem:
+
+Title: \${question}
+Description: \${description}
+Language: \${language}
+
+Provide 3-4 hints that guide me WITHOUT giving away the solution. Help me think through the problem.\`;
+      break;
+      
+    case 'feedback':
+      userPrompt = \`Now that I've completed this task: \${question}
+
+Give me feedback on my learning. What concepts did I practice? Suggest ways I could improve or optimize my approach.\`;
+      break;
+      
+    default:
+      userPrompt = \`Help me understand this programming question:
+
+Title: \${question}
+Description: \${description}
+Language: \${language}
+Level: \${proficiencyLevel}
+
+User Question: \${userQuery}
+
+Provide a helpful, clear explanation at the \${proficiencyLevel} level.\`;
+  }
+
+  try {
+    console.log(\`🤖 AI Agent: \${action || 'general'} explanation for "\${question}"\`);
+    
+    const message = await groqClient.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 2000,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+    });
+
+    const content = message.choices?.[0]?.message?.content || '{}';
+    
+    // Try to parse as JSON first
+    let parsed;
+    try {
+      // Check if it's wrapped in JSON code blocks
+      let jsonStr = content;
+      const jsonMatch = content.match(/\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1];
+      }
+      
+      parsed = JSON.parse(jsonStr);
+    } catch (e) {
+      // If not JSON, treat the whole response as explanation
+      parsed = {
+        explanation: content,
+        suggestions: []
+      };
+    }
+
+    console.log(\`✅ AI Agent response generated\`);
+    
+    return {
+      explanation: parsed.explanation || content || 'Unable to generate explanation',
+      suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : []
+    };
+  } catch (error) {
+    console.error('❌ AI Agent error:', error.message);
+    
+    return {
+      explanation: \`I encountered an error generating the explanation. Please try again. Error: \${error.message}\`,
+      suggestions: ['Check your internet connection', 'Try rephrasing your question', 'Contact support if the issue persists']
+    };
+  }
+}
+
 module.exports = {
   generatePersonalizedTasks,
   evaluateCodeWithAI,
@@ -1207,4 +1341,5 @@ module.exports = {
   generateStructuredLearningPath,
   generateQuestionsForTopic,
   generateMCQQuestions,
+  getAIAgentExplanation,
 };

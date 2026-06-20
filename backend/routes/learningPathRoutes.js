@@ -9,6 +9,7 @@ const {
   getTaskCodeFeedback,
   saveTaskDraft,
   submitTaskSolution,
+  getAIAgentExplanation,
 } = require('../controllers/learningPathController');
 
 router.get('/:userId', getLearningPath);
@@ -18,6 +19,7 @@ router.patch('/complete-task', completeTask);
 router.patch('/save-draft', saveTaskDraft);
 router.post('/submit-solution', submitTaskSolution);
 router.post('/ai-feedback', getTaskCodeFeedback);
+router.post('/ai-agent', getAIAgentExplanation);
 router.get('/:userId/:language/:taskId/explanation', getTaskExplanation);
 
 module.exports = router;

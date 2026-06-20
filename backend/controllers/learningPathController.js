@@ -1,5 +1,5 @@
 const LearningPath = require('../models/LearningPath');
-const { generatePersonalizedTasks, evaluateCodeWithAI, generateStructuredLearningPath } = require('../utils/aiTaskGenerator');
+const { generatePersonalizedTasks, evaluateCodeWithAI, generateStructuredLearningPath, getAIAgentExplanation } = require('../utils/aiTaskGenerator');
 
 const LANGUAGE_LABELS = {
   python: 'Python',
@@ -513,6 +513,41 @@ exports.submitTaskSolution = async (req, res) => {
     return res.status(500).json({ 
       message: 'Error evaluating code. Please try again.', 
       error: error.message 
+    });
+  }
+};
+
+exports.getAIAgentExplanation = async (req, res) => {
+  try {
+    const { question, description, language, proficiencyLevel, userQuery, taskCompleted, action } = req.body;
+
+    if (!question || !description || !language) {
+      return res.status(400).json({ message: 'Missing required fields: question, description, language' });
+    }
+
+    console.log(`🤖 AI Agent request: action=${action}, question="${question}"`);
+
+    const response = await getAIAgentExplanation({
+      question,
+      description,
+      language,
+      proficiencyLevel: proficiencyLevel || 'Beginner',
+      userQuery: userQuery || '',
+      taskCompleted: taskCompleted || false,
+      action: action || 'explain'
+    });
+
+    return res.status(200).json({
+      success: true,
+      explanation: response.explanation,
+      suggestions: response.suggestions || []
+    });
+  } catch (error) {
+    console.error('❌ AI Agent error:', error.message);
+    return res.status(500).json({
+      message: 'Error generating AI explanation',
+      error: error.message,
+      success: false
     });
   }
 };
