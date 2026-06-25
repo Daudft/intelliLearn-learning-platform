@@ -95,13 +95,22 @@
 /* Content */
 .task-modal-content {
   display: grid;
-  grid-template-columns: 0.6fr 1.4fr;
+  grid-template-columns: 1fr 1.3fr;
   gap: 24px;
   padding: 24px;
   overflow-y: auto;
   flex: 1;
   min-height: 0;
   min-width: 0;
+}
+
+/* Left: AI Learning Assistant fills the column */
+.task-ai-section {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .task-details-section {

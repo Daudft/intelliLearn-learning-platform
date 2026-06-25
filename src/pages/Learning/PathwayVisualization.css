@@ -397,3 +397,58 @@
     gap: 16px;
   }
 }
+
+/* ─── Quiz unlock banner ─── */
+.quiz-unlock-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  margin: 0 0 20px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #a3ff00 0%, #84cc16 100%);
+  box-shadow: 0 8px 24px rgba(163, 255, 0, 0.3);
+}
+.quiz-unlock-banner.passed {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+}
+.quiz-unlock-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(10, 26, 10, 0.12);
+  display: grid;
+  place-items: center;
+  color: #0a1a0a;
+  flex-shrink: 0;
+}
+.quiz-unlock-info { flex: 1; min-width: 0; }
+.quiz-unlock-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0a1a0a;
+}
+.quiz-unlock-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(10, 26, 10, 0.75);
+  line-height: 1.4;
+}
+.quiz-unlock-btn {
+  flex-shrink: 0;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: #0a1a0a;
+  color: #a3ff00;
+  font-weight: 800;
+  font-size: 14px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.quiz-unlock-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(10, 26, 10, 0.3);
+}

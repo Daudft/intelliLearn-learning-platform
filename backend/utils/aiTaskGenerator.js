@@ -129,161 +129,169 @@ function analyzeWeakTopics(topicBreakdown) {
 /**
  * Generate REAL coding questions with test cases using Groq API
  */
-async function generateRealQuestions(language, proficiencyLevel, topicBreakdown, assessmentScore) {
-  if (!groqClient) {
-    console.warn('⚠️ Groq API not configured. Using fallback questions.');
-    return generateFallbackQuestions(language, proficiencyLevel, topicBreakdown);
-  }
+// Number of coding tasks per learning-path cycle, generated in difficulty-tiered
+// batches so each Groq call stays small enough to return reliable JSON.
+const TASKS_PER_PATH = 15;
+const QUESTION_BATCH_SIZE = 5;
 
-  const weakTopics = analyzeWeakTopics(topicBreakdown);
+const LEVEL_GUIDELINES = {
+  Beginner: 'Problems should be simple syntax exercises. Use basic variables, loops, and if statements. NO recursion or complex data structures.',
+  Intermediate: 'Problems should include logic puzzles, simple algorithms like sorting/searching, basic OOP concepts, and simple recursion.',
+  Advanced: 'Problems should cover advanced algorithms, optimization, complex OOP patterns, and require algorithmic thinking.',
+};
+
+/**
+ * Request a single batch of raw coding problems from Groq for one difficulty tier.
+ * Returns an array of raw question objects (empty array on failure).
+ */
+async function requestQuestionBatch({ language, proficiencyLevel, focusAreas, assessmentScore, count, difficultyTier }) {
   const languageLabel = LANGUAGE_LABELS[language] || language;
 
-  // Build focus areas description
-  let focusAreas = 'fundamentals';
-  if (weakTopics.length > 0) {
-    focusAreas = weakTopics.slice(0, 3).map(t => t.topic).join(', ');
-  }
-
-  console.log(`🎯 [REAL QUESTIONS] Generating for: ${languageLabel} (${proficiencyLevel})`);
-  console.log(`📍 Focus areas: ${focusAreas}`);
-  console.log(`📊 Assessment score: ${assessmentScore}%`);
-
   const systemPrompt = `You are an expert programming problem setter like those on LeetCode or HackerRank.
-Generate exactly 5 REAL, SOLVABLE programming problems with clear test cases.
+Generate exactly ${count} REAL, SOLVABLE programming problems with clear test cases.
 CRITICAL: Problems must be appropriate for the specified proficiency level.
 
 LEVEL GUIDELINES:
-- Beginner (0-40% score): Simple syntax, basic concepts, no complex logic, single function problems
-  Examples: sum array, reverse string, find max, check palindrome, count elements
-  NO: recursion, OOP, algorithms, nested loops, complex data structures
-  
-- Intermediate (41-70% score): Logic puzzles, small programs, basic algorithms, debugging
-  Examples: sorting, searching, string manipulation, simple OOP, basic recursion
-  NO: advanced algorithms, optimization, complex design patterns
-  
-- Advanced (71-100% score): Algorithms, optimization, OOP design, complex problems
-  Examples: advanced data structures, algorithms, system design thinking, optimization
+- Beginner: Simple syntax, basic concepts, no complex logic, single function problems
+- Intermediate: Logic puzzles, small programs, basic algorithms, debugging
+- Advanced: Algorithms, optimization, OOP design, complex problems
 
 RULES:
-1. Return ONLY valid JSON with key "questions" containing exactly 5 problem objects
+1. Return ONLY valid JSON with key "questions" containing exactly ${count} problem objects
 2. Each problem must have: title, description, difficulty, topic, starterCode, testCases, hints
-3. Problems progress from easy to harder within level
-4. Each problem should focus on ONE specific concept
+3. Target "${difficultyTier}" difficulty within the ${proficiencyLevel} level for this batch
+4. Each problem should focus on ONE specific concept and be DISTINCT from the others
 5. testCases: array with at least 2-3 items, each with: input (string), expectedOutput (string), description
 6. starterCode must be valid, runnable skeleton code specific to ${languageLabel}
 7. Include 2-3 helpful hints per problem (light, medium, heavy)
 8. Output NOTHING except the JSON object - no markdown, no explanations`;
 
-  const levelGuidelines = {
-    Beginner: 'Problems should be simple syntax exercises. Use basic variables, loops, and if statements. NO recursion or complex data structures.',
-    Intermediate: 'Problems should include logic puzzles, simple algorithms like sorting/searching, basic OOP concepts, and simple recursion.',
-    Advanced: 'Problems should cover advanced algorithms, optimization, complex OOP patterns, and require algorithmic thinking.',
-  };
-
-  const userPrompt = `Generate 5 REAL ${languageLabel} coding problems for a ${proficiencyLevel} level learner.
+  const userPrompt = `Generate ${count} REAL ${languageLabel} coding problems for a ${proficiencyLevel} level learner.
 
 PROFICIENCY LEVEL: ${proficiencyLevel}
-${levelGuidelines[proficiencyLevel]}
+${LEVEL_GUIDELINES[proficiencyLevel] || LEVEL_GUIDELINES.Beginner}
 
 Student Performance:
 - Overall Score: ${assessmentScore}%
 - Weak Areas to Focus On: ${focusAreas || 'fundamentals'}
+- Difficulty for THIS batch: ${difficultyTier}
 
 For EACH problem:
-1. Difficulty should match ${proficiencyLevel} level (easy, medium, or hard within this level)
+1. Difficulty should be "${difficultyTier}" within the ${proficiencyLevel} level
 2. Create a REAL practical problem (not abstract exercises)
-3. Provide clear problem statement with input/output examples
+3. Provide a clear problem statement with input/output examples
 4. Include 2-3 test cases with actual input/output values
 5. Write working starter code (skeleton) they can build on
 6. Add 2-3 progressive hints (light → medium → heavy)
-7. Focus on weak areas when possible
+7. Focus on weak areas when possible, and keep every problem distinct
 
-IMPORTANT: Do NOT exceed the ${proficiencyLevel} level complexity. Better to be simpler than too complex.
+IMPORTANT: Do NOT exceed the ${proficiencyLevel} level complexity. Make all ${count} problems distinct.
 
-Return JSON object with key "questions" containing array of 5 problem objects.
+Return JSON object with key "questions" containing an array of ${count} problem objects.
 Structure: {
   "questions": [
     {
       "title": "Problem Title",
       "description": "Problem description with example",
-      "difficulty": "easy|medium|hard",
+      "difficulty": "${difficultyTier}",
       "topic": "Variables|Loops|Functions|Arrays|etc",
       "starterCode": "code skeleton",
       "testCases": [{"input": "example input", "expectedOutput": "example output", "description": "what this tests"}],
-      "hints": [{"text": "hint 1", "difficulty": "light"}, ...]
+      "hints": [{"text": "hint 1", "difficulty": "light"}]
     }
   ]
 }`;
 
   try {
-    console.log('📡 Calling Groq API for real questions...');
-    console.log(`   Model: llama-3.3-70b-versatile`);
-    console.log(`   Language: ${language}`);
-    
-    // Create abort controller for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-    
     const message = await groqClient.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 4000,
       temperature: 0.7,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: userPrompt },
       ],
     });
 
-    clearTimeout(timeoutId);
-
     const content = message.choices?.[0]?.message?.content || '{}';
-    console.log(`✅ Groq API response received (${content.length} chars)`);
-    
-    // Extract JSON if wrapped in markdown code blocks
+
     let jsonStr = content;
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1];
-      console.log(`📝 Extracted JSON from markdown code block`);
-    }
+    if (jsonMatch) jsonStr = jsonMatch[1];
 
-    // Try to parse the JSON with automatic cleaning
     let parsed;
     try {
       parsed = cleanAndFixJSON(jsonStr);
     } catch (parseError) {
-      console.error('   JSON parse error:', parseError.message);
-      // Try to find JSON object in the content
       const jsonObjectMatch = content.match(/\{[\s\S]*"questions"[\s\S]*\}/);
-      if (jsonObjectMatch) {
-        console.log('   Trying to extract JSON object from content...');
-        try {
-          parsed = cleanAndFixJSON(jsonObjectMatch[0]);
-        } catch (e2) {
-          console.error('   Failed to parse extracted JSON:', e2.message);
-          throw new Error('Could not parse JSON response from Groq');
-        }
-      } else {
-        throw new Error('Could not find JSON object in Groq response');
-      }
-    }
-    
-    if (!parsed.questions || !Array.isArray(parsed.questions) || parsed.questions.length === 0) {
-      throw new Error('No questions array in response or empty');
+      if (!jsonObjectMatch) throw new Error('No JSON object found in response');
+      parsed = cleanAndFixJSON(jsonObjectMatch[0]);
     }
 
-    const questions = normalizeRealQuestions(parsed.questions, language, proficiencyLevel, weakTopics);
-    console.log(`✅ [SUCCESS] Generated ${questions.length} REAL questions from Groq API`);
-    questions.forEach((q, idx) => {
-      console.log(`   ${idx + 1}. "${q.title}" (${q.difficulty}) - Topic: ${q.topic} - ${q.testCases?.length || 0} test cases`);
-    });
-    return questions;
+    if (!parsed.questions || !Array.isArray(parsed.questions)) {
+      return [];
+    }
+
+    console.log(`   ✅ Batch "${difficultyTier}": ${parsed.questions.length} questions`);
+    return parsed.questions;
   } catch (error) {
-    console.error('❌ Real questions generation error:', error.message);
-    console.error('   Retrying with fallback questions...');
-    console.log('⚠️ Using template questions as fallback');
-    return generateFallbackQuestions(language, proficiencyLevel, topicBreakdown);
+    console.warn(`   ⚠️ Batch "${difficultyTier}" generation failed: ${error.message}`);
+    return [];
   }
+}
+
+async function generateRealQuestions(language, proficiencyLevel, topicBreakdown, assessmentScore) {
+  if (!groqClient) {
+    console.warn('⚠️ Groq API not configured. Using fallback questions.');
+    return generateFallbackQuestions(language, proficiencyLevel, topicBreakdown, TASKS_PER_PATH);
+  }
+
+  const weakTopics = analyzeWeakTopics(topicBreakdown);
+  const languageLabel = LANGUAGE_LABELS[language] || language;
+
+  let focusAreas = 'fundamentals';
+  if (weakTopics.length > 0) {
+    focusAreas = weakTopics.slice(0, 3).map(t => t.topic).join(', ');
+  }
+
+  console.log(`🎯 [REAL QUESTIONS] Generating ${TASKS_PER_PATH} for: ${languageLabel} (${proficiencyLevel})`);
+  console.log(`📍 Focus areas: ${focusAreas} | Assessment score: ${assessmentScore}%`);
+
+  // Generate in difficulty-tiered batches: 5 easy → 5 medium → 5 hard.
+  // This forms an easy→hard curve and keeps each call's JSON small/reliable.
+  const tiers = ['easy', 'medium', 'hard'];
+  const batches = await Promise.all(
+    tiers.map((difficultyTier) =>
+      requestQuestionBatch({
+        language,
+        proficiencyLevel,
+        focusAreas,
+        assessmentScore,
+        count: QUESTION_BATCH_SIZE,
+        difficultyTier,
+      })
+    )
+  );
+
+  let rawQuestions = batches.flat();
+  console.log(`✅ Groq returned ${rawQuestions.length}/${TASKS_PER_PATH} questions across ${tiers.length} batches`);
+
+  // Top up with template questions if Groq under-delivered, so the user always gets 15.
+  if (rawQuestions.length < TASKS_PER_PATH) {
+    const needed = TASKS_PER_PATH - rawQuestions.length;
+    console.warn(`⚠️ Only ${rawQuestions.length} generated — topping up with ${needed} template question(s)`);
+    rawQuestions = rawQuestions.concat(
+      generateFallbackQuestions(language, proficiencyLevel, topicBreakdown, needed)
+    );
+  }
+
+  if (rawQuestions.length === 0) {
+    return generateFallbackQuestions(language, proficiencyLevel, topicBreakdown, TASKS_PER_PATH);
+  }
+
+  const questions = normalizeRealQuestions(rawQuestions, language, proficiencyLevel, weakTopics);
+  console.log(`✅ [SUCCESS] Prepared ${questions.length} questions for the learning path`);
+  return questions;
 }
 
 /**
@@ -307,7 +315,7 @@ function normalizeRealQuestions(questions, language, proficiencyLevel, weakTopic
     'math': 'Functions',
   };
 
-  return questions.slice(0, 5).map((q, index) => {
+  return questions.slice(0, TASKS_PER_PATH).map((q, index) => {
     const normalizedTopic = topicMap[q?.topic?.toLowerCase()] || 'Functions';
     
     return {
@@ -341,10 +349,10 @@ function normalizeRealQuestions(questions, language, proficiencyLevel, weakTopic
 /**
  * Fallback questions when AI is not available
  */
-function generateFallbackQuestions(language, proficiencyLevel, topicBreakdown) {
+function generateFallbackQuestions(language, proficiencyLevel, topicBreakdown, count = TASKS_PER_PATH) {
   const label = LANGUAGE_LABELS[language] || language;
   const weakTopics = analyzeWeakTopics(topicBreakdown);
-  
+
   const templates = {
     python: [
       {
@@ -521,24 +529,32 @@ function generateFallbackQuestions(language, proficiencyLevel, topicBreakdown) {
 
   const langTemplates = templates[language] || templates.python;
 
-  return langTemplates.map((q, index) => ({
-    taskId: `${language}-real-${index + 1}`,
-    title: q.title,
-    description: q.description,
-    explanation: `Problem: ${q.description}\n\nApproach: Think step by step. Consider edge cases.`,
-    difficulty: q.difficulty,
-    topic: q.topic,
-    starterCode: q.starterCode,
-    testCases: q.testCases || [],
-    hints: [
-      { hint: 'Read the problem carefully', difficulty: 'light' },
-      { hint: 'Start with simple cases', difficulty: 'medium' },
-      { hint: 'Think about edge cases', difficulty: 'heavy' },
-    ],
-    proficiencyLevel,
-    order: index + 1,
-    status: index === 0 ? 'unlocked' : 'locked',
-  }));
+  // Cycle through the templates until we reach `count`, labelling repeats as
+  // practice variants so the user still receives a full set of tasks.
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const q = langTemplates[i % langTemplates.length];
+    const variant = Math.floor(i / langTemplates.length);
+    out.push({
+      taskId: `${language}-real-${i + 1}`,
+      title: variant > 0 ? `${q.title} (Practice ${variant + 1})` : q.title,
+      description: q.description,
+      explanation: `Problem: ${q.description}\n\nApproach: Think step by step. Consider edge cases.`,
+      difficulty: q.difficulty,
+      topic: q.topic,
+      starterCode: q.starterCode,
+      testCases: q.testCases || [],
+      hints: [
+        { hint: 'Read the problem carefully', difficulty: 'light' },
+        { hint: 'Start with simple cases', difficulty: 'medium' },
+        { hint: 'Think about edge cases', difficulty: 'heavy' },
+      ],
+      proficiencyLevel,
+      order: i + 1,
+      status: i === 0 ? 'unlocked' : 'locked',
+    });
+  }
+  return out;
 }
 
 /**
@@ -661,121 +677,6 @@ Provide feedback as JSON only.`;
       qualityScore: 5,
     };
   }
-}
-
-/**
- * Fallback tasks when AI is not available
- */
-function generateFallbackTasks(language, proficiencyLevel, topicBreakdown) {
-  const label = LANGUAGE_LABELS[language] || language;
-  const weakTopics = analyzeWeakTopics(topicBreakdown);
-  const topicStr = weakTopics.length > 0 
-    ? `focusing on ${weakTopics[0].topic}`
-    : 'to strengthen fundamentals';
-
-  return [
-    {
-      taskId: `${language}-1`,
-      title: `${label} Basic Practice ${topicStr}`,
-      description: `Start with simple exercises to build confidence in ${label} fundamentals.`,
-      explanation:
-        'Read the problem carefully. Write simple, clear code that solves the exact problem. Test with the examples.',
-      starterCode: `# Write your ${language} solution here\n`,
-      hints: [
-        { text: 'Start by understanding what the problem asks', difficulty: 'light' },
-        { text: 'Trace through one example by hand first', difficulty: 'medium' },
-      ],
-      order: 1,
-      status: 'unlocked',
-    },
-    {
-      taskId: `${language}-2`,
-      title: `${label} Logic Building`,
-      description: 'Build confidence with multi-step problems.',
-      explanation:
-        'Break the problem into smaller parts. Solve each part separately, then combine.',
-      starterCode: `# Define your solution here\n`,
-      hints: [
-        { text: 'What variables do you need?', difficulty: 'light' },
-        { text: 'Try a simple case first', difficulty: 'medium' },
-      ],
-      order: 2,
-      status: 'locked',
-    },
-    {
-      taskId: `${language}-3`,
-      title: `${label} Problem Solving`,
-      description: 'Apply your skills to a slightly more complex problem.',
-      explanation:
-        'Choose your approach carefully. Verify your logic works before submitting.',
-      starterCode: `# Write your solution here\n`,
-      hints: [
-        { text: 'Consider edge cases', difficulty: 'light' },
-        { text: 'What happens with empty input?', difficulty: 'medium' },
-      ],
-      order: 3,
-      status: 'locked',
-    },
-    {
-      taskId: `${language}-4`,
-      title: `${label} Optimization Challenge`,
-      description: 'Solve efficiently with good code style.',
-      explanation:
-        'First get it working. Then optimize. Finally, ensure your code is readable.',
-      starterCode: `# Optimize your solution here\n`,
-      hints: [
-        { text: 'Is there a more efficient approach?', difficulty: 'medium' },
-        { text: 'Consider time and space complexity', difficulty: 'heavy' },
-      ],
-      order: 4,
-      status: 'locked',
-    },
-    {
-      taskId: `${language}-5`,
-      title: `${label} Real-World Application`,
-      description: 'Apply your skills to a practical scenario.',
-      explanation:
-        'Think like you are building actual software. Write clean, documented code.',
-      starterCode: `# Build your solution here\n`,
-      hints: [
-        { text: 'What would a real user expect?', difficulty: 'medium' },
-        { text: 'Make your code maintainable', difficulty: 'heavy' },
-      ],
-      order: 5,
-      status: 'locked',
-    },
-  ];
-}
-
-/**
- * Normalize AI-generated tasks to match schema
- */
-function normalizeAiTasks(tasks, language, proficiencyLevel) {
-  if (!Array.isArray(tasks) || tasks.length === 0) {
-    return generateFallbackTasks(language, proficiencyLevel, new Map());
-  }
-
-  return tasks.slice(0, 5).map((task, index) => ({
-    taskId: `${language}-${index + 1}`,
-    title: (task?.title || `${LANGUAGE_LABELS[language]} Task ${index + 1}`).toString().slice(0, 120),
-    description: (task?.description || 'Solve the coding task.').toString().slice(0, 300),
-    explanation: (task?.explanation || 'Write clean, tested code.').toString().slice(0, 500),
-    starterCode: (task?.starterCode || `# Solution for ${LANGUAGE_LABELS[language]}\n`).toString(),
-    hints: Array.isArray(task?.hints)
-      ? task.hints.slice(0, 3).map(h => ({
-          hint: (h?.text || h?.hint || '').toString().slice(0, 200),
-          difficulty: ['light', 'medium', 'heavy'].includes(h?.difficulty) ? h.difficulty : 'light',
-        }))
-      : [{ hint: 'Break the problem into steps', difficulty: 'light' }],
-    draftCode: '',
-    lastFeedback: '',
-    lastFeedbackScore: null,
-    lastWorkedAt: null,
-    attempts: 0,
-    order: index + 1,
-    status: index === 0 ? 'unlocked' : 'locked',
-    completedAt: null,
-  }));
 }
 
 /**
@@ -1200,6 +1101,293 @@ function generateFallbackMCQQuestions(language, proficiencyLevel, topic, difficu
   return topicQuestions.slice(0, count);
 }
 
+/**
+ * AI Agent - Explain and break down questions using Groq
+ * Provides concept explanations, problem breakdowns, hints, and feedback
+ */
+async function getAIAgentExplanation({ question, description, language, proficiencyLevel, userQuery, taskCompleted, action }) {
+  if (!groqClient) {
+    return {
+      explanation: '❌ AI Agent not available. Please ensure GROQ_API_KEY is configured.',
+      suggestions: []
+    };
+  }
+
+  const systemPrompt = `You are an expert programming tutor for a ${language} learner at the ${proficiencyLevel} level.
+
+You are helping the student with this specific task:
+TITLE: "${question}"
+DESCRIPTION: ${description}
+
+GUIDELINES:
+- Begin by restating, in one short sentence, what this task ("${question}") is asking.
+- Reply in clean, well-structured GitHub-flavored Markdown: use **bold** for key terms, short paragraphs, and "-" bullet lists. Keep it scannable.
+- Be clear, concise, and encouraging; pitch the depth at the ${proficiencyLevel} level.
+- Focus on building understanding. Do NOT write the full working solution unless the student explicitly asks for it — small illustrative snippets are fine.
+- Put any code in fenced \`\`\`${language} code blocks.
+- End with a short "**Suggestions:**" section of 2-3 bullet tips when useful.
+
+IMPORTANT: Respond with the explanation ONLY, as plain Markdown text. Do NOT wrap it in JSON, and do NOT output a JSON object.`;
+
+  let userPrompt = '';
+
+  switch (action) {
+    case 'explain':
+   userPrompt = `Help me understand the important concepts in this problem:
+
+Title: ${question}
+Description: ${description}
+Language: ${language}
+Level: ${proficiencyLevel}
+
+What are the key concepts I need to know? Break down the important ideas and explain them clearly.`;
+      break;
+      
+    case 'breakdown':
+      userPrompt = `Break down this problem into simple steps:
+
+Title: ${question}
+Description: ${description}
+Language: ${language}
+
+Show me the thinking process step-by-step. What should I consider first, second, etc?`;
+      break;
+      
+    case 'hints':
+      userPrompt = `Give me strategic hints for solving this problem:
+
+Title: ${question}
+Description: ${description}
+Language: ${language}
+
+Provide 3-4 hints that guide me WITHOUT giving away the solution. Help me think through the problem.`;
+      break;
+      
+    case 'feedback':
+      userPrompt = `Now that I've completed this task: ${question}
+
+Give me feedback on my learning. What concepts did I practice? Suggest ways I could improve or optimize my approach.`;
+      break;
+      
+    default:
+      userPrompt = `Help me understand this programming question:
+
+Title: ${question}
+Description: ${description}
+Language: ${language}
+Level: ${proficiencyLevel}
+
+User Question: ${userQuery}
+
+Provide a helpful, clear explanation at the ${proficiencyLevel} level.`;
+  }
+
+  try {
+    console.log(`🤖 AI Agent: ${action || 'general'} explanation for "${question}"`);
+    
+    const message = await groqClient.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 2000,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+    });
+
+    const content = message.choices?.[0]?.message?.content || '';
+
+    // The model is asked for plain Markdown, but be defensive: strip an
+    // accidental ```json / ```markdown wrapper and unwrap legacy JSON output.
+    let explanation = content.trim();
+    let suggestions = [];
+
+    const fenced = explanation.match(/^```(?:json|markdown)?\s*([\s\S]*?)\s*```$/);
+    if (fenced) {
+      explanation = fenced[1].trim();
+    }
+
+    if (explanation.startsWith('{') && explanation.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(explanation);
+        if (parsed.explanation) {
+          explanation = String(parsed.explanation).trim();
+          if (Array.isArray(parsed.suggestions)) suggestions = parsed.suggestions;
+        }
+      } catch {
+        // Not valid JSON — keep the raw text as-is.
+      }
+    }
+
+    console.log(`✅ AI Agent response generated`);
+
+    return {
+      explanation: explanation || 'Unable to generate explanation. Please try again.',
+      suggestions,
+    };
+  } catch (error) {
+    console.error('❌ AI Agent error:', error.message);
+    
+    return {
+      explanation: `I encountered an error generating the explanation. Please try again. Error: ${error.message}`,
+      suggestions: ['Check your internet connection', 'Try rephrasing your question', 'Contact support if the issue persists']
+    };
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * End-of-cycle quiz generation (7 MCQs + 3 coding questions)
+ * Built from the tasks the learner just completed, used to gate progression.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+function normalizeQuizCoding(q, language, index) {
+  return {
+    questionId: `${language}-quiz-${index + 1}`,
+    title: (q?.title || `Coding Challenge ${index + 1}`).toString().slice(0, 120),
+    description: (q?.description || 'Solve the coding problem.').toString().slice(0, 500),
+    starterCode: (q?.starterCode || `// Write your solution here\n`).toString(),
+    difficulty: q?.difficulty || 'medium',
+    topic: q?.topic || 'Functions',
+    testCases: Array.isArray(q?.testCases)
+      ? q.testCases.slice(0, 3).map((tc) => ({
+          input: (tc?.input || '').toString().slice(0, 500),
+          expectedOutput: (tc?.expectedOutput || '').toString().slice(0, 500),
+          description: (tc?.description || 'Test case').toString().slice(0, 200),
+        }))
+      : [],
+    hints: Array.isArray(q?.hints)
+      ? q.hints.slice(0, 3).map((h) => ({
+          hint: (h?.text || h?.hint || '').toString().slice(0, 200),
+          difficulty: ['light', 'medium', 'heavy'].includes(h?.difficulty) ? h.difficulty : 'light',
+        }))
+      : [],
+  };
+}
+
+function assembleFallbackMCQs(language, proficiencyLevel, count) {
+  const topics = ['Variables', 'Loops', 'Functions', 'Arrays'];
+  let out = [];
+  for (const t of topics) {
+    if (out.length >= count) break;
+    out = out.concat(generateFallbackMCQQuestions(language, proficiencyLevel, t, 'easy', count));
+  }
+  return out.slice(0, count).map((q) => ({
+    question: q.question,
+    options: q.options,
+    correctAnswer: q.correctAnswer,
+    explanation: q.explanation || '',
+    topic: '',
+  }));
+}
+
+async function generateQuizMCQs(language, proficiencyLevel, topicList, titles, count = 7) {
+  if (!groqClient) {
+    return assembleFallbackMCQs(language, proficiencyLevel, count);
+  }
+
+  const languageLabel = LANGUAGE_LABELS[language] || language;
+  const systemPrompt = `You are an expert programming educator building a review quiz.
+Generate exactly ${count} multiple choice questions for ${proficiencyLevel} level ${languageLabel} learners.
+The questions must review the concepts behind these topics: ${topicList}.
+
+EACH QUESTION MUST HAVE: a clear question, 4 options (A, B, C, D), exactly one correct answer, and a short explanation.
+Return ONLY valid JSON:
+{
+  "questions": [
+    { "question": "...", "options": {"A":"..","B":"..","C":"..","D":".."}, "correct": "A", "explanation": ".." }
+  ]
+}`;
+  const userPrompt = `Create ${count} MCQs for ${proficiencyLevel} ${languageLabel} learners covering: ${topicList}.
+Review the concepts practiced in problems like: ${titles.slice(0, 10).join('; ') || 'core fundamentals'}.
+Mix easy and medium difficulty. Each must have exactly one clearly correct answer. Output JSON only.`;
+
+  try {
+    const message = await groqClient.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 3000,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    });
+
+    const content = message.choices?.[0]?.message?.content || '{}';
+    let jsonStr = content;
+    const m = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (m) jsonStr = m[1];
+
+    let parsed;
+    try {
+      parsed = cleanAndFixJSON(jsonStr);
+    } catch {
+      const o = content.match(/\{[\s\S]*"questions"[\s\S]*\}/);
+      if (!o) throw new Error('No JSON found');
+      parsed = cleanAndFixJSON(o[0]);
+    }
+    if (!Array.isArray(parsed.questions)) throw new Error('Bad MCQ structure');
+
+    let mcqs = parsed.questions.slice(0, count).map((q) => ({
+      question: (q?.question || 'Question').toString().slice(0, 500),
+      options: {
+        A: (q?.options?.A || 'Option A').toString().slice(0, 200),
+        B: (q?.options?.B || 'Option B').toString().slice(0, 200),
+        C: (q?.options?.C || 'Option C').toString().slice(0, 200),
+        D: (q?.options?.D || 'Option D').toString().slice(0, 200),
+      },
+      correctAnswer: String(q?.correct || q?.correct_answer || 'A').toUpperCase()[0],
+      explanation: (q?.explanation || '').toString().slice(0, 300),
+      topic: (q?.topic || '').toString().slice(0, 60),
+    }));
+
+    if (mcqs.length < count) {
+      mcqs = mcqs.concat(assembleFallbackMCQs(language, proficiencyLevel, count - mcqs.length));
+    }
+    return mcqs.slice(0, count);
+  } catch (error) {
+    console.warn(`⚠️ Quiz MCQ generation failed: ${error.message}`);
+    return assembleFallbackMCQs(language, proficiencyLevel, count);
+  }
+}
+
+async function generateQuizCoding(language, proficiencyLevel, topicList, count = 3) {
+  let raw = [];
+  if (groqClient) {
+    raw = await requestQuestionBatch({
+      language,
+      proficiencyLevel,
+      focusAreas: topicList,
+      assessmentScore: 60,
+      count,
+      difficultyTier: 'medium',
+    });
+  }
+  if (raw.length < count) {
+    raw = raw.concat(generateFallbackQuestions(language, proficiencyLevel, new Map(), count - raw.length));
+  }
+  return raw.slice(0, count).map((q, i) => normalizeQuizCoding(q, language, i));
+}
+
+/**
+ * Build a full end-of-cycle quiz from the completed tasks.
+ * Returns { mcqs: [7], codingQuestions: [3] }.
+ */
+async function generateCycleQuiz(language, proficiencyLevel, completedTasks = []) {
+  const topics = [...new Set(completedTasks.map((t) => t.topic).filter(Boolean))];
+  const titles = completedTasks.map((t) => t.title).filter(Boolean);
+  const topicList = topics.length ? topics.join(', ') : 'core programming concepts';
+
+  console.log(`🧩 Generating cycle quiz for ${language} (${proficiencyLevel}) covering: ${topicList}`);
+
+  const [mcqs, codingQuestions] = await Promise.all([
+    generateQuizMCQs(language, proficiencyLevel, topicList, titles, 7),
+    generateQuizCoding(language, proficiencyLevel, topicList, 3),
+  ]);
+
+  console.log(`✅ Quiz ready: ${mcqs.length} MCQs + ${codingQuestions.length} coding questions`);
+  return { mcqs, codingQuestions };
+}
+
 module.exports = {
   generatePersonalizedTasks,
   evaluateCodeWithAI,
@@ -1207,4 +1395,6 @@ module.exports = {
   generateStructuredLearningPath,
   generateQuestionsForTopic,
   generateMCQQuestions,
+  getAIAgentExplanation,
+  generateCycleQuiz,
 };

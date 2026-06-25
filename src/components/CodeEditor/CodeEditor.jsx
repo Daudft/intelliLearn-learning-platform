@@ -2,9 +2,8 @@ import { useState, useRef } from 'react';
 import { Send, Check } from 'lucide-react';
 import './CodeEditor-Simple.css';
 
-export default function CodeEditor({ 
-  language = 'python', 
-  initialCode = '', 
+export default function CodeEditor({
+  initialCode = '',
   onSubmit,
   isSubmitting = false,
   canSubmit = true,
