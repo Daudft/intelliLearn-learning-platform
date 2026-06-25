@@ -1,5 +1,9 @@
 const LearningPath = require('../models/LearningPath');
-const { generatePersonalizedTasks, evaluateCodeWithAI, generateStructuredLearningPath, getAIAgentExplanation } = require('../utils/aiTaskGenerator');
+const { generatePersonalizedTasks, evaluateCodeWithAI, getAIAgentExplanation, generateCycleQuiz } = require('../utils/aiTaskGenerator');
+
+const QUIZ_PASS_SCORE = 80; // out of 100 (7 MCQ x 10 + 3 coding x qualityScore)
+const LEVEL_UP_THRESHOLD = 90; // quiz score (out of 100) needed to level up
+const PROFICIENCY_ORDER = ['Beginner', 'Intermediate', 'Advanced'];
 
 const LANGUAGE_LABELS = {
   python: 'Python',
@@ -7,100 +11,6 @@ const LANGUAGE_LABELS = {
   c: 'C Language',
 };
 const LEARNING_PASS_SCORE = Number(process.env.LEARNING_PASS_SCORE || 7);
-
-function getTaskTemplates(language, proficiencyLevel) {
-  const label = LANGUAGE_LABELS[language] || language;
-
-  const base = [
-    {
-      title: `${label} Fundamentals Warmup`,
-      description: `Solve small syntax and control-flow drills in ${label}.`,
-      explanation:
-        'Read the prompt carefully, identify input/output expectations, then code a minimal correct solution before optimizing.',
-      starterCode: '// Write your solution here\n',
-    },
-    {
-      title: `${label} Functions And Reuse`,
-      description: 'Break a medium problem into reusable functions.',
-      explanation:
-        'Create one function for each clear responsibility. Use small test cases to validate each function independently.',
-      starterCode: '// Define helper functions here\n',
-    },
-    {
-      title: `${label} Arrays And Collections`,
-      description: 'Implement collection operations and edge-case handling.',
-      explanation:
-        'Start with a brute-force version, then improve time complexity. Document assumptions for empty and invalid input.',
-      starterCode: '// Handle array/list data here\n',
-    },
-    {
-      title: `${label} Problem Solving Challenge`,
-      description: 'Complete a timed challenge with clean code style.',
-      explanation:
-        'Split the problem into steps, choose a data structure, and verify complexity before writing the final version.',
-      starterCode: '// Timed challenge solution\n',
-    },
-    {
-      title: `${label} Mini Project Task`,
-      description: 'Build a small practical task and explain your approach.',
-      explanation:
-        'Focus on readability and testability. Add short comments only around non-obvious logic and share trade-offs.',
-      starterCode: '// Mini project entry point\n',
-    },
-  ];
-
-  if (proficiencyLevel === 'Intermediate') {
-    base[0].description = `Solve practical logic tasks in ${label} with stronger edge-case handling.`;
-    base[3].description = 'Complete a challenge emphasizing complexity optimization.';
-  }
-
-  if (proficiencyLevel === 'Advanced') {
-    base[1].description = 'Design modular, extensible functions with clear interfaces.';
-    base[4].description = 'Ship a mini project with robust structure and test cases.';
-  }
-
-  return base;
-}
-
-function buildTasks(language, proficiencyLevel) {
-  const templates = getTaskTemplates(language, proficiencyLevel);
-  return templates.map((task, index) => ({
-    taskId: `${language}-${index + 1}`,
-    title: task.title,
-    description: task.description,
-    explanation: task.explanation,
-    starterCode: task.starterCode,
-    order: index + 1,
-    status: index === 0 ? 'unlocked' : 'locked',
-    completedAt: null,
-  }));
-}
-
-function normalizeAiTasks(tasks, language, proficiencyLevel) {
-  if (!Array.isArray(tasks) || !tasks.length) {
-    return buildTasks(language, proficiencyLevel);
-  }
-
-  return tasks.slice(0, 5).map((task, index) => ({
-    taskId: (task?.taskId || `${language}-${index + 1}`).toString(),
-    title: (task?.title || `${LANGUAGE_LABELS[language]} Task ${index + 1}`).toString().slice(0, 120),
-    description: (task?.description || 'Solve the coding task and verify edge cases.').toString().slice(0, 300),
-    explanation: (task?.explanation || 'Analyze the problem and implement a clean solution.').toString(),
-    difficulty: task?.difficulty || 'medium',
-    topic: task?.topic || 'Functions',
-    starterCode: (task?.starterCode || '// Write your solution here\n').toString(),
-    testCases: Array.isArray(task?.testCases) ? task.testCases : [],
-    hints: Array.isArray(task?.hints) ? task.hints : [],
-    draftCode: '',
-    lastFeedback: '',
-    lastFeedbackScore: null,
-    lastWorkedAt: null,
-    attempts: 0,
-    order: index + 1,
-    status: index === 0 ? 'unlocked' : 'locked',
-    completedAt: null,
-  }));
-}
 
 function getLanguagePathAndTask(learningPath, language, taskId) {
   const languagePath = learningPath.paths.find((path) => path.language === language);
@@ -202,11 +112,24 @@ exports.getLearningPath = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ 
+    // Strip quiz answer keys (correctAnswer/explanation) so they never reach the client.
+    const safePaths = learningPath.paths.map((p) => {
+      const obj = p.toObject ? p.toObject() : p;
+      if (obj.quiz && Array.isArray(obj.quiz.mcqs)) {
+        obj.quiz.mcqs = obj.quiz.mcqs.map((m) => ({
+          question: m.question,
+          options: m.options,
+          topic: m.topic,
+        }));
+      }
+      return obj;
+    });
+
+    return res.status(200).json({
       learningPath: {
         userId: learningPath.userId,
-        paths: learningPath.paths
-      }
+        paths: safePaths,
+      },
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
@@ -510,10 +433,287 @@ exports.submitTaskSolution = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Submit error:', error.message);
-    return res.status(500).json({ 
-      message: 'Error evaluating code. Please try again.', 
-      error: error.message 
+    return res.status(500).json({
+      message: 'Error evaluating code. Please try again.',
+      error: error.message
     });
+  }
+};
+
+/* ─── End-of-cycle quiz (7 MCQs + 3 coding questions) ─── */
+
+function allTasksCompleted(languagePath) {
+  const tasks = languagePath.tasks || [];
+  return tasks.length > 0 && tasks.every((t) => t.status === 'completed');
+}
+
+// Strip answer keys before sending the quiz to the client.
+function sanitizeQuiz(quiz) {
+  return {
+    status: quiz.status,
+    attempts: quiz.attempts || 0,
+    lastScore: quiz.lastScore ?? null,
+    passScore: QUIZ_PASS_SCORE,
+    mcqs: (quiz.mcqs || []).map((m, i) => ({
+      index: i,
+      question: m.question,
+      options: m.options,
+      topic: m.topic || '',
+    })),
+    codingQuestions: (quiz.codingQuestions || []).map((c) => ({
+      questionId: c.questionId,
+      title: c.title,
+      description: c.description,
+      starterCode: c.starterCode,
+      difficulty: c.difficulty,
+      topic: c.topic,
+      testCases: c.testCases || [],
+      hints: c.hints || [],
+    })),
+  };
+}
+
+exports.getQuiz = async (req, res) => {
+  try {
+    const { userId, language } = req.params;
+
+    const learningPath = await LearningPath.findOne({ userId });
+    if (!learningPath) {
+      return res.status(404).json({ message: 'Learning path not found' });
+    }
+
+    const languagePath = learningPath.paths.find((p) => p.language === language);
+    if (!languagePath) {
+      return res.status(404).json({ message: 'Language path not found' });
+    }
+
+    const total = languagePath.tasks.length;
+    const completed = languagePath.tasks.filter((t) => t.status === 'completed').length;
+    const eligible = allTasksCompleted(languagePath);
+
+    if (!eligible) {
+      return res.status(200).json({
+        eligible: false,
+        completed,
+        total,
+        message: `Complete all ${total} tasks to unlock the quiz (${completed}/${total} done).`,
+        quiz: null,
+      });
+    }
+
+    // Generate the quiz once and persist it so answers stay consistent across attempts.
+    const needsGeneration = !languagePath.quiz || !languagePath.quiz.mcqs || languagePath.quiz.mcqs.length === 0;
+    if (needsGeneration) {
+      const completedTasks = languagePath.tasks.filter((t) => t.status === 'completed');
+      const generated = await generateCycleQuiz(language, languagePath.proficiencyLevel, completedTasks);
+
+      languagePath.quiz = {
+        status: 'available',
+        mcqs: generated.mcqs,
+        codingQuestions: generated.codingQuestions,
+        attempts: languagePath.quiz?.attempts || 0,
+        lastScore: languagePath.quiz?.lastScore ?? null,
+        lastResult: '',
+        generatedAt: new Date(),
+        lastTakenAt: languagePath.quiz?.lastTakenAt || null,
+      };
+      learningPath.updatedAt = new Date();
+      await learningPath.save();
+    } else if (languagePath.quiz.status === 'locked') {
+      languagePath.quiz.status = 'available';
+      learningPath.updatedAt = new Date();
+      await learningPath.save();
+    }
+
+    return res.status(200).json({
+      eligible: true,
+      completed,
+      total,
+      quiz: sanitizeQuiz(languagePath.quiz),
+    });
+  } catch (error) {
+    console.error('❌ getQuiz error:', error.message);
+    return res.status(500).json({ message: 'Error loading quiz', error: error.message });
+  }
+};
+
+exports.submitQuiz = async (req, res) => {
+  try {
+    const { userId, language, mcqAnswers, codingSolutions } = req.body;
+
+    if (!userId || !language) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const learningPath = await LearningPath.findOne({ userId });
+    if (!learningPath) {
+      return res.status(404).json({ message: 'Learning path not found' });
+    }
+
+    const languagePath = learningPath.paths.find((p) => p.language === language);
+    if (!languagePath || !languagePath.quiz || (languagePath.quiz.mcqs || []).length === 0) {
+      return res.status(400).json({ message: 'Quiz has not been generated yet' });
+    }
+
+    const quiz = languagePath.quiz;
+
+    // ── Grade MCQs: 10 points each ──
+    let mcqCorrect = 0;
+    const mcqResults = quiz.mcqs.map((m, i) => {
+      const given = Array.isArray(mcqAnswers) ? mcqAnswers[i] : null;
+      const givenLetter = given ? String(given).toUpperCase()[0] : null;
+      const correct = givenLetter && givenLetter === m.correctAnswer;
+      if (correct) mcqCorrect++;
+      return {
+        index: i,
+        given: givenLetter,
+        correctAnswer: m.correctAnswer,
+        correct: !!correct,
+        explanation: m.explanation,
+      };
+    });
+    const mcqPoints = mcqCorrect * 10;
+
+    // ── Grade coding questions via AI: qualityScore (0-10) each ──
+    let codingPoints = 0;
+    const codingResults = [];
+    for (const cq of quiz.codingQuestions) {
+      const sol = (codingSolutions || []).find((s) => s.questionId === cq.questionId);
+      const code = (sol?.code || '').toString();
+
+      let qualityScore = 0;
+      let feedback = 'No solution submitted for this challenge.';
+      let suggestions = [];
+
+      if (code.trim()) {
+        const review = await evaluateCodeWithAi({
+          language,
+          proficiencyLevel: languagePath.proficiencyLevel,
+          taskTitle: cq.title,
+          taskDescription: cq.description,
+          code,
+          testCases: cq.testCases || [],
+        });
+        qualityScore = Number(review.qualityScore || 0);
+        feedback = review.feedback;
+        suggestions = review.suggestions || [];
+      }
+
+      codingPoints += qualityScore;
+      codingResults.push({
+        questionId: cq.questionId,
+        title: cq.title,
+        qualityScore,
+        feedback,
+        suggestions,
+      });
+    }
+
+    const totalScore = mcqPoints + codingPoints; // max 100
+    const passed = totalScore >= QUIZ_PASS_SCORE;
+
+    quiz.attempts = (quiz.attempts || 0) + 1;
+    quiz.lastScore = totalScore;
+    quiz.lastTakenAt = new Date();
+    quiz.lastResult = passed ? 'passed' : 'failed';
+    quiz.status = passed ? 'passed' : 'available';
+    learningPath.updatedAt = new Date();
+    await learningPath.save();
+
+    console.log(`🧩 Quiz submitted (${language}): MCQ ${mcqCorrect}/${quiz.mcqs.length}, coding ${codingPoints}/${quiz.codingQuestions.length * 10}, total ${totalScore}/100 → ${passed ? 'PASS' : 'FAIL'}`);
+
+    return res.status(200).json({
+      passed,
+      totalScore,
+      passScore: QUIZ_PASS_SCORE,
+      breakdown: {
+        mcqCorrect,
+        mcqTotal: quiz.mcqs.length,
+        mcqPoints,
+        codingPoints,
+        codingMax: quiz.codingQuestions.length * 10,
+      },
+      mcqResults,
+      codingResults,
+      attempts: quiz.attempts,
+      message: passed
+        ? '🎉 Quiz passed! You are ready to advance to the next set of questions.'
+        : `Score ${totalScore}/100 — you need ${QUIZ_PASS_SCORE} to pass. Review and re-practice the 15 tasks, then try again.`,
+    });
+  } catch (error) {
+    console.error('❌ submitQuiz error:', error.message);
+    return res.status(500).json({ message: 'Error grading quiz', error: error.message });
+  }
+};
+
+// After a passed quiz, generate the next cycle of 15 tasks — adaptively by score:
+// >= 90 levels up (harder questions), 80-89 stays at the same level (fresh questions).
+exports.advanceCycle = async (req, res) => {
+  try {
+    const { userId, language } = req.body;
+    if (!userId || !language) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const learningPath = await LearningPath.findOne({ userId });
+    if (!learningPath) {
+      return res.status(404).json({ message: 'Learning path not found' });
+    }
+
+    const languagePath = learningPath.paths.find((p) => p.language === language);
+    if (!languagePath) {
+      return res.status(404).json({ message: 'Language path not found' });
+    }
+
+    if (!languagePath.quiz || languagePath.quiz.status !== 'passed') {
+      return res.status(400).json({ message: 'Pass the cycle quiz before advancing.' });
+    }
+
+    const score = Number(languagePath.quiz.lastScore || 0);
+    const currentIdx = PROFICIENCY_ORDER.indexOf(languagePath.proficiencyLevel);
+    const leveledUp =
+      score >= LEVEL_UP_THRESHOLD && currentIdx >= 0 && currentIdx < PROFICIENCY_ORDER.length - 1;
+    const newLevel = leveledUp ? PROFICIENCY_ORDER[currentIdx + 1] : languagePath.proficiencyLevel;
+
+    console.log(
+      `🚀 Advancing cycle (${language}): score ${score} → ${languagePath.proficiencyLevel}` +
+        (leveledUp ? ` ⬆ ${newLevel} (LEVEL UP)` : ` (same level, fresh questions)`)
+    );
+
+    // Generate the next 15 tasks at the (possibly new) level.
+    const newTasks = await generatePersonalizedTasks(language, newLevel, {}, score);
+    if (!Array.isArray(newTasks) || newTasks.length === 0) {
+      return res.status(500).json({ message: 'Could not generate next questions. Please try again.' });
+    }
+
+    languagePath.proficiencyLevel = newLevel;
+    languagePath.tasks = newTasks;
+    languagePath.cycle = (languagePath.cycle || 1) + 1;
+    languagePath.quiz = {
+      status: 'locked',
+      mcqs: [],
+      codingQuestions: [],
+      attempts: 0,
+      lastScore: null,
+      lastResult: '',
+      generatedAt: null,
+      lastTakenAt: null,
+    };
+    learningPath.updatedAt = new Date();
+    await learningPath.save();
+
+    return res.status(200).json({
+      message: leveledUp
+        ? `🎉 Level up! You're now ${newLevel}. A fresh set of ${newTasks.length} questions is ready.`
+        : `New cycle started with ${newTasks.length} fresh questions.`,
+      leveledUp,
+      newLevel,
+      cycle: languagePath.cycle,
+      paths: learningPath.paths,
+    });
+  } catch (error) {
+    console.error('❌ advanceCycle error:', error.message);
+    return res.status(500).json({ message: 'Error advancing to next cycle', error: error.message });
   }
 };
 

@@ -15,7 +15,7 @@ const learningPathService = {
         if (response.data?.learningPath) {
           return response.data;
         }
-      } catch (error) {
+      } catch {
         // Ignore errors during polling
       }
       
@@ -62,6 +62,22 @@ const learningPathService = {
 
   getTaskCodeFeedback: async (payload) => {
     const response = await api.post('/learning-path/ai-feedback', payload);
+    return response.data;
+  },
+
+  // End-of-cycle quiz (unlocks after all tasks are completed)
+  getQuiz: async (userId, language) => {
+    const response = await api.get(`/learning-path/${userId}/${language}/quiz`);
+    return response.data;
+  },
+
+  submitQuiz: async (payload) => {
+    const response = await api.post('/learning-path/quiz/submit', payload);
+    return response.data;
+  },
+
+  advanceCycle: async (payload) => {
+    const response = await api.post('/learning-path/advance-cycle', payload);
     return response.data;
   },
 };

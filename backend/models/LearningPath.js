@@ -76,6 +76,67 @@ const learningTaskSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const quizMcqSchema = new mongoose.Schema(
+  {
+    question: { type: String, default: '' },
+    options: {
+      A: { type: String, default: '' },
+      B: { type: String, default: '' },
+      C: { type: String, default: '' },
+      D: { type: String, default: '' },
+    },
+    correctAnswer: { type: String, default: 'A' },
+    explanation: { type: String, default: '' },
+    topic: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+const quizCodingSchema = new mongoose.Schema(
+  {
+    questionId: { type: String, required: true },
+    title: { type: String, default: '' },
+    description: { type: String, default: '' },
+    starterCode: { type: String, default: '' },
+    difficulty: { type: String, default: 'medium' },
+    topic: { type: String, default: '' },
+    testCases: [
+      {
+        input: { type: String, default: '' },
+        expectedOutput: { type: String, default: '' },
+        description: { type: String, default: '' },
+        _id: false,
+      },
+    ],
+    hints: [
+      {
+        hint: { type: String, default: '' },
+        difficulty: { type: String, enum: ['light', 'medium', 'heavy'], default: 'light' },
+        _id: false,
+      },
+    ],
+  },
+  { _id: false }
+);
+
+const quizSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['locked', 'available', 'passed'],
+      default: 'locked',
+    },
+    mcqs: { type: [quizMcqSchema], default: [] },
+    codingQuestions: { type: [quizCodingSchema], default: [] },
+    attempts: { type: Number, default: 0 },
+    lastScore: { type: Number, default: null },
+    lastResult: { type: String, default: '' },
+    generatedAt: { type: Date, default: null },
+    lastTakenAt: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
 const languagePathSchema = new mongoose.Schema(
   {
     language: {
@@ -91,6 +152,14 @@ const languagePathSchema = new mongoose.Schema(
     tasks: {
       type: [learningTaskSchema],
       default: [],
+    },
+    cycle: {
+      type: Number,
+      default: 1,
+    },
+    quiz: {
+      type: quizSchema,
+      default: () => ({}),
     },
     createdAt: {
       type: Date,

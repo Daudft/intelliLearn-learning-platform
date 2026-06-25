@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Loader, Sparkles, BookOpen, Lightbulb, CheckCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import aiAgentService from '../../services/aiAgentService';
 import './AIAgent.css';
 
-export default function AIAgent({ title, description, language, proficiencyLevel, taskCompleted }) {
+export default function AIAgent({ title, description, language, proficiencyLevel, taskCompleted, submissionFeedback, isSubmitting }) {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [agentReady, setAgentReady] = useState(false);
   const messagesEndRef = useRef(null);
+  const lastFeedbackRef = useRef(null);
 
   // Initialize AI agent with welcome message
   useEffect(() => {
@@ -17,14 +19,15 @@ export default function AIAgent({ title, description, language, proficiencyLevel
         const initialMessage = {
           id: 'welcome',
           type: 'ai',
-          content: `👋 Hi! I'm your AI Learning Assistant. I'm here to help you understand this question!
+          content: `👋 Hi! I'm your **AI Learning Assistant**.
 
-**How I can help:**
-- Explain concepts in this question
-- Break down the problem into steps
-- Answer your specific questions
-- Provide hints and guidance
-- Suggest better solutions after completion
+**Task:** ${title}
+${description ? `\n${description}\n` : ''}
+I can help you:
+- **Explain** the key concepts in this task
+- **Break down** the problem into clear steps
+- Give you **Hints** without spoiling the answer
+- Answer anything you type in the box below
 
 What would you like help with?`,
           timestamp: new Date(),
@@ -37,7 +40,7 @@ What would you like help with?`,
     };
 
     initializeAgent();
-  }, [title]);
+  }, [title, description]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,6 +49,47 @@ What would you like help with?`,
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // When the user submits code, surface the AI code-review inside this chat.
+  useEffect(() => {
+    if (!submissionFeedback) return;
+    if (lastFeedbackRef.current === submissionFeedback) return;
+    lastFeedbackRef.current = submissionFeedback;
+
+    let content;
+    if (submissionFeedback.error) {
+      content = `❌ **Submission failed**\n\n${submissionFeedback.error}`;
+    } else {
+      const score = submissionFeedback.qualityScore;
+      const passScore = submissionFeedback.passScore || 7;
+      const header = submissionFeedback.passed
+        ? `✅ **Solution Approved!**${score != null ? ` — Score: **${score}/10**` : ''}`
+        : `📋 **Code Review**${score != null ? ` — Score: **${score}/10** (need ${passScore}/10 to pass)` : ''}`;
+
+      const body = submissionFeedback.feedback ? `\n\n${submissionFeedback.feedback}` : '';
+
+      const suggestions =
+        submissionFeedback.suggestions && submissionFeedback.suggestions.length > 0
+          ? `\n\n**Suggestions:**\n${submissionFeedback.suggestions.map((s) => `- ${s}`).join('\n')}`
+          : '';
+
+      const next = submissionFeedback.passed
+        ? `\n\n✨ Great work! The next task will unlock automatically.`
+        : `\n\nFix the issues above and submit again when you're ready. Ask me if anything is unclear!`;
+
+      content = header + body + suggestions + next;
+    }
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `feedback-${Date.now()}`,
+        type: 'ai',
+        content,
+        timestamp: new Date(),
+      },
+    ]);
+  }, [submissionFeedback]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -183,7 +227,13 @@ What would you like help with?`,
                 </div>
               )}
               <div className="message-text">
-                {message.content}
+                {message.type === 'ai' ? (
+                  <div className="markdown-body">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  message.content
+                )}
               </div>
             </div>
             {message.suggestions && message.suggestions.length > 0 && (
@@ -197,13 +247,15 @@ What would you like help with?`,
             )}
           </div>
         ))}
-        {loading && (
+        {(loading || isSubmitting) && (
           <div className="ai-message ai-message-text">
             <div className="message-content">
               <div className="ai-avatar loading">
                 <Loader className="w-3 h-3 animate-spin" />
               </div>
-              <div className="message-text">AI is thinking...</div>
+              <div className="message-text">
+                {isSubmitting ? 'Reviewing your code...' : 'AI is thinking...'}
+              </div>
             </div>
           </div>
         )}

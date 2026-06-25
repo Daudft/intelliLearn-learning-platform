@@ -124,9 +124,82 @@
   padding: 8px 12px;
   border-radius: 12px;
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.5;
   word-wrap: break-word;
   max-width: 85%;
+}
+
+/* Rendered Markdown inside AI messages */
+.markdown-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1f2937;
+}
+
+.markdown-body > *:first-child {
+  margin-top: 0;
+}
+
+.markdown-body > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body p {
+  margin: 0 0 8px;
+}
+
+.markdown-body strong {
+  color: #0a1a0a;
+  font-weight: 700;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 6px 0 8px;
+  padding-left: 20px;
+}
+
+.markdown-body li {
+  margin-bottom: 4px;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 12px 0 6px;
+  color: #0a1a0a;
+}
+
+.markdown-body code {
+  background: rgba(102, 126, 234, 0.12);
+  color: #4338ca;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.markdown-body pre {
+  background: #1e1e2e;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.markdown-body pre code {
+  background: transparent;
+  color: #e5e7eb;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.markdown-body a {
+  color: #4338ca;
+  text-decoration: underline;
 }
 
 .message-suggestions {

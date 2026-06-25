@@ -11,7 +11,6 @@ export default function TaskPage() {
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showHints, setShowHints] = useState(false);
   const [code, setCode] = useState('');
   const [feedback, setFeedback] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,7 +75,7 @@ export default function TaskPage() {
       // If feedback passes the score requirement, submit as solution
       if (feedbackResult.canComplete) {
         // Submit the solution to unlock next task
-        const submitResult = await learningPathService.submitTaskSolution({
+        await learningPathService.submitTaskSolution({
           userId,
           language,
           taskId,
@@ -100,19 +99,6 @@ export default function TaskPage() {
       setError(err.response?.data?.message || err.message || 'Failed to submit solution');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleSaveDraft = async () => {
-    try {
-      await learningPathService.saveTaskDraft({
-        userId,
-        language,
-        taskId,
-        code,
-      });
-    } catch (err) {
-      console.error('Error saving draft:', err);
     }
   };
 
@@ -145,7 +131,6 @@ export default function TaskPage() {
   }
 
   const passScore = 7;
-  const canUnlock = feedback?.qualityScore && feedback.qualityScore >= passScore;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 p-4 md:p-6">

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import learningPathService from '../../services/learningPathService';
 import TaskModal from '../../components/TaskModal/TaskModal';
-import { Loader, AlertCircle, Lock, CheckCircle, Circle } from 'lucide-react';
+import QuizModal from '../../components/QuizModal/QuizModal';
+import { Loader, AlertCircle, Lock, CheckCircle, Circle, Award } from 'lucide-react';
 import './PathwayVisualization.css';
 
 export default function PathwayVisualization() {
@@ -11,6 +12,8 @@ export default function PathwayVisualization() {
   const [error, setError] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
 
   const userId = JSON.parse(localStorage.getItem('user'))?.id;
 
@@ -46,6 +49,19 @@ export default function PathwayVisualization() {
     fetchLearningPath();
   };
 
+  const handleAdvanceCycle = async () => {
+    try {
+      setAdvancing(true);
+      setError(null);
+      await learningPathService.advanceCycle({ userId, language: selectedLanguage });
+      await fetchLearningPath();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to start next cycle.');
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-[#f5f5f4]">
@@ -55,6 +71,10 @@ export default function PathwayVisualization() {
   }
 
   const currentPath = learningPath?.paths?.find((p) => p.language === selectedLanguage);
+  const allCompleted =
+    currentPath?.tasks?.length > 0 &&
+    currentPath.tasks.every((t) => t.status === 'completed');
+  const quizPassed = currentPath?.quiz?.status === 'passed';
 
   return (
     <div className="pathway-container">
@@ -120,6 +140,38 @@ export default function PathwayVisualization() {
                     ></div>
                   </div>
                 </div>
+
+                {/* Quiz unlock banner */}
+                {allCompleted && (
+                  <div className={`quiz-unlock-banner ${quizPassed ? 'passed' : ''}`}>
+                    <div className="quiz-unlock-icon">
+                      <Award size={28} />
+                    </div>
+                    <div className="quiz-unlock-info">
+                      <p className="quiz-unlock-title">
+                        {quizPassed ? '✅ Cycle quiz passed!' : '🎉 All tasks complete!'}
+                      </p>
+                      <p className="quiz-unlock-sub">
+                        {quizPassed
+                          ? 'Start the next cycle to get a fresh set of questions tailored to your score.'
+                          : 'Take the cycle quiz: 7 MCQs + 3 coding challenges. Score 80% to advance.'}
+                      </p>
+                    </div>
+                    {quizPassed ? (
+                      <button
+                        className="quiz-unlock-btn"
+                        onClick={handleAdvanceCycle}
+                        disabled={advancing}
+                      >
+                        {advancing ? 'Generating…' : 'Start Next Cycle'}
+                      </button>
+                    ) : (
+                      <button className="quiz-unlock-btn" onClick={() => setShowQuiz(true)}>
+                        Take Quiz
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Task cards */}
                 <div className="tasks-list">
@@ -204,8 +256,22 @@ export default function PathwayVisualization() {
           task={selectedTask}
           language={selectedLanguage}
           userId={userId}
+          totalTasks={currentPath?.tasks?.length}
           onClose={() => setShowModal(false)}
           onTaskComplete={handleTaskComplete}
+        />
+      )}
+
+      {/* Quiz Modal */}
+      {showQuiz && selectedLanguage && (
+        <QuizModal
+          language={selectedLanguage}
+          userId={userId}
+          onClose={() => {
+            setShowQuiz(false);
+            fetchLearningPath();
+          }}
+          onQuizPassed={() => fetchLearningPath()}
         />
       )}
     </div>

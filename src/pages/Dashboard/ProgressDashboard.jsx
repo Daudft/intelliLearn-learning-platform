@@ -24,7 +24,6 @@ export default function ProgressDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedLanguage, setSelectedLanguage] = useState('all');
   const [timeRange, setTimeRange] = useState('week'); // week, month, all
 
   const userId = JSON.parse(localStorage.getItem('user'))?.id;

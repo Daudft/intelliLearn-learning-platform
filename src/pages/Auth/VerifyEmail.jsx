@@ -11,10 +11,6 @@ export default function VerifyEmail() {
   const [alreadyVerified, setAlreadyVerified] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    verifyEmail();
-  }, []);
-
   const verifyEmail = async () => {
     try {
       const response = await authService.verifyEmail({ token });
@@ -42,6 +38,11 @@ export default function VerifyEmail() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    verifyEmail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F1F2F4] px-4">

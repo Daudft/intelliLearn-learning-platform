@@ -10,6 +10,7 @@ import {
 import assessmentService from "../../services/assessmentService";
 import authService from "../../services/authService";
 import learningPathService from "../../services/learningPathService";
+import QuizModal from "../../components/QuizModal/QuizModal";
 
 /* ─── helpers ─── */
 function getStoredUser() {
@@ -219,6 +220,9 @@ export default function Dashboard() {
   const [xp, setXP]                       = useState(0);
   const [currentLearningIndex, setCurrentLearningIndex] = useState(0);
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizLang, setQuizLang] = useState(null);
+  const [advancing, setAdvancing] = useState(false);
 
   useEffect(() => {
     const boot = async () => {
@@ -329,6 +333,27 @@ export default function Dashboard() {
   }, [later, status, learningPaths, xp, calculateStreak, getTodayDayIndex]);
 
   const logout = async () => { try { await authService.logout(); } finally { navigate("/signin", { replace: true }); } };
+
+  const reloadLearningPaths = async () => {
+    const uid = user?.id || user?._id;
+    if (!uid) return;
+    try {
+      const pr = await learningPathService.waitForLearningPath(uid);
+      setLearningPaths(Array.isArray(pr?.learningPath?.paths) ? pr.learningPath.paths : []);
+    } catch { /* ignore */ }
+  };
+
+  const handleAdvanceCycle = async (lang) => {
+    const uid = user?.id || user?._id;
+    if (!uid || !lang) return;
+    try {
+      setAdvancing(true);
+      await learningPathService.advanceCycle({ userId: uid, language: lang });
+      await reloadLearningPaths();
+    } catch { /* ignore */ } finally {
+      setAdvancing(false);
+    }
+  };
 
   const pageBg = `#f5f5f4`;
 
@@ -630,9 +655,8 @@ export default function Dashboard() {
                       <span style={{ fontSize: 10, color: "rgba(0,0,0,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                         XP Progress
                       </span>
-                      <span style={{ 
-                        fontSize: 11, 
-                        color: s.levelConfig.color, 
+                      <span style={{
+                        color: s.levelConfig.color,
                         fontWeight: 800,
                         background: `${s.levelConfig.color}15`,
                         padding: "2px 8px",
@@ -792,7 +816,6 @@ export default function Dashboard() {
                     }}>
                       {DAYS.map((d, i) => {
                         const isToday = i === s.todayDayIndex;
-                        const isLit = i < s.todayDayIndex ? true : (i === s.todayDayIndex ? true : false);
                         const inStreak = i >= (s.todayDayIndex - s.streak + 1) && i <= s.todayDayIndex;
                         
                         return (
@@ -1074,6 +1097,81 @@ export default function Dashboard() {
                   )}
                 </div>
               </Glass>
+
+              {/* ══ CYCLE QUIZ CARD ══ */}
+              {(() => {
+                const qp = learningPaths[currentLearningIndex];
+                if (!qp) return null;
+                const qTasks = qp.tasks || [];
+                const qTotal = qTasks.length;
+                const qDone = qTasks.filter((t) => t.status === "completed").length;
+                const qAllDone = qTotal > 0 && qDone === qTotal;
+                const passed = qp.quiz?.status === "passed";
+                const qScore = qp.quiz?.lastScore;
+                const qLang = qp.language;
+                const qLabel = getLanguageLabel(qLang);
+                const pct = qTotal ? Math.round((qDone / qTotal) * 100) : 0;
+                const btnStyle = {
+                  padding: "11px 22px", borderRadius: 10, border: "none", cursor: "pointer",
+                  background: "linear-gradient(135deg, #a3e635, #84cc16)", color: "#0a1a0a",
+                  fontWeight: 800, fontSize: 13, whiteSpace: "nowrap",
+                };
+
+                return (
+                  <Glass style={{ padding: 24 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                      <div style={{
+                        width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+                        background: qAllDone ? (passed ? "linear-gradient(135deg,#34d399,#10b981)" : "linear-gradient(135deg,#a3e635,#84cc16)") : "rgba(0,0,0,0.06)",
+                        display: "grid", placeItems: "center",
+                      }}>
+                        {qAllDone ? <Award size={24} color="#0a1a0a" /> : <Lock size={22} color="rgba(0,0,0,0.4)" />}
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 220 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#0a1a0a" }}>Cycle Quiz</p>
+                          <span style={{
+                            padding: "2px 9px", borderRadius: 99, fontSize: 10, fontWeight: 700,
+                            background: "rgba(163,230,53,0.15)", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em",
+                          }}>{qLabel}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 13, color: "rgba(0,0,0,0.55)", lineHeight: 1.45 }}>
+                          {passed
+                            ? `Passed with ${qScore}/100 — start the next cycle for a fresh set of questions.`
+                            : qAllDone
+                              ? "All tasks done! Take the quiz: 7 MCQs + 3 coding challenges. Score 80% to advance."
+                              : `Complete all ${qTotal} tasks to unlock the quiz — ${qDone}/${qTotal} done.`}
+                        </p>
+                        {!qAllDone && (
+                          <div style={{ height: 6, borderRadius: 99, background: "rgba(0,0,0,0.08)", overflow: "hidden", marginTop: 10, maxWidth: 360 }}>
+                            <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: "linear-gradient(90deg,#a3e635,#34d399)" }} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ flexShrink: 0 }}>
+                        {!qAllDone ? (
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 18px",
+                            borderRadius: 10, background: "rgba(0,0,0,0.05)", color: "rgba(0,0,0,0.4)", fontWeight: 700, fontSize: 13,
+                          }}>
+                            <Lock size={14} /> Locked
+                          </span>
+                        ) : passed ? (
+                          <button style={btnStyle} disabled={advancing} onClick={() => handleAdvanceCycle(qLang)}>
+                            {advancing ? "Generating…" : "Start Next Cycle"}
+                          </button>
+                        ) : (
+                          <button style={btnStyle} onClick={() => { setQuizLang(qLang); setShowQuiz(true); }}>
+                            Take Quiz
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </Glass>
+                );
+              })()}
 
               {/* ══ 3 STAT CARDS ══ */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
@@ -1597,6 +1695,16 @@ export default function Dashboard() {
 
         </div>
       </main>
+
+      {/* Cycle Quiz Modal */}
+      {showQuiz && quizLang && (user?.id || user?._id) && (
+        <QuizModal
+          language={quizLang}
+          userId={user?.id || user?._id}
+          onClose={() => { setShowQuiz(false); reloadLearningPaths(); }}
+          onQuizPassed={() => reloadLearningPaths()}
+        />
+      )}
     </div>
   );
 }
