@@ -10,7 +10,6 @@ export default function Hero() {
     target: heroRef,
     offset: ["start start", "end start"],
   });
-  const whiteFade = useTransform(scrollYProgress, [0.28, 0.58], [0, 1]);
   // Fade + lift the content out as the section scrolls away.
   const contentOpacity = useTransform(scrollYProgress, [0.24, 0.5], [1, 0]);
   const contentY = useTransform(scrollYProgress, [0.24, 0.5], [0, -60]);
@@ -38,11 +37,6 @@ export default function Hero() {
       {/* soft top vignette so the navbar blends into pure black */}
       <div className="absolute inset-x-0 top-0 h-40 z-0 bg-linear-to-b from-black to-transparent" />
 
-      {/* bottom fade — stays blue at rest, fades to white as the user scrolls into Features */}
-      <motion.div
-        style={{ opacity: whiteFade }}
-        className="absolute inset-x-0 bottom-0 z-0 h-[60%] bg-linear-to-b from-white/0 via-white/80 to-white"
-      />
 
       <motion.div
         style={{ opacity: contentOpacity, y: contentY }}

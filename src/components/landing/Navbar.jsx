@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { GraduationCap, Menu, X, Plus } from "lucide-react";
+import { Menu, X, Plus } from "lucide-react";
 
 /* Simple nav model — each item either scrolls to a section or routes to a page. */
 const NAV_ITEMS = [
@@ -36,12 +36,9 @@ export default function Navbar() {
       <nav className="mx-auto flex w-full max-w-[1400px] items-center justify-between bg-sui-deep/90 px-5 md:px-8 py-4 backdrop-blur-xl">
 
         {/* LOGO */}
-        <a href="/" className="flex items-center gap-2.5 shrink-0">
-          <span className="flex h-9 w-9 items-center justify-center bg-sui-blue/15">
-            <GraduationCap className="h-5 w-5 text-sui-blue" strokeWidth={2.2} />
-          </span>
+        <a href="/" className="shrink-0">
           <h1 className="flex items-baseline leading-none">
-            <span className="text-[22px] font-bold text-sui-blue tracking-tight">Intelli</span>
+            <span className="text-[22px] font-bold text-white tracking-tight">Intelli</span>
             <span className="text-[22px] font-semibold text-white tracking-tight">Learn</span>
           </h1>
         </a>
