@@ -1,196 +1,164 @@
-import { motion } from "framer-motion";
+import { useRef } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 
-export default function Features() {
-  const features = [
-    {
-      title: "Adaptive Assessments",
-      desc: "Quick, accurate skill evaluations that adjust to your performance.",
-      fullDesc:
-        "Our adaptive assessment system uses advanced AI algorithms to evaluate your current skill level and continuously adjust the difficulty of tasks based on your performance.",
-      icon: "🎯",
-      gradient: "from-blue-500 to-cyan-500",
-      number: "01",
-      img: "/feature2.jpg",
-    },
-    {
-      title: "Personalized Task Generation",
-      desc: "Receive tasks tailored to your strengths and improvement areas.",
-      fullDesc:
-        "Every task is uniquely generated for you based on your learning profile, preferences, and goals.",
-      icon: "⚡",
-      gradient: "from-purple-500 to-pink-500",
-      number: "02",
-      img: "/feature1.jpg",
-    },
-    {
-      title: "AI Mentor Support",
-      desc: "Smart learning suggestions to guide your skill growth.",
-      fullDesc:
-        "Your personal AI mentor provides hints and guidance as you learn, adapted to your pace.",
-      icon: "🧠",
-      gradient: "from-orange-500 to-red-500",
-      number: "03",
-      img: "https://images.unsplash.com/photo-1734597949889-f8e2ec87c8ea?q=80&w=1332&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaW5hZWxlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      title: "Progress Tracking",
-      desc: "Beautiful visual insights showing your improvement over time.",
-      fullDesc:
-        "Track your performance with analytics and pattern insights across your learning journey.",
-      icon: "📈",
-      gradient: "from-green-500 to-emerald-500",
-      number: "04",
-      img: "/signup show.jpg",
-    },
-  ];
+const FEATURES = [
+  {
+    num: "01",
+    title: "Adaptive Assessments",
+    desc: "Skill checks that adjust to your performance in real time, so every question meets you exactly at your level.",
+    img: "/feature2.jpg",
+    tag: "Assessment Engine",
+  },
+  {
+    num: "02",
+    title: "Personalized Tasks",
+    desc: "Practice generated around your exact gaps and goals — no generic worksheets, just what moves you forward.",
+    img: "/feature1.jpg",
+    tag: "Task Generator",
+  },
+  {
+    num: "03",
+    title: "AI Mentor",
+    desc: "Contextual hints and guidance tuned to your pace as you work through each task and concept.",
+    img: "https://images.unsplash.com/photo-1734597949889-f8e2ec87c8ea?q=80&w=1332&auto=format&fit=crop",
+    tag: "AI Mentor",
+  },
+  {
+    num: "04",
+    title: "Progress Tracking",
+    desc: "Clear, visual insight into your growth over time and a sharp view of what to focus on next.",
+    img: "/signup show.jpg",
+    tag: "Analytics",
+  },
+];
+
+/* One card slot (full viewport height). Fades in/out based on how close its
+   position is to the centered marker as the track scrolls past. */
+function FeatureCard({ data, index, total, progress, side }) {
+  const center = total > 1 ? index / (total - 1) : 0;
+  const d = 0.85 / Math.max(total - 1, 1);
+  const opacity = useTransform(
+    progress,
+    [center - d, center - d * 0.5, center + d * 0.5, center + d],
+    [0, 1, 1, 0]
+  );
 
   return (
-    <section id="features" className="relative w-full bg-slate-950 overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <motion.div
-          className="absolute w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"
-          animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
-          transition={{ duration: 12, repeat: Infinity }}
-          style={{ top: "10%", left: "5%" }}
-        />
-        <motion.div
-          className="absolute w-80 h-80 bg-lime-400/10 rounded-full blur-3xl"
-          animate={{ x: [0, -40, 0], y: [0, -25, 0] }}
-          transition={{ duration: 14, repeat: Infinity }}
-          style={{ bottom: "10%", right: "5%" }}
-        />
-        <motion.div
-          className="absolute w-72 h-72 bg-emerald-400/10 rounded-full blur-3xl"
-          animate={{ x: [0, 20, -10, 0], y: [0, -40, 0] }}
-          transition={{ duration: 16, repeat: Infinity }}
-          style={{ top: "40%", left: "42%" }}
-        />
+    <div className="relative h-screen">
+      {/* horizontal connector to the center line (desktop only) */}
+      <div
+        className={`absolute top-1/2 hidden h-px border-t border-dashed border-slate-300 md:block ${
+          side === "right" ? "left-1/2 w-[5%]" : "right-1/2 w-[5%]"
+        }`}
+      />
+
+      <motion.div
+        style={{ opacity }}
+        className={`absolute top-1/2 w-[88%] -translate-x-1/2 -translate-y-1/2 left-1/2 md:w-[38%] md:max-w-[440px] md:translate-x-0 ${
+          side === "right" ? "md:left-[55%]" : "md:left-auto md:right-[55%]"
+        }`}
+      >
+        <div className="border border-white/10 bg-sui-deep shadow-[0_30px_70px_rgba(0,0,0,0.45)]">
+          {/* header */}
+          <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
+            <span className="font-mono text-xs text-sui-blue border border-white/15 px-2 py-1">
+              {data.num}
+            </span>
+            <span className="font-display text-sm font-semibold uppercase tracking-wide text-white md:text-base">
+              {data.title}
+            </span>
+          </div>
+
+          {/* visual */}
+          <div className="px-5 py-6">
+            <div className="relative h-48 overflow-hidden border border-white/10">
+              <img
+                src={data.img}
+                alt={data.title}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-linear-to-t from-sui-deep/80 via-transparent to-transparent" />
+            </div>
+
+            <p className="mt-5 text-sm leading-relaxed text-sui-fog">
+              {data.desc}
+            </p>
+
+            {/* footer item */}
+            <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
+              <span className="grid h-9 w-9 place-items-center bg-sui-blue/15 font-bold text-sui-blue">
+                ◆
+              </span>
+              <span className="text-sm text-sui-mist">{data.tag}</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+export default function Features() {
+  const sectionRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end end"],
+  });
+
+  // The stack of cards translates upward through the pinned viewport.
+  const trackY = useTransform(
+    scrollYProgress,
+    [0, 1],
+    ["0vh", `-${(FEATURES.length - 1) * 100}vh`]
+  );
+
+  return (
+    <section id="features" className="relative w-full bg-white">
+      {/* INTRO HEADING */}
+      <div className="mx-auto max-w-3xl px-6 pt-28 pb-10 text-center">
+        <p className="mb-3 text-xs uppercase tracking-[0.25em] text-sui-blue">
+          Features
+        </p>
+        <h2 className="text-4xl font-extrabold text-slate-900 md:text-5xl">
+          Learn Faster With Better Flow
+        </h2>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-slate-600">
+          A composable toolkit that reveals itself as you move — scroll to walk
+          through each piece.
+        </p>
       </div>
 
-      <div className="relative z-10">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 text-center pt-24 md:pt-28 pb-16 md:pb-20">
-          <motion.p
-            className="text-xs tracking-[0.25em] text-slate-500 mb-3 uppercase"
-            initial={{ opacity: 0, y: -10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-          >
-            FEATURES
-          </motion.p>
+      {/* PINNED SCROLL CARDS */}
+      <div
+        ref={sectionRef}
+        style={{ height: `${FEATURES.length * 100}vh` }}
+        className="relative"
+      >
+        <div className="sticky top-0 h-screen overflow-hidden">
+          {/* center dotted line (desktop) */}
+          <div className="pointer-events-none absolute inset-y-0 left-1/2 hidden -translate-x-1/2 border-l border-dashed border-slate-300 md:block" />
 
-          <motion.h2
-            className="text-4xl md:text-5xl font-extrabold text-white mb-4"
-            initial={{ opacity: 0, y: -20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-          >
-            Learn Faster With Better Flow
-          </motion.h2>
+          {/* centered marker (desktop) */}
+          <motion.div
+            className="absolute left-1/2 top-1/2 z-20 hidden h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 bg-sui-blue shadow-[0_0_0_6px_rgba(77,162,255,0.15)] md:block"
+            animate={{ scale: [1, 1.3, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          />
 
-          <motion.p
-            className="text-slate-300 text-lg max-w-xl mx-auto"
-            initial={{ opacity: 0, y: -10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            viewport={{ once: true }}
-          >
-            Scroll through the cards to see how each feature reveals itself in sequence.
-          </motion.p>
+          {/* moving track of cards */}
+          <motion.div style={{ y: trackY }} className="absolute inset-x-0 top-0">
+            {FEATURES.map((f, i) => (
+              <FeatureCard
+                key={f.num}
+                data={f}
+                index={i}
+                total={FEATURES.length}
+                progress={scrollYProgress}
+                side={i % 2 === 0 ? "right" : "left"}
+              />
+            ))}
+          </motion.div>
         </div>
-
-        {features.map((feature, index) => (
-          <section key={feature.title} className="relative h-[128vh] md:h-[132vh]">
-            <motion.div
-              className="sticky top-0 h-screen flex items-center"
-              initial={{ opacity: 0, y: 140 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.65, ease: "easeOut" }}
-              viewport={{ amount: 0.42 }}
-              style={{ zIndex: index + 5 }}
-            >
-              <div className="max-w-7xl w-full mx-auto px-4 md:px-8">
-                <motion.div
-                  className="relative min-h-[84vh] rounded-3xl border border-slate-700/80 bg-slate-900/75 backdrop-blur-xl overflow-hidden"
-                  whileHover={{ scale: 1.005 }}
-                  transition={{ duration: 0.35 }}
-                >
-                  <motion.img
-                    src={feature.img}
-                    alt={feature.title}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    initial={{ scale: 1.08 }}
-                    whileInView={{ scale: 1 }}
-                    transition={{ duration: 1.1, ease: "easeOut" }}
-                    viewport={{ amount: 0.35 }}
-                  />
-
-                  <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/65 to-slate-900/20" />
-
-                  <div className="relative h-full px-6 md:px-10 lg:px-14 py-10 md:py-14 flex flex-col justify-end">
-                    <motion.div
-                      className="mb-6 inline-flex items-center gap-3 rounded-full bg-slate-900/85 border border-slate-600/70 px-4 py-2 w-fit"
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.45, delay: 0.1 }}
-                      viewport={{ amount: 0.35 }}
-                    >
-                      <span className="text-xl">{feature.icon}</span>
-                      <span className="text-xs tracking-[0.2em] text-lime-300">{feature.number}</span>
-                    </motion.div>
-
-                    <motion.h3
-                      className="text-3xl md:text-5xl lg:text-6xl font-bold text-white max-w-4xl leading-tight"
-                      initial={{ opacity: 0, y: 26 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: 0.1 }}
-                      viewport={{ amount: 0.35 }}
-                    >
-                      {feature.title}
-                    </motion.h3>
-
-                    <motion.p
-                      className="text-base md:text-xl text-slate-200 mt-4 max-w-3xl leading-relaxed"
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: 0.18 }}
-                      viewport={{ amount: 0.35 }}
-                    >
-                      {feature.desc}
-                    </motion.p>
-
-                    <motion.p
-                      className="text-sm md:text-base text-slate-300 mt-6 max-w-3xl leading-relaxed"
-                      initial={{ opacity: 0, y: 16 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.55, delay: 0.26 }}
-                      viewport={{ amount: 0.35 }}
-                    >
-                      {feature.fullDesc}
-                    </motion.p>
-
-                    <motion.div
-                      className="mt-8 h-1.5 w-full max-w-sm rounded-full bg-slate-700/80 overflow-hidden"
-                      initial={{ opacity: 0 }}
-                      whileInView={{ opacity: 1 }}
-                      transition={{ duration: 0.4, delay: 0.3 }}
-                      viewport={{ amount: 0.35 }}
-                    >
-                      <motion.div
-                        className="h-full bg-linear-to-r from-lime-300 to-cyan-300"
-                        initial={{ width: "0%" }}
-                        whileInView={{ width: `${70 + index * 7}%` }}
-                        transition={{ duration: 0.9, delay: 0.35 }}
-                        viewport={{ amount: 0.35 }}
-                      />
-                    </motion.div>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-          </section>
-        ))}
       </div>
     </section>
   );

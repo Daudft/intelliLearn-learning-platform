@@ -1,25 +1,55 @@
 @import "tailwindcss";
 
+/* ============================================================
+   SUI-INSPIRED DESIGN TOKENS
+   Restrained single-hue system: electric blue + near-black navy.
+   Exposed as Tailwind utilities via @theme (v4) -> use like
+   bg-sui-sea, text-sui-blue, from-sui-light, font-display, etc.
+   ============================================================ */
+@theme {
+  /* Brand blue scale */
+  --color-sui-blue: #4da2ff;        /* primary accent */
+  --color-sui-bright: #298dff;      /* deeper / pressed accent */
+  --color-sui-light: #6fbcf0;       /* soft accent, gradient mid */
+  --color-sui-pale: #c0e6ff;        /* palest blue, gradient top */
+
+  /* Dark "sea" backgrounds */
+  --color-sui-deep: #030f1c;        /* deepest background */
+  --color-sui-sea: #011829;         /* primary dark background */
+  --color-sui-navy: #08243c;        /* raised surfaces / cards */
+  --color-sui-line: #123350;        /* hairline borders on dark */
+
+  /* Blue-tinted greyscale for text */
+  --color-sui-mist: #8ba6b8;        /* muted secondary text */
+  --color-sui-fog: #b9cdd9;         /* soft body text on dark */
+
+  /* Typography */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
 /* Default body font */
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
+  background-color: var(--color-sui-sea);
 }
 
 /* Headings font */
-h1, h2, h3, .heading-font {
-  font-family: 'Lexend', sans-serif;
+h1, h2, h3, h4, .heading-font {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 /* Reusable Button Style */
 .fyp-btn {
-  background: #a3ff00; /* your neon green sign-up color */
-  color: #000;
+  background: #4da2ff; /* Sui electric blue */
+  color: #011829;
   padding: 10px 22px;
   border-radius: 8px;
   font-weight: 600;
   border: none;
   cursor: pointer;
-  transition: 
+  transition:
     background 0.25s ease,
     transform 0.25s ease,
     box-shadow 0.25s ease;
@@ -27,9 +57,18 @@ h1, h2, h3, .heading-font {
 
 /* Hover Animation */
 .fyp-btn:hover {
-  background: #c6ff4d; /* slightly brighter */
+  background: #6fbcf0; /* brighter blue */
   transform: scale(1.05); /* subtle zoom like the video */
-  box-shadow: 0px 4px 12px rgba(163, 255, 0, 0.4);
+  box-shadow: 0px 4px 18px rgba(77, 162, 255, 0.45);
+}
+
+/* Slow drift for background gradient orbs */
+@keyframes sui-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(20px, -30px) scale(1.08); }
+}
+.animate-sui-float {
+  animation: sui-float 14s ease-in-out infinite;
 }
 
 

@@ -1,180 +1,125 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useRef } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 
 export default function Hero() {
-  const [hoveredButton, setHoveredButton] = useState(false);
+  // Blue while resting on the hero; fades to white as the user scrolls through it.
+  // Tied to the hero's own scroll progress so it always completes before the seam.
+  const heroRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+  const whiteFade = useTransform(scrollYProgress, [0.28, 0.58], [0, 1]);
+  // Fade + lift the content out as the section scrolls away.
+  const contentOpacity = useTransform(scrollYProgress, [0.24, 0.5], [1, 0]);
+  const contentY = useTransform(scrollYProgress, [0.24, 0.5], [0, -60]);
 
   return (
-    <section className="relative w-full overflow-hidden">
+    <section ref={heroRef} className="relative isolate w-full overflow-hidden">
 
-      {/* BACKGROUND DECORATIVE BLOBS */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-16 -left-16 w-[420px] h-[420px] rounded-full bg-gradient-to-br from-lime-200/60 to-cyan-200/20 blur-3xl opacity-80" />
-        <div className="absolute bottom-10 left-20 w-[320px] h-[320px] rounded-full bg-gradient-to-tr from-emerald-200/40 to-white/30 blur-[120px] opacity-60" />
-        <div className="absolute -bottom-24 right-0 w-[420px] h-[420px] rounded-full bg-gradient-to-tl from-sky-200/40 to-white/30 blur-[130px] opacity-60" />
-      </div>
+      {/* BACKGROUND — pure black with a white+blue glow rising from the bottom */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          background: `
+            radial-gradient(ellipse 110% 95% at 50% 102%,
+              #eaf3ff 0%,
+              #a9d0ff 14%,
+              #5aa8ff 30%,
+              #2f7fe0 44%,
+              rgba(35,110,200,0.35) 58%,
+              rgba(0,0,0,0) 76%),
+            #000000
+          `,
+        }}
+      />
 
-      {/* MAIN GRID */}
-      <div className="relative z-10 grid md:grid-cols-2 gap-10 lg:gap-16 px-4 md:px-10 lg:px-16 py-16 md:py-20 lg:py-24">
+      {/* soft top vignette so the navbar blends into pure black */}
+      <div className="absolute inset-x-0 top-0 h-40 z-0 bg-linear-to-b from-black to-transparent" />
 
-        {/* LEFT SECTION */}
-        <div className="flex flex-col justify-center max-w-xl">
-          <p className="text-xs tracking-[0.25em] uppercase font-semibold text-slate-600 mb-4">Adaptive Learning Platform</p>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-[1.05] text-slate-900 tracking-tight">
-            Learn Faster With <br /> Intelligent Practice
-          </h1>
+      {/* bottom fade — stays blue at rest, fades to white as the user scrolls into Features */}
+      <motion.div
+        style={{ opacity: whiteFade }}
+        className="absolute inset-x-0 bottom-0 z-0 h-[60%] bg-linear-to-b from-white/0 via-white/80 to-white"
+      />
 
-          <p className="text-slate-700 mt-6 text-base md:text-lg leading-relaxed">
-            Take a fast assessment, let AI guide your next steps, and enjoy a personalized
-            task flow that makes improving your skills feel easy and enjoyable.
+      <motion.div
+        style={{ opacity: contentOpacity, y: contentY }}
+        className="relative z-10 mx-auto flex min-h-[90vh] max-w-[1250px] flex-col items-center justify-center px-4 text-center py-28"
+      >
+
+        {/* BIG GLOWING HEADLINE */}
+        <motion.h1
+          className="relative font-display font-bold tracking-tight leading-[0.92] text-5xl sm:text-7xl md:text-8xl lg:text-[8.5rem]"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.9, ease: "easeOut" }}
+        >
+          {/* crisp white-to-blue gradient text */}
+          <span className="relative bg-linear-to-b from-white via-white to-sui-pale bg-clip-text text-transparent">
+            Master Code Faster
+          </span>
+        </motion.h1>
+
+        {/* SUBHEADING */}
+        <motion.p
+          className="mt-8 max-w-xl text-base md:text-xl font-medium leading-relaxed text-white/90"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.9, delay: 0.15, ease: "easeOut" }}
+        >
+          IntelliLearn delivers AI-powered practice that adapts to your level
+          and guides every step of your learning path.
+        </motion.p>
+
+        {/* BUTTON PAIR — joined black + white, sharp corners (Sui style) */}
+        <motion.div
+          className="mt-11 flex items-stretch"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.9, delay: 0.3, ease: "easeOut" }}
+        >
+          <Link to="/signup">
+            <button className="group relative h-full overflow-hidden bg-black px-8 py-4 text-[15px] font-semibold text-white leading-6">
+              <span className="block transition-transform duration-300 group-hover:-translate-y-[200%]">
+                Get Started
+              </span>
+              <span className="absolute inset-0 flex items-center justify-center translate-y-[200%] transition-transform duration-300 group-hover:translate-y-0">
+                Get Started
+              </span>
+            </button>
+          </Link>
+
+          <Link to="/assessment">
+            <button className="group relative h-full overflow-hidden bg-white px-8 py-4 text-[15px] font-semibold text-slate-900 leading-6">
+              <span className="block transition-transform duration-300 group-hover:-translate-y-[200%]">
+                Take Assessment
+              </span>
+              <span className="absolute inset-0 flex items-center justify-center translate-y-[200%] transition-transform duration-300 group-hover:translate-y-0">
+                Take Assessment
+              </span>
+            </button>
+          </Link>
+        </motion.div>
+
+        {/* SUBTLE TRUST LINE */}
+        <motion.div
+          className="mt-8 flex items-center gap-3"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.9, delay: 0.45 }}
+        >
+          <div className="flex -space-x-3">
+            <img src="https://i.pravatar.cc/50?img=1" className="h-8 w-8 rounded-full ring-2 ring-black/40" />
+            <img src="https://i.pravatar.cc/50?img=2" className="h-8 w-8 rounded-full ring-2 ring-black/40" />
+            <img src="https://i.pravatar.cc/50?img=3" className="h-8 w-8 rounded-full ring-2 ring-black/40" />
+          </div>
+          <p className="text-sm text-white/80">
+            Trusted by <span className="font-semibold text-white">100+</span> learners
           </p>
-
-          {/* CTA BUTTON */}
-          <div className="mt-8">
-            <Link to="/signup">
-              <button
-                onMouseEnter={() => setHoveredButton(true)}
-                onMouseLeave={() => setHoveredButton(false)}
-                className="relative bg-lime-300 text-slate-900 font-semibold px-8 py-3.5 rounded-2xl flex items-center gap-2 text-lg overflow-hidden shadow-[0_12px_28px_rgba(132,204,22,0.35)] hover:shadow-[0_16px_36px_rgba(132,204,22,0.45)] transition-shadow"
-              >
-                <span className={`transition-all duration-500 ${hoveredButton ? "-translate-y-10 opacity-0" : "translate-y-0 opacity-100"}`}>
-                  Get Started →
-                </span>
-
-                <span className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${hoveredButton ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"}`}>
-                  Get Started →
-                </span>
-              </button>
-            </Link>
-          </div>
-
-          {/* SOCIAL PROOF */}
-          <div className="flex items-center gap-4 mt-10">
-            <div className="flex -space-x-4">
-              <img src="https://i.pravatar.cc/50?img=1" className="w-12 h-12 bg-cover rounded-full border-2 border-white shadow" />
-              <img src="https://i.pravatar.cc/50?img=2" className="w-12 h-12 rounded-full border-2 border-white shadow" />
-              <img src="https://i.pravatar.cc/50?img=3" className="w-12 h-12 rounded-full border-2 border-white shadow" />
-            </div>
-            <p className="text-slate-700 font-medium">
-              <span className="font-bold">100+</span> students trust our platform.
-            </p>
-          </div>
-        </div>
-
-        {/* RIGHT SIDE */}
-        <div className="hidden md:flex items-center justify-center relative">
-
-          {/* MAIN CODE CARD */}
-          <div className="relative w-full max-w-[520px] p-6 rounded-3xl bg-white/55 backdrop-blur-2xl border border-white/70 shadow-[0_25px_50px_rgba(15,23,42,0.16)] ring-1 ring-white/50">
-
-            {/* MAC DOTS */}
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-3 h-3 bg-[#ff5f57] rounded-full"></div>
-              <div className="w-3 h-3 bg-[#febc2e] rounded-full"></div>
-              <div className="w-3 h-3 bg-[#28c840] rounded-full"></div>
-            </div>
-
-            {/* LANGUAGE TABS */}
-            <div className="flex gap-2 text-xs mb-4">
-              <span className="px-3 py-1 rounded bg-lime-100 text-lime-800 font-medium">Python</span>
-              <span className="px-3 py-1 rounded bg-cyan-100 text-cyan-800 font-medium">Java</span>
-              <span className="px-3 py-1 rounded bg-amber-100 text-amber-800 font-medium">C</span>
-            </div>
-
-            {/* CODE + PROGRESS CARD */}
-            <div className="flex gap-5 relative">
-
-              {/* CODE BLOCK */}
-                <pre className="font-mono text-[12px] text-slate-900 leading-relaxed whitespace-pre-wrap w-[62%]">
-{`# Python
-def greet(name):
-    print("Hello,", name)
-
-greet("Student")
-
-// Java
-public class Hello {
-  public static void main(String[] args) {
-    System.out.println("Hello from Java!");
-  }
-}
-
-// C
-#include <stdio.h>
-int main() {
-  printf("Hello from C!\\n");
-  return 0;
-}`}
-              </pre>
-
-              {/* NEW PROGRESS CARD (ENHANCED) */}
-              <div
-                className="
-                  absolute right-[-70px] top-[12%]
-                  w-[240px] p-6 rounded-3xl
-                  bg-slate-950/90 backdrop-blur-2xl
-                  border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.35)]
-                "
-              >
-                {/* HEADER */}
-                <div className="mb-5">
-                  <h3 className="text-sm font-bold text-white">Skill Progress</h3>
-                  <p className="text-[11px] text-slate-300 mt-1">Last 7 days</p>
-                </div>
-
-                {/* PYTHON */}
-                <div className="mb-5">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[12px] text-slate-100 font-medium"> Python</span>
-                    <span className="text-[11px] text-slate-300">80%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-600/50 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-lime-300 to-emerald-400 rounded-full" style={{ width: "80%" }}></div>
-                  </div>
-                  <div className="mt-1 text-[11px] text-lime-300">Improving</div>
-                </div>
-
-                {/* JAVA */}
-                <div className="mb-5">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[12px] text-slate-100 font-medium"> Java</span>
-                    <span className="text-[11px] text-slate-300">60%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-600/50 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-cyan-300 to-sky-500 rounded-full" style={{ width: "60%" }}></div>
-                  </div>
-                  <div className="mt-1 text-[11px] text-cyan-300">Stable</div>
-                </div>
-
-                {/* C */}
-                <div className="mb-5">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[12px] text-slate-100 font-medium"> C</span>
-                    <span className="text-[11px] text-slate-300">40%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-600/50 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-amber-300 to-orange-500 rounded-full" style={{ width: "40%" }}></div>
-                  </div>
-                  <div className="mt-1 text-[11px] text-amber-300">Needs Work</div>
-                </div>
-
-                {/* FOOTER */}
-                <div className="pt-3 border-t border-white/10">
-                  <p className="text-[12px] text-slate-100 font-semibold">
-                    Overall Score: <span className="text-white">67%</span>
-                  </p>
-                  <p className="text-[11px] text-emerald-300 mt-1">
-                    ↑ 12% improvement this week
-                  </p>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-      </div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 }

@@ -7,7 +7,7 @@ export default function Footer() {
   const [hoveredButton, setHoveredButton] = useState(false);
 
   return (
-    <footer className="relative w-full bg-slate-950 text-white py-20 overflow-hidden border-t border-white/10">
+    <footer className="relative w-full bg-sui-deep text-white py-20 overflow-hidden border-t border-sui-line/60">
       
       
 
@@ -29,13 +29,13 @@ export default function Footer() {
             viewport={{ once: true }}
           >
             Ready to transform <br />
-            <span className="bg-linear-to-r from-lime-300 via-cyan-300 to-sky-300 text-transparent bg-clip-text">
+            <span className="bg-linear-to-r from-sui-pale via-sui-blue to-sui-bright text-transparent bg-clip-text">
               your learning experience?
             </span>
           </motion.h2>
           
           <motion.p
-            className="text-lg text-gray-300 mb-10 max-w-2xl mx-auto leading-relaxed"
+            className="text-lg text-sui-fog mb-10 max-w-2xl mx-auto leading-relaxed"
             initial={{ opacity: 0, y: -10 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -54,7 +54,7 @@ export default function Footer() {
               <button
                 onMouseEnter={() => setHoveredButton(true)}
                 onMouseLeave={() => setHoveredButton(false)}
-                className="relative px-8 py-4 bg-linear-to-r from-lime-300 via-cyan-300 to-sky-300 text-slate-900 font-bold rounded-2xl hover:shadow-2xl hover:shadow-cyan-400/40 transition-all text-lg inline-flex items-center gap-2 overflow-hidden"
+                className="relative px-8 py-4 bg-linear-to-r from-sui-light via-sui-blue to-sui-bright text-sui-sea font-bold rounded-xl hover:shadow-2xl hover:shadow-sui-blue/40 transition-all text-lg inline-flex items-center gap-2 overflow-hidden"
               >
                 <span className={`inline-flex items-center gap-2 transition-all duration-700 ${hoveredButton ? "-translate-y-10 opacity-0" : "translate-y-0 opacity-100"}`}>
                   Get Started Now →
@@ -69,7 +69,7 @@ export default function Footer() {
 
         {/* Divider */}
         <motion.div
-          className="w-full h-px bg-linear-to-r from-transparent via-white/20 to-transparent mb-16"
+          className="w-full h-px bg-linear-to-r from-transparent via-sui-blue/30 to-transparent mb-16"
           initial={{ scaleX: 0 }}
           whileInView={{ scaleX: 1 }}
           transition={{ duration: 0.8, delay: 0.4 }}
@@ -88,16 +88,16 @@ export default function Footer() {
           >
             <div className="mb-4">
               <h3 className="text-[26px] font-bold">
-                <span className="bg-linear-to-r text-lime-300 bg-clip-text">
+                <span className="text-sui-blue">
                   Intelli
                 </span>
                 <span className="text-[24px] font-medium text-slate-200">
                   Learn
                 </span>
-                
+
               </h3>
             </div>
-            <p className="text-gray-400 text-sm leading-relaxed max-w-md mx-auto">
+            <p className="text-sui-mist text-sm leading-relaxed max-w-md mx-auto">
               Transforming education through AI-powered learning experiences and personalized insights.
             </p>
           </motion.div>
@@ -111,7 +111,7 @@ export default function Footer() {
             viewport={{ once: true }}
           >
             <span className="text-lg">✉️</span>
-            <a href="mailto:support@intellilearn.ai" className="text-white hover:text-cyan-300 transition font-semibold text-sm">
+            <a href="mailto:support@intellilearn.ai" className="text-white hover:text-sui-blue transition font-semibold text-sm">
               support@intellilearn.ai
             </a>
           </motion.div>
@@ -125,15 +125,15 @@ export default function Footer() {
           transition={{ duration: 0.6, delay: 0.6 }}
           viewport={{ once: true }}
         >
-          <p className="text-gray-400 text-sm">
+          <p className="text-sui-mist text-sm">
             © {currentYear} IntelliLearn. All rights reserved.
           </p>
-          
+
           <div className="flex gap-8 mt-6 md:mt-0">
-            <a href="#" className="text-gray-400 hover:text-cyan-300 transition text-sm">
+            <a href="#" className="text-sui-mist hover:text-sui-blue transition text-sm">
               Privacy Policy
             </a>
-            <a href="#" className="text-gray-400 hover:text-cyan-300 transition text-sm">
+            <a href="#" className="text-sui-mist hover:text-sui-blue transition text-sm">
               Terms & Conditions
             </a>
           </div>

@@ -87,16 +87,16 @@ export default function LandingPage() {
   }, [showLoader]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#f8ffe2_0%,#ecf0f6_38%,#e6ebf2_100%)] text-slate-900">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#000000_0%,#000000_18%,#010810_100%)] text-sui-fog">
       <AnimatePresence>
         {showLoader && (
           <motion.div
-            className="fixed inset-0 z-999 flex items-center justify-center overflow-hidden bg-slate-950"
+            className="fixed inset-0 z-999 flex items-center justify-center overflow-hidden bg-sui-deep"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.45, ease: "easeInOut" }}
           >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(230,255,3,0.08)_0%,transparent_42%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(77,162,255,0.14)_0%,transparent_45%)]" />
 
             <motion.div
               className="relative flex flex-col items-center px-6 text-center"
@@ -109,17 +109,17 @@ export default function LandingPage() {
                 className="overflow-hidden"
               >
                 <motion.h1
-                  className="text-4xl font-black tracking-tight text-white md:text-6xl"
+                  className="text-4xl font-bold tracking-tight text-white md:text-6xl"
                   initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.28, duration: 0.9, ease: "easeOut" }}
                 >
-                  <span className="text-lime-300">Intelli</span>Learn
+                  <span className="text-sui-blue">Intelli</span>Learn
                 </motion.h1>
               </motion.div>
 
               <motion.p
-                className="mt-4 max-w-xl text-sm leading-relaxed text-slate-300 md:text-base"
+                className="mt-4 max-w-xl text-sm leading-relaxed text-sui-mist md:text-base"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.9, ease: "easeOut" }}
@@ -134,7 +134,7 @@ export default function LandingPage() {
                 transition={{ delay: 0.65, duration: 0.8, ease: "easeOut" }}
               >
                 <motion.div
-                  className="h-full rounded-full bg-linear-to-r from-lime-300 via-emerald-300 to-cyan-300"
+                  className="h-full rounded-full bg-linear-to-r from-sui-pale via-sui-blue to-sui-bright"
                   initial={{ width: "0%" }}
                   animate={{ width: "100%" }}
                   transition={{ duration: 3, ease: "easeInOut" }}
@@ -145,14 +145,16 @@ export default function LandingPage() {
         )}
       </AnimatePresence>
 
-      {/* LIGHT SECTIONS WITH PADDING */}
+      {/* FULL-WIDTH STICKY NAVBAR (edge-to-edge, Sui style) */}
+      <Navbar />
+
+      {/* HERO — FULL BLEED */}
       <motion.div
-        className={`px-4 md:px-6 ${showLoader ? "pointer-events-none select-none" : ""}`}
+        className={showLoader ? "pointer-events-none select-none" : ""}
         initial={{ opacity: 0, y: 18 }}
         animate={showLoader ? { opacity: 0, y: 18 } : { opacity: 1, y: 0 }}
         transition={{ duration: 1.05, ease: "easeOut" }}
       >
-        <Navbar />
         <Hero />
       </motion.div>
 
