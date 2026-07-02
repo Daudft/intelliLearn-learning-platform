@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Assessment = require('../models/Assessment');
 const UserAssessment = require('../models/UserAssessment');
 const User = require('../models/User');
@@ -286,19 +287,18 @@ exports.checkAssessmentStatus = async (req, res) => {
 // In-memory storage for active assessment sessions
 const activeSessions = new Map();
 
-/* Topic distribution for adaptive assessment */
-const TOPIC_DISTRIBUTION = {
-  'Variables_and_Datatypes': 3,  // 2-3 questions
-  'DataTypes_String': 3,          // 2-3 questions (combined with Variables)
-  'Loops': 3,
-  'Operations': 3,
-  'Functions': 3,
-  'Arrays': 3,
-  'Objects': 3,
-};
+/* Fixed topic order for the initial assessment: 3 questions per topic. */
+const TOPIC_SEQUENCE = ['Variables', 'DataTypes', 'Loops', 'Functions', 'Arrays'];
+const QUESTIONS_PER_TOPIC = 3;
+const TOTAL_QUESTIONS = TOPIC_SEQUENCE.length * QUESTIONS_PER_TOPIC; // 15
 
-/* Difficulty progression */
+/* Difficulty progression within a topic */
 const DIFFICULTY_LEVELS = ['easy', 'medium', 'hard'];
+
+/* Helper: which topic a given zero-based question position belongs to */
+function topicForIndex(i) {
+  return TOPIC_SEQUENCE[Math.floor(i / QUESTIONS_PER_TOPIC)];
+}
 
 /* START ADAPTIVE ASSESSMENT */
 exports.startAdaptiveAssessment = async (req, res) => {
@@ -320,18 +320,16 @@ exports.startAdaptiveAssessment = async (req, res) => {
       sessionId,
       userId,
       language,
-      currentQuestionIndex: 0,
       currentDifficulty: 'easy',
       answers: [],
-      topicProgress: {},
       questionsUsed: new Set(),
       startTime: Date.now(),
     };
 
     activeSessions.set(sessionId, session);
 
-    // Get first question from Variables/Datatypes (easy)
-    const firstQuestion = await getAdaptiveQuestion(language, 'Variables_and_Datatypes', 'easy', new Set());
+    // First question: Variables, easy.
+    const firstQuestion = await getAdaptiveQuestion(language, TOPIC_SEQUENCE[0], 'easy', session.questionsUsed);
 
     if (!firstQuestion) {
       activeSessions.delete(sessionId);
@@ -339,7 +337,6 @@ exports.startAdaptiveAssessment = async (req, res) => {
     }
 
     session.questionsUsed.add(firstQuestion._id.toString());
-    session.topicProgress['Variables_and_Datatypes'] = 1;
 
     res.status(200).json({
       message: 'Assessment started',
@@ -393,31 +390,30 @@ exports.submitAdaptiveAnswer = async (req, res) => {
       difficulty: question.difficulty,
     });
 
-    // Update difficulty based on correctness
-    const currentDifficultyIndex = DIFFICULTY_LEVELS.indexOf(session.currentDifficulty);
-    
-    if (isCorrect) {
-      // Correct: increase difficulty
-      if (currentDifficultyIndex < DIFFICULTY_LEVELS.length - 1) {
-        session.currentDifficulty = DIFFICULTY_LEVELS[currentDifficultyIndex + 1];
-      }
-    } else {
-      // Wrong: decrease difficulty
-      if (currentDifficultyIndex > 0) {
-        session.currentDifficulty = DIFFICULTY_LEVELS[currentDifficultyIndex - 1];
-      }
-    }
-
-    // Determine next topic
-    const nextTopic = getNextTopic(session);
-    
-    // Check if assessment is complete (15 questions asked)
-    if (session.answers.length >= 15) {
-      // Finalize assessment
+    // Assessment complete once every question is answered.
+    if (session.answers.length >= TOTAL_QUESTIONS) {
       return finalizeAdaptiveAssessment(session, res);
     }
 
-    // Get next question
+    // Position (zero-based) and topic of the next question.
+    const nextIndex = session.answers.length;
+    const nextTopic = topicForIndex(nextIndex);
+    const startingNewTopic = nextIndex % QUESTIONS_PER_TOPIC === 0;
+
+    if (startingNewTopic) {
+      // Each topic restarts at the easiest level.
+      session.currentDifficulty = 'easy';
+    } else {
+      // Same topic: adapt difficulty from the answer just given.
+      const idx = DIFFICULTY_LEVELS.indexOf(session.currentDifficulty);
+      if (isCorrect && idx < DIFFICULTY_LEVELS.length - 1) {
+        session.currentDifficulty = DIFFICULTY_LEVELS[idx + 1];
+      } else if (!isCorrect && idx > 0) {
+        session.currentDifficulty = DIFFICULTY_LEVELS[idx - 1];
+      }
+    }
+
+    // Fetch the next question for that topic at the target difficulty.
     const nextQuestion = await getAdaptiveQuestion(
       session.language,
       nextTopic,
@@ -426,38 +422,11 @@ exports.submitAdaptiveAnswer = async (req, res) => {
     );
 
     if (!nextQuestion) {
-      // If no question available in current topic/difficulty, try any available
-      const allTopics = Object.keys(TOPIC_DISTRIBUTION);
-      for (const topic of allTopics) {
-        const altQuestion = await getAdaptiveQuestion(session.language, topic, session.currentDifficulty, session.questionsUsed);
-        if (altQuestion) {
-          session.questionsUsed.add(altQuestion._id.toString());
-          session.topicProgress[topic] = (session.topicProgress[topic] || 0) + 1;
-          
-          return res.status(200).json({
-            message: 'Next question',
-            sessionId,
-            isCorrect,
-            question: {
-              _id: altQuestion._id,
-              question: altQuestion.question,
-              questionType: altQuestion.questionType,
-              code: altQuestion.code || null,
-              options: altQuestion.options,
-              topic: altQuestion.topic,
-              difficulty: altQuestion.difficulty,
-              questionIndex: session.answers.length + 1,
-            },
-          });
-        }
-      }
-      
-      // No more questions available
+      // Pool exhausted for this topic — end gracefully.
       return finalizeAdaptiveAssessment(session, res);
     }
 
     session.questionsUsed.add(nextQuestion._id.toString());
-    session.topicProgress[nextTopic] = (session.topicProgress[nextTopic] || 0) + 1;
 
     res.status(200).json({
       message: 'Next question',
@@ -481,56 +450,24 @@ exports.submitAdaptiveAnswer = async (req, res) => {
   }
 };
 
-/* HELPER: Get random question by topic and difficulty */
+/* HELPER: Get a random unused question for a topic.
+   Tries the requested difficulty first, then the other levels in the
+   same topic, so a user is never shown a repeated question. */
 async function getAdaptiveQuestion(language, topic, difficulty, usedIds) {
-  const query = {
-    language,
-    difficulty,
-    _id: { $nin: Array.from(usedIds) }
-  };
+  const used = Array.from(usedIds).map((id) => new mongoose.Types.ObjectId(id));
 
-  // Handle Variables_and_Datatypes combined query
-  if (topic === 'Variables_and_Datatypes') {
-    query.topic = { $in: ['Variables_and_Datatypes', 'DataTypes_String'] };
-  } else {
-    query.topic = topic;
+  // Preferred difficulty first, then the rest of the ladder as fallback.
+  const difficultyOrder = [difficulty, ...DIFFICULTY_LEVELS.filter((d) => d !== difficulty)];
+
+  for (const diff of difficultyOrder) {
+    const results = await Assessment.aggregate([
+      { $match: { language, topic, difficulty: diff, _id: { $nin: used } } },
+      { $sample: { size: 1 } },
+    ]);
+    if (results.length > 0) return results[0];
   }
 
-  // Use aggregation pipeline to ensure unique questions and avoid duplicates
-  const questions = await Assessment.aggregate([
-    { $match: query },
-    // Remove duplicates by questionNumber within this query
-    {
-      $group: {
-        _id: '$questionNumber',
-        doc: { $first: '$$ROOT' }
-      }
-    },
-    { $replaceRoot: { newRoot: '$doc' } },
-    { $sample: { size: 1 } }
-  ]);
-
-  if (questions.length === 0) return null;
-
-  return questions[0];
-}
-
-/* HELPER: Get next topic based on distribution */
-function getNextTopic(session) {
-  const topics = Object.keys(TOPIC_DISTRIBUTION);
-  const topicsToAsk = [];
-
-  // First 3 questions: Variables_and_Datatypes
-  if (session.answers.length < 3) {
-    return 'Variables_and_Datatypes';
-  }
-
-  // Remaining questions: cycle through other topics
-  const otherTopics = topics.filter(t => t !== 'Variables_and_Datatypes');
-  const questionNumber = session.answers.length;
-  const topicIndex = (questionNumber - 3) % otherTopics.length;
-
-  return otherTopics[topicIndex];
+  return null;
 }
 
 /* FINALIZE ADAPTIVE ASSESSMENT */

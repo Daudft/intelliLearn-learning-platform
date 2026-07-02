@@ -131,20 +131,82 @@ function analyzeWeakTopics(topicBreakdown) {
  */
 // Number of coding tasks per learning-path cycle, generated in difficulty-tiered
 // batches so each Groq call stays small enough to return reliable JSON.
-const TASKS_PER_PATH = 15;
+const TASKS_PER_PATH = 10;
 const QUESTION_BATCH_SIZE = 5;
 
 const LEVEL_GUIDELINES = {
-  Beginner: 'Problems should be simple syntax exercises. Use basic variables, loops, and if statements. NO recursion or complex data structures.',
+  Beginner: 'Problems must be VERY simple syntax exercises using only basic variables, loops, and if statements. Absolute fundamentals — NO recursion, NO complex data structures, NO advanced algorithms, NO tricky edge cases.',
   Intermediate: 'Problems should include logic puzzles, simple algorithms like sorting/searching, basic OOP concepts, and simple recursion.',
   Advanced: 'Problems should cover advanced algorithms, optimization, complex OOP patterns, and require algorithmic thinking.',
 };
 
 /**
+ * Choose how many easy / medium / hard problems to generate for a learner.
+ * A Beginner (low assessment score, weak topics) gets mostly basics and
+ * NEVER advanced (hard) problems; the mix shifts harder as the level rises.
+ * Totals always add up to TASKS_PER_PATH.
+ */
+function buildDifficultyPlan(proficiencyLevel, assessmentScore) {
+  const raw = Number(assessmentScore);
+  const score = Number.isFinite(raw) ? raw : 50;
+
+  if (proficiencyLevel === 'Advanced') {
+    return { easy: 1, medium: 4, hard: 5 };
+  }
+  if (proficiencyLevel === 'Intermediate') {
+    return { easy: 3, medium: 5, hard: 2 };
+  }
+  // Beginner — keep it basic; no advanced problems at all.
+  // A weak beginner (low score) gets ALL trivial problems, no medium.
+  if (score < 40) return { easy: 10, medium: 0, hard: 0 };
+  return { easy: 8, medium: 2, hard: 0 };
+}
+
+/**
+ * Concrete, per-batch style guidance so Groq generates problems at the RIGHT
+ * complexity — especially "easy for a Beginner" meaning genuinely trivial.
+ */
+const BATCH_GUIDANCE = {
+  'Beginner:easy': `ABSOLUTE BASICS ONLY. Each problem must be solvable in 1-4 lines of real logic by someone who has JUST learned the syntax.
+ALLOWED: printing text, storing a value in a variable and printing it, reading input, ONE arithmetic operation (+, -, *, /, %), or a single formula.
+STRICTLY FORBIDDEN: loops, if/else, arrays/lists, string manipulation, functions (other than main), recursion.
+Example problems: "Print 'Hello, World!'", "Add two numbers and print the sum", "Given length and width, print the area of a rectangle", "Convert Celsius to Fahrenheit using the formula".`,
+  'Beginner:medium': `STILL VERY BASIC. Allowed: a SINGLE if/else OR one simple counting loop — never both, never nested.
+Example problems: "Check whether a number is even or odd", "Find the larger of two numbers", "Print all numbers from 1 to N".`,
+  'Intermediate:easy': `Simple warm-ups combining basic loops and conditionals, or simple array/string access.`,
+  'Intermediate:medium': `Small algorithms: sum or average of a list, find the max, simple linear search.`,
+  'Intermediate:hard': `Moderate logic: sorting, simple recursion, multi-step problems.`,
+  'Advanced:easy': `Review-level: arrays, loops and conditionals combined.`,
+  'Advanced:medium': `Algorithms: searching, sorting, recursion.`,
+  'Advanced:hard': `Advanced: optimization, complex data structures, real algorithmic thinking.`,
+};
+
+function getBatchGuidance(proficiencyLevel, difficultyTier) {
+  return BATCH_GUIDANCE[`${proficiencyLevel}:${difficultyTier}`] || '';
+}
+
+/**
+ * Split a difficulty plan into Groq batches no larger than QUESTION_BATCH_SIZE,
+ * so each API call stays small and returns reliable JSON.
+ */
+function splitIntoBatches(plan) {
+  const specs = [];
+  ['easy', 'medium', 'hard'].forEach((difficultyTier) => {
+    let remaining = plan[difficultyTier] || 0;
+    while (remaining > 0) {
+      const count = Math.min(QUESTION_BATCH_SIZE, remaining);
+      specs.push({ difficultyTier, count });
+      remaining -= count;
+    }
+  });
+  return specs;
+}
+
+/**
  * Request a single batch of raw coding problems from Groq for one difficulty tier.
  * Returns an array of raw question objects (empty array on failure).
  */
-async function requestQuestionBatch({ language, proficiencyLevel, focusAreas, assessmentScore, count, difficultyTier }) {
+async function requestQuestionBatch({ language, proficiencyLevel, focusAreas, assessmentScore, count, difficultyTier, contentGuidance, avoidTitles = [] }) {
   const languageLabel = LANGUAGE_LABELS[language] || language;
 
   const systemPrompt = `You are an expert programming problem setter like those on LeetCode or HackerRank.
@@ -171,6 +233,9 @@ RULES:
 PROFICIENCY LEVEL: ${proficiencyLevel}
 ${LEVEL_GUIDELINES[proficiencyLevel] || LEVEL_GUIDELINES.Beginner}
 
+PROBLEM STYLE FOR THIS BATCH (difficulty: ${difficultyTier}):
+${contentGuidance || `Keep every problem at "${difficultyTier}" difficulty within the ${proficiencyLevel} level.`}
+
 Student Performance:
 - Overall Score: ${assessmentScore}%
 - Weak Areas to Focus On: ${focusAreas || 'fundamentals'}
@@ -185,7 +250,8 @@ For EACH problem:
 6. Add 2-3 progressive hints (light → medium → heavy)
 7. Focus on weak areas when possible, and keep every problem distinct
 
-IMPORTANT: Do NOT exceed the ${proficiencyLevel} level complexity. Make all ${count} problems distinct.
+${avoidTitles.length ? `ALREADY USED — do NOT repeat or rephrase any of these problems (pick different concepts/titles):\n- ${avoidTitles.join('\n- ')}\n` : ''}
+IMPORTANT: Do NOT exceed the ${proficiencyLevel} level complexity. STRICTLY follow the PROBLEM STYLE for this batch above — never make problems harder than described. Make all ${count} problems distinct from each other AND from the already-used list.
 
 Return JSON object with key "questions" containing an array of ${count} problem objects.
 Structure: {
@@ -257,32 +323,55 @@ async function generateRealQuestions(language, proficiencyLevel, topicBreakdown,
   console.log(`🎯 [REAL QUESTIONS] Generating ${TASKS_PER_PATH} for: ${languageLabel} (${proficiencyLevel})`);
   console.log(`📍 Focus areas: ${focusAreas} | Assessment score: ${assessmentScore}%`);
 
-  // Generate in difficulty-tiered batches: 5 easy → 5 medium → 5 hard.
-  // This forms an easy→hard curve and keeps each call's JSON small/reliable.
-  const tiers = ['easy', 'medium', 'hard'];
-  const batches = await Promise.all(
-    tiers.map((difficultyTier) =>
-      requestQuestionBatch({
-        language,
-        proficiencyLevel,
-        focusAreas,
-        assessmentScore,
-        count: QUESTION_BATCH_SIZE,
-        difficultyTier,
-      })
-    )
-  );
+  // Difficulty mix is chosen from the learner's level + score, so a weak
+  // Beginner gets mostly basics and NO advanced (hard) problems.
+  const plan = buildDifficultyPlan(proficiencyLevel, assessmentScore);
+  const batchSpecs = splitIntoBatches(plan);
+  console.log(`🎚️ Difficulty plan (${proficiencyLevel}, ${assessmentScore}%): easy ${plan.easy}, medium ${plan.medium}, hard ${plan.hard}`);
 
-  let rawQuestions = batches.flat();
-  console.log(`✅ Groq returned ${rawQuestions.length}/${TASKS_PER_PATH} questions across ${tiers.length} batches`);
+  // Generate batches SEQUENTIALLY, feeding already-used titles into each next
+  // batch and de-duplicating, so no two tasks repeat the same problem.
+  const normTitle = (s) => (s || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const seenKeys = new Set();
+  const usedTitles = [];
+  let rawQuestions = [];
 
-  // Top up with template questions if Groq under-delivered, so the user always gets 15.
+  for (const { difficultyTier, count } of batchSpecs) {
+    const batch = await requestQuestionBatch({
+      language,
+      proficiencyLevel,
+      focusAreas,
+      assessmentScore,
+      count,
+      difficultyTier,
+      contentGuidance: getBatchGuidance(proficiencyLevel, difficultyTier),
+      avoidTitles: usedTitles,
+    });
+
+    for (const q of batch) {
+      const key = normTitle(q?.title);
+      if (!key || seenKeys.has(key)) continue; // skip repeats
+      seenKeys.add(key);
+      usedTitles.push(q.title);
+      rawQuestions.push(q);
+    }
+  }
+
+  console.log(`✅ Groq returned ${rawQuestions.length}/${TASKS_PER_PATH} distinct questions across ${batchSpecs.length} batches`);
+
+  // Top up with template questions if Groq under-delivered, skipping any that
+  // would duplicate a title we already have.
   if (rawQuestions.length < TASKS_PER_PATH) {
     const needed = TASKS_PER_PATH - rawQuestions.length;
-    console.warn(`⚠️ Only ${rawQuestions.length} generated — topping up with ${needed} template question(s)`);
-    rawQuestions = rawQuestions.concat(
-      generateFallbackQuestions(language, proficiencyLevel, topicBreakdown, needed)
-    );
+    console.warn(`⚠️ Only ${rawQuestions.length} distinct — topping up with up to ${needed} template question(s)`);
+    const fallback = generateFallbackQuestions(language, proficiencyLevel, topicBreakdown, TASKS_PER_PATH);
+    for (const q of fallback) {
+      if (rawQuestions.length >= TASKS_PER_PATH) break;
+      const key = normTitle(q?.title);
+      if (!key || seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      rawQuestions.push(q);
+    }
   }
 
   if (rawQuestions.length === 0) {
@@ -350,204 +439,76 @@ function normalizeRealQuestions(questions, language, proficiencyLevel, weakTopic
  * Fallback questions when AI is not available
  */
 function generateFallbackQuestions(language, proficiencyLevel, topicBreakdown, count = TASKS_PER_PATH) {
-  const label = LANGUAGE_LABELS[language] || language;
-  const weakTopics = analyzeWeakTopics(topicBreakdown);
+  const level = ['Beginner', 'Intermediate', 'Advanced'].includes(proficiencyLevel) ? proficiencyLevel : 'Beginner';
 
-  const templates = {
-    python: [
-      {
-        title: 'Sum of Array Elements',
-        description: 'Write a function that returns the sum of all elements in an array.',
-        topic: 'Arrays',
-        difficulty: 'easy',
-        starterCode: 'def sum_array(arr):\n    # Return sum of all elements\n    pass',
-        testCases: [
-          { input: '[1, 2, 3]', expectedOutput: '6', description: 'Basic sum' },
-          { input: '[0]', expectedOutput: '0', description: 'Single element' },
-        ],
-      },
-      {
-        title: 'Reverse a String',
-        description: 'Write a function that reverses a given string.',
-        topic: 'Functions',
-        difficulty: 'easy',
-        starterCode: 'def reverse_string(s):\n    # Return reversed string\n    pass',
-        testCases: [
-          { input: '"hello"', expectedOutput: '"olleh"', description: 'Basic string' },
-          { input: '""', expectedOutput: '""', description: 'Empty string' },
-        ],
-      },
-      {
-        title: 'Find Maximum Number',
-        description: 'Find and return the maximum number in a list.',
-        topic: 'Arrays',
-        difficulty: 'easy',
-        starterCode: 'def find_max(arr):\n    # Return maximum element\n    pass',
-        testCases: [
-          { input: '[1, 5, 3]', expectedOutput: '5', description: 'Basic max' },
-          { input: '[10]', expectedOutput: '10', description: 'Single element' },
-        ],
-      },
-      {
-        title: 'Check Palindrome',
-        description: 'Check if a string is a palindrome (reads same forwards and backwards).',
-        topic: 'Functions',
-        difficulty: 'medium',
-        starterCode: 'def is_palindrome(s):\n    # Return True if palindrome, False otherwise\n    pass',
-        testCases: [
-          { input: '"racecar"', expectedOutput: 'True', description: 'Valid palindrome' },
-          { input: '"hello"', expectedOutput: 'False', description: 'Not palindrome' },
-        ],
-      },
-      {
-        title: 'Sort Array',
-        description: 'Sort an array in ascending order.',
-        topic: 'Sorting',
-        difficulty: 'medium',
-        starterCode: 'def sort_array(arr):\n    # Return sorted array\n    pass',
-        testCases: [
-          { input: '[3, 1, 4, 1, 5]', expectedOutput: '[1, 1, 3, 4, 5]', description: 'Basic sort' },
-          { input: '[]', expectedOutput: '[]', description: 'Empty array' },
-        ],
-      },
+  // Language-agnostic problem specs, 10 DISTINCT per level so a full path never
+  // needs to repeat a problem. Difficulty roughly follows the level's plan.
+  const PROBLEMS = {
+    Beginner: [
+      { title: 'Print a Greeting', description: 'Print the exact message: Hello, World!', topic: 'Variables', difficulty: 'easy' },
+      { title: 'Add Two Numbers', description: 'Read two numbers and print their sum. Example: 2 and 3 → 5.', topic: 'Variables', difficulty: 'easy' },
+      { title: 'Multiply Two Numbers', description: 'Read two numbers and print their product. Example: 4 and 5 → 20.', topic: 'Variables', difficulty: 'easy' },
+      { title: 'Area of a Rectangle', description: 'Given length and width, print the area (length * width). Example: 5, 3 → 15.', topic: 'Variables', difficulty: 'easy' },
+      { title: 'Celsius to Fahrenheit', description: 'Convert a Celsius temperature to Fahrenheit using c * 9 / 5 + 32. Example: 0 → 32.', topic: 'Variables', difficulty: 'easy' },
+      { title: 'Double a Number', description: 'Read a number and print its double. Example: 5 → 10.', topic: 'Variables', difficulty: 'easy' },
+      { title: 'Square a Number', description: 'Read a number and print its square. Example: 4 → 16.', topic: 'Variables', difficulty: 'easy' },
+      { title: 'Subtract Two Numbers', description: 'Read two numbers and print the first minus the second. Example: 10, 4 → 6.', topic: 'Variables', difficulty: 'easy' },
+      { title: 'Perimeter of a Square', description: 'Given the side length, print the perimeter (4 * side). Example: 5 → 20.', topic: 'Variables', difficulty: 'easy' },
+      { title: 'Print a Number', description: 'Read a number and print it back exactly. Example: 7 → 7.', topic: 'Variables', difficulty: 'easy' },
     ],
-    java: [
-      {
-        title: 'Sum of Array Elements',
-        description: 'Write a method that returns the sum of all elements in an array.',
-        topic: 'Arrays',
-        difficulty: 'easy',
-        starterCode: 'public int sumArray(int[] arr) {\n    // Return sum\n    return 0;\n}',
-        testCases: [
-          { input: '[1, 2, 3]', expectedOutput: '6', description: 'Basic sum' },
-          { input: '[0]', expectedOutput: '0', description: 'Single element' },
-        ],
-      },
-      {
-        title: 'Reverse String',
-        description: 'Write a method that reverses a given string.',
-        topic: 'Functions',
-        difficulty: 'easy',
-        starterCode: 'public String reverseString(String s) {\n    // Return reversed string\n    return "";\n}',
-        testCases: [
-          { input: '"hello"', expectedOutput: '"olleh"', description: 'Basic string' },
-          { input: '""', expectedOutput: '""', description: 'Empty string' },
-        ],
-      },
-      {
-        title: 'Find Maximum',
-        description: 'Find and return the maximum number in an array.',
-        topic: 'Arrays',
-        difficulty: 'easy',
-        starterCode: 'public int findMax(int[] arr) {\n    // Return maximum\n    return 0;\n}',
-        testCases: [
-          { input: '[1, 5, 3]', expectedOutput: '5', description: 'Basic max' },
-          { input: '[10]', expectedOutput: '10', description: 'Single element' },
-        ],
-      },
-      {
-        title: 'Check Palindrome',
-        description: 'Check if a string is a palindrome.',
-        topic: 'Functions',
-        difficulty: 'medium',
-        starterCode: 'public boolean isPalindrome(String s) {\n    // Return true if palindrome\n    return false;\n}',
-        testCases: [
-          { input: '"racecar"', expectedOutput: 'true', description: 'Valid palindrome' },
-          { input: '"hello"', expectedOutput: 'false', description: 'Not palindrome' },
-        ],
-      },
-      {
-        title: 'Bubble Sort',
-        description: 'Implement bubble sort algorithm.',
-        topic: 'Sorting',
-        difficulty: 'medium',
-        starterCode: 'public int[] bubbleSort(int[] arr) {\n    // Implement bubble sort\n    return arr;\n}',
-        testCases: [
-          { input: '[3, 1, 4, 1, 5]', expectedOutput: '[1, 1, 3, 4, 5]', description: 'Basic sort' },
-          { input: '[]', expectedOutput: '[]', description: 'Empty array' },
-        ],
-      },
+    Intermediate: [
+      { title: 'Even or Odd', description: 'Read a number and print whether it is "Even" or "Odd".', topic: 'Conditionals', difficulty: 'medium' },
+      { title: 'Larger of Two Numbers', description: 'Read two numbers and print the larger one.', topic: 'Conditionals', difficulty: 'easy' },
+      { title: 'Sum from 1 to N', description: 'Read N and print the sum of all integers from 1 to N.', topic: 'Loops', difficulty: 'medium' },
+      { title: 'Factorial of a Number', description: 'Read N and print N! (the product 1*2*...*N).', topic: 'Loops', difficulty: 'medium' },
+      { title: 'Count Vowels', description: 'Read a string and print how many vowels (a, e, i, o, u) it contains.', topic: 'Strings', difficulty: 'medium' },
+      { title: 'Reverse a String', description: 'Read a string and print it reversed. Example: "hello" → "olleh".', topic: 'Strings', difficulty: 'medium' },
+      { title: 'Maximum in an Array', description: 'Given a list of numbers, print the largest value.', topic: 'Arrays', difficulty: 'medium' },
+      { title: 'Check Prime', description: 'Read a number and print whether it is a prime number.', topic: 'Loops', difficulty: 'medium' },
+      { title: 'Sum of Array Elements', description: 'Given a list of numbers, print their sum.', topic: 'Arrays', difficulty: 'easy' },
+      { title: 'Fibonacci Series', description: 'Read N and print the first N Fibonacci numbers.', topic: 'Loops', difficulty: 'medium' },
     ],
-    c: [
-      {
-        title: 'Sum of Array Elements',
-        description: 'Write a function that returns the sum of all elements in an array.',
-        topic: 'Arrays',
-        difficulty: 'easy',
-        starterCode: 'int sum_array(int arr[], int n) {\n    // Return sum\n    return 0;\n}',
-        testCases: [
-          { input: '[1, 2, 3], size=3', expectedOutput: '6', description: 'Basic sum' },
-          { input: '[5], size=1', expectedOutput: '5', description: 'Single element' },
-        ],
-      },
-      {
-        title: 'Find Maximum',
-        description: 'Find and return the maximum number in an array.',
-        topic: 'Arrays',
-        difficulty: 'easy',
-        starterCode: 'int find_max(int arr[], int n) {\n    // Return maximum\n    return 0;\n}',
-        testCases: [
-          { input: '[1, 5, 3], size=3', expectedOutput: '5', description: 'Basic max' },
-          { input: '[10], size=1', expectedOutput: '10', description: 'Single element' },
-        ],
-      },
-      {
-        title: 'Count Occurrences',
-        description: 'Count occurrences of a specific number in an array.',
-        topic: 'Arrays',
-        difficulty: 'easy',
-        starterCode: 'int count_occurrences(int arr[], int n, int target) {\n    // Return count\n    return 0;\n}',
-        testCases: [
-          { input: '[1, 2, 2, 3, 2], target=2, size=5', expectedOutput: '3', description: 'Count 2s' },
-          { input: '[5, 5, 5], target=5, size=3', expectedOutput: '3', description: 'All same' },
-        ],
-      },
-      {
-        title: 'Reverse Array',
-        description: 'Reverse the elements of an array in place.',
-        topic: 'Arrays',
-        difficulty: 'medium',
-        starterCode: 'void reverse_array(int arr[], int n) {\n    // Reverse in place\n}',
-        testCases: [
-          { input: '[1, 2, 3], size=3', expectedOutput: '[3, 2, 1]', description: 'Basic reverse' },
-          { input: '[5], size=1', expectedOutput: '[5]', description: 'Single element' },
-        ],
-      },
-      {
-        title: 'Linear Search',
-        description: 'Find the index of a target element in an array.',
-        topic: 'Functions',
-        difficulty: 'medium',
-        starterCode: 'int linear_search(int arr[], int n, int target) {\n    // Return index or -1\n    return -1;\n}',
-        testCases: [
-          { input: '[1, 5, 3], target=5, size=3', expectedOutput: '1', description: 'Found at index 1' },
-          { input: '[1, 2, 3], target=10, size=3', expectedOutput: '-1', description: 'Not found' },
-        ],
-      },
+    Advanced: [
+      { title: 'Binary Search', description: 'Given a sorted array and a target, return the target index using binary search, or -1 if absent.', topic: 'Algorithms', difficulty: 'hard' },
+      { title: 'Bubble Sort', description: 'Sort an array of integers in ascending order using bubble sort.', topic: 'Sorting', difficulty: 'medium' },
+      { title: 'Check Palindrome', description: 'Return whether a string reads the same forwards and backwards.', topic: 'Strings', difficulty: 'medium' },
+      { title: 'GCD of Two Numbers', description: 'Compute the greatest common divisor of two integers using the Euclidean algorithm.', topic: 'Algorithms', difficulty: 'medium' },
+      { title: 'Merge Two Sorted Arrays', description: 'Merge two sorted arrays into a single sorted array.', topic: 'Arrays', difficulty: 'hard' },
+      { title: 'Word Frequency Count', description: 'Given a sentence, print how many times each word appears.', topic: 'Strings', difficulty: 'hard' },
+      { title: 'Matrix Transpose', description: 'Given a 2D matrix, produce and print its transpose.', topic: 'Arrays', difficulty: 'hard' },
+      { title: 'Second Largest in Array', description: 'Find the second-largest distinct value in an array.', topic: 'Arrays', difficulty: 'medium' },
+      { title: 'Recursive Power', description: 'Compute a raised to the power b using recursion.', topic: 'Recursion', difficulty: 'medium' },
+      { title: 'Find Duplicate in Array', description: 'Return the first value that appears more than once in an array.', topic: 'Arrays', difficulty: 'hard' },
     ],
   };
 
-  const langTemplates = templates[language] || templates.python;
+  // Simple, language-appropriate starter stubs (AI evaluates the final code).
+  const STUBS = {
+    python: (title) => `# ${title}\n# Write your solution below\n`,
+    java: (title) => `public class Solution {\n    public static void main(String[] args) {\n        // ${title}\n        // Write your solution here\n    }\n}\n`,
+    c: (title) => `#include <stdio.h>\n\nint main() {\n    // ${title}\n    // Write your solution here\n    return 0;\n}\n`,
+  };
 
-  // Cycle through the templates until we reach `count`, labelling repeats as
-  // practice variants so the user still receives a full set of tasks.
+  const problems = PROBLEMS[level];
+  const makeStub = STUBS[language] || STUBS.python;
+
+  const limit = Math.min(count, problems.length);
   const out = [];
-  for (let i = 0; i < count; i++) {
-    const q = langTemplates[i % langTemplates.length];
-    const variant = Math.floor(i / langTemplates.length);
+  for (let i = 0; i < limit; i++) {
+    const p = problems[i];
     out.push({
       taskId: `${language}-real-${i + 1}`,
-      title: variant > 0 ? `${q.title} (Practice ${variant + 1})` : q.title,
-      description: q.description,
-      explanation: `Problem: ${q.description}\n\nApproach: Think step by step. Consider edge cases.`,
-      difficulty: q.difficulty,
-      topic: q.topic,
-      starterCode: q.starterCode,
-      testCases: q.testCases || [],
+      title: p.title,
+      description: p.description,
+      explanation: `Problem: ${p.description}\n\nApproach: Break it into small steps and test with simple inputs first.`,
+      difficulty: p.difficulty,
+      topic: p.topic,
+      starterCode: makeStub(p.title),
+      testCases: [],
       hints: [
-        { hint: 'Read the problem carefully', difficulty: 'light' },
-        { hint: 'Start with simple cases', difficulty: 'medium' },
-        { hint: 'Think about edge cases', difficulty: 'heavy' },
+        { hint: 'Read the problem carefully and note the expected output', difficulty: 'light' },
+        { hint: 'Start with the simplest input, then handle the rest', difficulty: 'medium' },
+        { hint: 'Check edge cases before finishing', difficulty: 'heavy' },
       ],
       proficiencyLevel,
       order: i + 1,

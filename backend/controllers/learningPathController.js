@@ -638,7 +638,7 @@ exports.submitQuiz = async (req, res) => {
       attempts: quiz.attempts,
       message: passed
         ? '🎉 Quiz passed! You are ready to advance to the next set of questions.'
-        : `Score ${totalScore}/100 — you need ${QUIZ_PASS_SCORE} to pass. Review and re-practice the 15 tasks, then try again.`,
+        : `Score ${totalScore}/100 — you need ${QUIZ_PASS_SCORE} to pass. Review and re-practice the ${languagePath.tasks.length} tasks, then try again.`,
     });
   } catch (error) {
     console.error('❌ submitQuiz error:', error.message);
