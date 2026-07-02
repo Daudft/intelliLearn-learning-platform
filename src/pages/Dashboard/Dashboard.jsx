@@ -26,17 +26,21 @@ function getLangEmoji(l) {
   return ({ python: "🐍", java: "☕", c: "⚙️" })[l?.toLowerCase()] || "💻";
 }
 
-function getLangColor(l) {
-  return ({ python: "#3b82f6", java: "#f59e0b", c: "#8b5cf6" })[l?.toLowerCase()] || "#a3e635";
+function getLangColor() {
+  // Monochrome theme — every language uses the same near-black accent.
+  return "#111111";
 }
 
 /* ─── Proficiency Level Configuration ─── */
+const MONO_COLOR = "#111111";
+const MONO_GRADIENT = "linear-gradient(135deg, #1a1a1a 0%, #3d3d3d 100%)";
+
 const PROFICIENCY_CONFIG = {
   beginner: {
     name: "Beginner",
     icon: Compass,
-    color: "#3b82f6",
-    bgGradient: "linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)",
+    color: MONO_COLOR,
+    bgGradient: MONO_GRADIENT,
     description: "Starting your coding journey",
     minXP: 0,
     maxXP: 1000,
@@ -47,8 +51,8 @@ const PROFICIENCY_CONFIG = {
   intermediate: {
     name: "Intermediate",
     icon: Rocket,
-    color: "#f59e0b",
-    bgGradient: "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
+    color: MONO_COLOR,
+    bgGradient: MONO_GRADIENT,
     description: "Building solid foundations",
     minXP: 1000,
     maxXP: 3000,
@@ -59,8 +63,8 @@ const PROFICIENCY_CONFIG = {
   advanced: {
     name: "Advanced",
     icon: Mountain,
-    color: "#8b5cf6",
-    bgGradient: "linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)",
+    color: MONO_COLOR,
+    bgGradient: MONO_GRADIENT,
     description: "Mastering complex concepts",
     minXP: 3000,
     maxXP: 6000,
@@ -71,8 +75,8 @@ const PROFICIENCY_CONFIG = {
   expert: {
     name: "Expert",
     icon: Crown,
-    color: "#ec4899",
-    bgGradient: "linear-gradient(135deg, #ec4899 0%, #f472b6 100%)",
+    color: MONO_COLOR,
+    bgGradient: MONO_GRADIENT,
     description: "Ready for real-world challenges",
     minXP: 6000,
     maxXP: 10000,
@@ -83,8 +87,8 @@ const PROFICIENCY_CONFIG = {
   master: {
     name: "Master",
     icon: Trophy,
-    color: "#fbbf24",
-    bgGradient: "linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%)",
+    color: MONO_COLOR,
+    bgGradient: MONO_GRADIENT,
     description: "Elite problem solver",
     minXP: 10000,
     maxXP: Infinity,
@@ -97,27 +101,30 @@ const PROFICIENCY_CONFIG = {
 /* ─── StatusPill ─── */
 function StatusPill({ status }) {
   const map = {
-    completed: { bg:"rgba(52,211,153,0.15)", color:"#059669", icon: <CheckCircle2 size={10} /> },
-    unlocked:  { bg:"rgba(163,230,53,0.15)", color:"#7c3aed", icon: <Circle size={10} /> },
-    locked:    { bg:"rgba(0,0,0,0.06)", color:"rgba(0,0,0,0.4)", icon: <Lock size={10} /> },
+    completed: { bg:"#0a0a0a", color:"#ffffff", border:"1px solid #0a0a0a", icon: <CheckCircle2 size={10} /> },
+    unlocked:  { bg:"#ffffff", color:"#0a0a0a", border:"1px solid #0a0a0a", icon: <Circle size={10} /> },
+    locked:    { bg:"#f2f2f2", color:"rgba(0,0,0,0.4)", border:"1px solid #e6e6e6", icon: <Lock size={10} /> },
   };
-  const { bg, color, icon } = map[status] || map.locked;
+  const { bg, color, border, icon } = map[status] || map.locked;
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"3px 10px",
-      borderRadius:99, fontSize:11, fontWeight:700, background: bg, color }}>
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"4px 10px",
+      fontSize:11, fontWeight:700, background: bg, color, border,
+      textTransform:"uppercase", letterSpacing:"0.05em" }}>
       {icon} {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
 }
 
-/* ─── Glass card ─── */
+const DISPLAY_FONT = "'Space Grotesk', system-ui, sans-serif";
+
+/* ─── Card (sharp, white, hairline border) ─── */
 function Glass({ children, className = "", style = {} }) {
   return (
     <div className={className} style={{
-      background:"rgba(255,255,255,0.7)",
-      backdropFilter:"blur(24px)", WebkitBackdropFilter:"blur(24px)",
-      boxShadow:"0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
-      borderRadius:20, padding:24, border:"1px solid rgba(163,230,53,0.1)", ...style,
+      background:"#ffffff",
+      boxShadow:"0 1px 2px rgba(0,0,0,0.04)",
+      border:"1px solid #e6e6e6",
+      padding:24, ...style,
     }}>
       {children}
     </div>
@@ -125,7 +132,7 @@ function Glass({ children, className = "", style = {} }) {
 }
 
 /* ─── Circular progress ring ─── */
-function Ring({ pct = 0, size = 52, stroke = 4, color = "#a3e635" }) {
+function Ring({ pct = 0, size = 52, stroke = 4, color = "#0a0a0a" }) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
@@ -183,14 +190,14 @@ function XPProgressBar({ xp, nextLevelXP }) {
     <div style={{ marginTop: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
         <span style={{ fontSize: 11, color: "rgba(0,0,0,0.5)", fontWeight: 600 }}>XP Progress</span>
-        <span style={{ fontSize: 11, color: "#7c3aed", fontWeight: 700 }}>{xp} / {nextLevelXP} XP</span>
+        <span style={{ fontSize: 11, color: "#111111", fontWeight: 700 }}>{xp} / {nextLevelXP} XP</span>
       </div>
       <div style={{ height: 6, borderRadius: 99, background: "rgba(0,0,0,0.08)", overflow: "hidden" }}>
         <div style={{
           height: "100%",
           borderRadius: 99,
           width: `${progress}%`,
-          background: "linear-gradient(90deg, #a3e635, #34d399)",
+          background: "linear-gradient(90deg, #0a0a0a, #111111)",
           transition: "width 0.5s ease"
         }} />
       </div>
@@ -361,7 +368,7 @@ export default function Dashboard() {
     <div style={{ minHeight:"100vh", display:"grid", placeItems:"center", background: pageBg }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ textAlign:"center" }}>
-        <div style={{ width:36, height:36, borderRadius:"50%", border:"2px solid rgba(163,230,53,0.5)",
+        <div style={{ width:36, height:36, borderRadius:"50%", border:"2px solid rgba(0,0,0,0.5)",
           borderTopColor:"transparent", animation:"spin .8s linear infinite", margin:"0 auto" }} />
         <p style={{ marginTop:16, color:"rgba(0,0,0,0.4)", fontSize:13, fontFamily:"system-ui" }}>Loading your learning journey...</p>
       </div>
@@ -376,7 +383,7 @@ export default function Dashboard() {
         <p style={{ margin:0, color:"#0a1a0a", fontWeight:800, fontSize:18, fontFamily:"system-ui" }}>Something went wrong</p>
         <p style={{ margin:"10px 0 0", color:"rgba(0,0,0,0.5)", fontSize:13, fontFamily:"system-ui" }}>{error}</p>
         <button onClick={() => window.location.reload()} style={{ marginTop:24, padding:"11px 28px",
-          borderRadius:12, background:"#a3e635", fontWeight:800, fontSize:13, color:"#0a1a0a", border:"none", cursor:"pointer" }}>
+          borderRadius:12, background:"#0a0a0a", fontWeight:800, fontSize:13, color:"#ffffff", border:"none", cursor:"pointer" }}>
           Try again
         </button>
       </div>
@@ -387,103 +394,96 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", background: pageBg,
-      fontFamily:"'DM Sans', system-ui, sans-serif", position:"relative" }}>
+      fontFamily:"'Inter', system-ui, sans-serif", position:"relative" }}>
 
       {/* Ambient orbs */}
       <div style={{ position:"fixed", top:-140, left:180, width:520, height:520, borderRadius:"50%",
-        background:"radial-gradient(circle, rgba(163,230,53,0.05) 0%, transparent 68%)",
+        background:"radial-gradient(circle, rgba(0,0,0,0.05) 0%, transparent 68%)",
         pointerEvents:"none", zIndex:0 }} />
       <div style={{ position:"fixed", bottom:-100, right:60, width:440, height:440, borderRadius:"50%",
-        background:"radial-gradient(circle, rgba(52,211,153,0.03) 0%, transparent 68%)",
+        background:"radial-gradient(circle, rgba(0,0,0,0.03) 0%, transparent 68%)",
         pointerEvents:"none", zIndex:0 }} />
 
       <style>{`
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:4px}
         ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:rgba(163,230,53,0.4);border-radius:4px}
-        .nav-item{transition:all .2s ease}
-        .nav-item:hover{background:rgba(163,230,53,0.1)!important;transform:translateX(4px)}
-        .stat-card{transition:transform .2s,box-shadow .2s}
-        .stat-card:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(0,0,0,0.1),inset 0 1px 0 rgba(255,255,255,0.5)!important}
-        .task-row{transition:all .2s ease}
-        .task-row:hover{transform:translateX(8px);background:rgba(163,230,53,0.08)!important}
+        ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.4);border-radius:4px}
+        .side-item{transition:all .18s ease}
+        .stat-card{transition:transform .2s,border-color .2s,box-shadow .2s}
+        .stat-card:hover{transform:translateY(-3px);border-color:#0a0a0a!important;box-shadow:0 14px 30px rgba(0,0,0,0.10)!important}
+        .task-row{transition:all .18s ease}
+        .task-row:hover{border-color:#0a0a0a!important}
         .continue-btn{transition:transform .15s, box-shadow .15s}
-        .continue-btn:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(163,230,53,0.35)!important}
+        .continue-btn:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(0,0,0,0.35)!important}
         @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
         .fade-up{animation:fadeUp .38s ease both}
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
-        @keyframes glow{0%,100%{box-shadow:0 0 5px rgba(163,230,53,0.2)}50%{box-shadow:0 0 20px rgba(163,230,53,0.4)}}
+        @keyframes glow{0%,100%{box-shadow:0 0 5px rgba(0,0,0,0.2)}50%{box-shadow:0 0 20px rgba(0,0,0,0.4)}}
         .glow-animation{animation:glow 2s ease-in-out infinite}
       `}</style>
 
-      {/* ══ SIDEBAR ══ */}
+      {/* ══ SIDEBAR (solid black) ══ */}
       <aside style={{
-        position:"fixed", left:0, top:0, width:260, height:"100vh",
+        position:"fixed", left:0, top:0, width:264, height:"100vh",
         display:"flex", flexDirection:"column", zIndex:20,
-        background:"rgba(255,255,255,0.85)",
-        backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)",
-        boxShadow:"1px 0 0 rgba(0,0,0,0.05), 12px 0 48px rgba(0,0,0,0.08)",
+        background:"#0a0a0a", color:"#fff",
       }}>
-        <div style={{ padding:"30px 24px 26px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:36, height:36, borderRadius:11, background:"#a3e635",
-              display:"grid", placeItems:"center", flexShrink:0,
-              boxShadow:"0 4px 14px rgba(163,230,53,0.35)" }}>
-              <BookOpen size={17} color="#0a1a0a" />
-            </div>
-            <span style={{ color:"#0a1a0a", fontWeight:900, fontSize:17, letterSpacing:"-0.025em" }}>IntelliLearn</span>
+        <div style={{ padding:"32px 24px 28px" }}>
+          <div style={{ display:"flex", alignItems:"baseline", gap:0 }}>
+            <span style={{ color:"#fff", fontWeight:700, fontSize:20, letterSpacing:"-0.02em", fontFamily:DISPLAY_FONT }}>Intelli</span>
+            <span style={{ color:"rgba(255,255,255,0.55)", fontWeight:600, fontSize:20, letterSpacing:"-0.02em", fontFamily:DISPLAY_FONT }}>Learn</span>
           </div>
         </div>
 
-        <nav style={{ flex:1, padding:"4px 12px", display:"flex", flexDirection:"column", gap:2 }}>
-          <p style={{ color:"rgba(0,0,0,0.4)", fontSize:10, fontWeight:700,
-            letterSpacing:"0.18em", textTransform:"uppercase", padding:"0 12px", margin:"0 0 10px" }}>Menu</p>
+        <nav style={{ flex:1, padding:"4px 14px", display:"flex", flexDirection:"column", gap:4 }}>
+          <p style={{ color:"rgba(255,255,255,0.35)", fontSize:10, fontWeight:700,
+            letterSpacing:"0.22em", textTransform:"uppercase", padding:"0 14px", margin:"0 0 12px" }}>Menu</p>
           {NAV.map(({ id, label, Icon, description }) => {
             const active = activeView === id;
             return (
-              <button key={id} className="nav-item" onClick={() => setActiveView(id)} style={{
-                width:"100%", display:"flex", alignItems:"center", gap:11,
-                padding:"11px 14px", borderRadius:13, border:"none", cursor:"pointer", textAlign:"left",
-                background: active ? "rgba(163,230,53,0.2)" : "transparent",
-                color: active ? "#7c3aed" : "rgba(0,0,0,0.5)",
-                fontWeight: active ? 700 : 500, fontSize:14,
-                boxShadow: active ? "inset 0 0 0 1px rgba(163,230,53,0.3)" : "none",
+              <button key={id} className="side-item" onClick={() => setActiveView(id)} style={{
+                width:"100%", display:"flex", alignItems:"center", gap:12,
+                padding:"12px 14px", border:"none", cursor:"pointer", textAlign:"left",
+                background: active ? "#ffffff" : "transparent",
+                color: active ? "#0a0a0a" : "rgba(255,255,255,0.6)",
+                fontWeight: active ? 700 : 500, fontSize:14, transition:"all .18s ease",
               }}>
-                <Icon size={16} />
+                <Icon size={17} />
                 <div style={{ flex:1, textAlign:"left" }}>
-                  <div>{label}</div>
+                  <div style={{ fontFamily: active ? DISPLAY_FONT : "inherit" }}>{label}</div>
                   <div style={{ fontSize:10, opacity:0.6 }}>{description}</div>
                 </div>
-                {active && <ChevronRight size={13} />}
+                {active && <ChevronRight size={14} />}
               </button>
             );
           })}
         </nav>
 
-        <div style={{ padding:"16px 12px 24px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:11, padding:"10px 14px", marginBottom:4 }}>
-            <div style={{ width:36, height:36, borderRadius:"50%", background:"#a3e635",
-              display:"grid", placeItems:"center", fontWeight:900, fontSize:14,
-              color:"#0a1a0a", flexShrink:0, boxShadow:"0 4px 12px rgba(163,230,53,0.3)" }}>
+        <div style={{ padding:"16px 14px 24px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:11, padding:"12px 14px", marginBottom:6,
+            border:"1px solid rgba(255,255,255,0.12)" }}>
+            <div style={{ width:36, height:36, borderRadius:"50%", background:"#fff",
+              display:"grid", placeItems:"center", fontWeight:800, fontSize:14,
+              color:"#0a0a0a", flexShrink:0 }}>
               {initial}
             </div>
             <div style={{ minWidth:0 }}>
-              <p style={{ margin:0, color:"#0a1a0a", fontWeight:700, fontSize:13,
+              <p style={{ margin:0, color:"#fff", fontWeight:700, fontSize:13,
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                 {user?.name || "Learner"}
               </p>
-              <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11,
+              <p style={{ margin:0, color:"rgba(255,255,255,0.5)", fontSize:11,
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                 {user?.email || ""}
               </p>
             </div>
           </div>
-          <button className="nav-item" onClick={logout} style={{
-            width:"100%", display:"flex", alignItems:"center", gap:11,
-            padding:"11px 14px", borderRadius:13, border:"none", cursor:"pointer",
-            background:"transparent", color:"rgba(0,0,0,0.4)", fontWeight:500, fontSize:14,
+          <button className="side-item" onClick={logout} style={{
+            width:"100%", display:"flex", alignItems:"center", gap:12,
+            padding:"12px 14px", border:"none", cursor:"pointer",
+            background:"transparent", color:"rgba(255,255,255,0.5)", fontWeight:500, fontSize:14,
           }}>
             <LogOut size={15} /> Sign out
           </button>
@@ -491,9 +491,35 @@ export default function Dashboard() {
       </aside>
 
       {/* ══ MAIN ══ */}
-      <main style={{ marginLeft:260, flex:1, minHeight:"100vh",
-        padding:"44px 52px", position:"relative", zIndex:1 }}>
-        <div style={{ maxWidth:960, margin:"0 auto" }}>
+      <main style={{ marginLeft:264, flex:1, minHeight:"100vh",
+        padding:"40px 52px", position:"relative", zIndex:1 }}>
+        <div style={{ maxWidth:1000, margin:"0 auto" }}>
+
+          {/* ── TOP GREETING BAR (dashboard only) ── */}
+          <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between",
+            gap:16, marginBottom:28, flexWrap:"wrap" }}>
+            <div>
+              <p style={{ margin:0, color:"rgba(0,0,0,0.45)", fontSize:12, fontWeight:600,
+                textTransform:"uppercase", letterSpacing:"0.18em" }}>
+                {activeView === "dashboard" ? "Overview" : activeView === "learningPath" ? "Your roadmap" : activeView === "progress" ? "Your journey" : "Test skills"}
+              </p>
+              <h1 style={{ margin:"6px 0 0", color:"#0a0a0a", fontSize:32, fontWeight:700,
+                letterSpacing:"-0.03em", fontFamily:DISPLAY_FONT, lineHeight:1 }}>
+                {activeView === "dashboard" ? `Welcome back, ${user?.name?.split(" ")[0] || "Learner"}` :
+                 activeView === "progress" ? "Progress" :
+                 activeView === "assessment" ? "Skill Assessment" : "Learning Path"}
+              </h1>
+            </div>
+            <div style={{ display:"inline-flex", alignItems:"center", gap:10, padding:"10px 16px",
+              background:"#0a0a0a", color:"#fff" }}>
+              <span style={{ fontSize:16 }}>{s.levelConfig.badge}</span>
+              <div style={{ lineHeight:1.15 }}>
+                <div style={{ fontSize:9, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.14em", fontWeight:700 }}>Level</div>
+                <div style={{ fontSize:13, fontWeight:700, fontFamily:DISPLAY_FONT }}>{s.levelConfig.name}</div>
+              </div>
+            </div>
+          </div>
+
 
           {/* ── DASHBOARD ── */}
           {activeView === "dashboard" && (
@@ -568,7 +594,7 @@ export default function Dashboard() {
                       fontWeight:900, 
                       fontSize:20,
                       letterSpacing:"-0.02em",
-                      background: `linear-gradient(135deg, ${s.levelConfig.color}, #7c3aed)`,
+                      background: `linear-gradient(135deg, ${s.levelConfig.color}, #111111)`,
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       backgroundClip: "text"
@@ -671,7 +697,7 @@ export default function Dashboard() {
                         height: "100%",
                         borderRadius: 50,
                         width: `${(s.xp / s.nextLevelXP) * 100}%`,
-                        background: `linear-gradient(90deg, ${s.levelConfig.color}, #34d399)`,
+                        background: `linear-gradient(90deg, ${s.levelConfig.color}, #111111)`,
                         transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
                         boxShadow: `0 0 12px ${s.levelConfig.color}60`
                       }} />
@@ -722,7 +748,7 @@ export default function Dashboard() {
                   position:"relative", 
                   overflow:"hidden",
                   background: `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%),
-                               linear-gradient(45deg, rgba(251,146,60,0.08), rgba(251,146,60,0.02))`,
+                               linear-gradient(45deg, rgba(0,0,0,0.08), rgba(0,0,0,0.02))`,
                   backdropFilter: "blur(24px)",
                   WebkitBackdropFilter: "blur(24px)"
                 }}>
@@ -732,7 +758,7 @@ export default function Dashboard() {
                     top: -40, right: -40, 
                     width:200, height:200, 
                     borderRadius:"50%", 
-                    background:"radial-gradient(circle, rgba(251,146,60,0.15) 0%, transparent 70%)",
+                    background:"radial-gradient(circle, rgba(0,0,0,0.15) 0%, transparent 70%)",
                     animation: "pulse 4s ease-in-out infinite", 
                     pointerEvents: "none",
                     zIndex: 0
@@ -746,14 +772,14 @@ export default function Dashboard() {
                         width:52, height:52, 
                         borderRadius:14, 
                         flexShrink:0,
-                        background: "linear-gradient(135deg, rgba(251,146,60,0.2), rgba(251,146,60,0.1))",
-                        border: "1.5px solid rgba(251,146,60,0.3)",
+                        background: "linear-gradient(135deg, rgba(0,0,0,0.2), rgba(0,0,0,0.1))",
+                        border: "1.5px solid rgba(0,0,0,0.3)",
                         display:"grid", 
                         placeItems:"center",
-                        boxShadow: "0 8px 24px rgba(251,146,60,0.15)",
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
                         position: "relative"
                       }}>
-                        <Flame size={24} color="#fb923c" />
+                        <Flame size={24} color="#111111" />
                         <div style={{ 
                           position: "absolute", 
                           inset: 0, 
@@ -773,7 +799,7 @@ export default function Dashboard() {
                         }}>Learning Streak</p>
                         <p style={{ 
                           margin:"4px 0 0", 
-                          color:"#fb923c", 
+                          color:"#111111", 
                           fontWeight:900, 
                           fontSize:28,
                           letterSpacing:"-0.02em",
@@ -786,14 +812,14 @@ export default function Dashboard() {
                         textAlign: "center",
                         padding: "8px 12px",
                         borderRadius: 10,
-                        background: "rgba(251,146,60,0.1)",
-                        border: "1px solid rgba(251,146,60,0.2)"
+                        background: "rgba(0,0,0,0.1)",
+                        border: "1px solid rgba(0,0,0,0.2)"
                       }}>
                         <p style={{ margin: 0, fontSize: 9, color: "rgba(0,0,0,0.4)", fontWeight: 600 }}>to perfect</p>
                         <p style={{ 
                           margin: "2px 0 0", 
                           fontSize: 12, 
-                          color: "#fb923c", 
+                          color: "#111111", 
                           fontWeight: 900,
                           letterSpacing: "-0.01em"
                         }}>
@@ -824,10 +850,10 @@ export default function Dashboard() {
                             borderRadius:"50%",
                             display:"grid", 
                             placeItems:"center",
-                            background: inStreak ? "#fb923c"
+                            background: inStreak ? "#111111"
                               : "rgba(0,0,0,0.06)",
                             border: isToday ? "2px solid rgba(255,255,255,0.6)" : "none",
-                            boxShadow: isToday ? "0 5px 16px rgba(251,146,60,0.3), inset 0 1px 3px rgba(255,255,255,0.3)" : "none",
+                            boxShadow: isToday ? "0 5px 16px rgba(0,0,0,0.3), inset 0 1px 3px rgba(255,255,255,0.3)" : "none",
                             transition:"all .3s cubic-bezier(0.34, 1.56, 0.64, 1)",
                             flexShrink: 0,
                             position: "relative",
@@ -861,10 +887,10 @@ export default function Dashboard() {
                       padding:"12px 14px", 
                       borderRadius:12, 
                       background: s.streak === 7 
-                        ? "linear-gradient(135deg, rgba(251,146,60,0.15), rgba(251,146,60,0.08))"
+                        ? "linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.08))"
                         : "rgba(0,0,0,0.03)",
                       border: s.streak === 7
-                        ? "1.5px solid rgba(251,146,60,0.3)"
+                        ? "1.5px solid rgba(0,0,0,0.3)"
                         : "1px solid rgba(0,0,0,0.06)",
                       textAlign: "center"
                     }}>
@@ -872,7 +898,7 @@ export default function Dashboard() {
                         margin: 0, 
                         fontSize: 12, 
                         fontWeight: 600,
-                        color: s.streak === 7 ? "#fb923c" : "rgba(0,0,0,0.55)",
+                        color: s.streak === 7 ? "#111111" : "rgba(0,0,0,0.55)",
                         lineHeight: 1.4
                       }}>
                         {s.streak === 1 ? "🚀 Every journey starts with a single step! Keep it up!" 
@@ -913,23 +939,23 @@ export default function Dashboard() {
                               height: 40,
                               borderRadius: 10,
                               border: "none",
-                              background: "rgba(163,230,53,0.15)",
+                              background: "rgba(0,0,0,0.15)",
                               cursor: "pointer",
                               display: "grid",
                               placeItems: "center",
                               transition: "all 0.2s ease",
-                              boxShadow: "inset 0 0 0 1px rgba(163,230,53,0.2)"
+                              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.2)"
                             }}
                             onMouseEnter={(e) => {
-                              e.target.style.background = "rgba(163,230,53,0.25)";
+                              e.target.style.background = "rgba(0,0,0,0.25)";
                               e.target.style.transform = "scale(1.05)";
                             }}
                             onMouseLeave={(e) => {
-                              e.target.style.background = "rgba(163,230,53,0.15)";
+                              e.target.style.background = "rgba(0,0,0,0.15)";
                               e.target.style.transform = "scale(1)";
                             }}
                           >
-                            <ChevronRight size={20} color="#7c3aed" style={{ transform: "rotate(180deg)" }} />
+                            <ChevronRight size={20} color="#111111" style={{ transform: "rotate(180deg)" }} />
                           </button>
                         )}
 
@@ -968,7 +994,7 @@ export default function Dashboard() {
                                   <p style={{ margin:0, color:"#0a1a0a", fontWeight:800, fontSize:18,
                                     letterSpacing:"-0.02em" }}>{langLabel}</p>
                                   <span style={{ padding:"2px 10px", borderRadius:99, fontSize:10, fontWeight:700,
-                                    background:"rgba(163,230,53,0.15)", color:"#7c3aed",
+                                    background:"rgba(0,0,0,0.15)", color:"#111111",
                                     textTransform:"uppercase", letterSpacing:"0.08em" }}>{levelConfig.name}</span>
                                   <span style={{ fontSize: 12 }}>{levelConfig.badge}</span>
                                 </div>
@@ -980,7 +1006,7 @@ export default function Dashboard() {
                                 <div style={{ height:6, borderRadius:99, background:"rgba(0,0,0,0.08)",
                                   overflow:"hidden", maxWidth:320 }}>
                                   <div style={{ height:"100%", borderRadius:99, width:`${pct}%`,
-                                    background:`linear-gradient(90deg, ${langColor}, #34d399)`,
+                                    background:`linear-gradient(90deg, ${langColor}, #111111)`,
                                     transition:"width 1s cubic-bezier(.4,0,.2,1)" }} />
                                 </div>
                               </div>
@@ -999,13 +1025,13 @@ export default function Dashboard() {
 
                                 <button className="continue-btn" onClick={() => navigate("/learning-path")} style={{
                                   padding:"12px 22px", borderRadius:12, border:"none", cursor:"pointer",
-                                  background:`linear-gradient(135deg, #a3e635, #84cc16)`,
-                                  color:"#0a1a0a", fontWeight:800, fontSize:14,
+                                  background:`linear-gradient(135deg, #0a0a0a, #000000)`,
+                                  color:"#ffffff", fontWeight:800, fontSize:14,
                                   display:"inline-flex", alignItems:"center", gap:8,
-                                  boxShadow:"0 8px 24px rgba(163,230,53,0.3)",
+                                  boxShadow:"0 8px 24px rgba(0,0,0,0.3)",
                                   whiteSpace:"nowrap",
                                 }}>
-                                  <Play size={14} fill="#0a1a0a" /> Continue Learning
+                                  <Play size={14} fill="#ffffff" /> Continue Learning
                                 </button>
                               </div>
                             </div>
@@ -1022,23 +1048,23 @@ export default function Dashboard() {
                               height: 40,
                               borderRadius: 10,
                               border: "none",
-                              background: "rgba(163,230,53,0.15)",
+                              background: "rgba(0,0,0,0.15)",
                               cursor: "pointer",
                               display: "grid",
                               placeItems: "center",
                               transition: "all 0.2s ease",
-                              boxShadow: "inset 0 0 0 1px rgba(163,230,53,0.2)"
+                              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.2)"
                             }}
                             onMouseEnter={(e) => {
-                              e.target.style.background = "rgba(163,230,53,0.25)";
+                              e.target.style.background = "rgba(0,0,0,0.25)";
                               e.target.style.transform = "scale(1.05)";
                             }}
                             onMouseLeave={(e) => {
-                              e.target.style.background = "rgba(163,230,53,0.15)";
+                              e.target.style.background = "rgba(0,0,0,0.15)";
                               e.target.style.transform = "scale(1)";
                             }}
                           >
-                            <ChevronRight size={20} color="#7c3aed" />
+                            <ChevronRight size={20} color="#111111" />
                           </button>
                         )}
                       </div>
@@ -1055,10 +1081,10 @@ export default function Dashboard() {
                                 height: 8,
                                 borderRadius: 4,
                                 border: "none",
-                                background: currentLearningIndex === index ? "#a3e635" : "rgba(0,0,0,0.15)",
+                                background: currentLearningIndex === index ? "#0a0a0a" : "rgba(0,0,0,0.15)",
                                 cursor: "pointer",
                                 transition: "all 0.3s ease",
-                                boxShadow: currentLearningIndex === index ? "0 4px 12px rgba(163,230,53,0.3)" : "none"
+                                boxShadow: currentLearningIndex === index ? "0 4px 12px rgba(0,0,0,0.3)" : "none"
                               }}
                             />
                           ))}
@@ -1074,7 +1100,7 @@ export default function Dashboard() {
                           <div style={{ margin:"20px 0 0", padding:"12px 16px", borderRadius:12,
                             background:"rgba(0,0,0,0.04)",
                             display:"flex", alignItems:"center", gap:12 }}>
-                            <div style={{ width:8, height:8, borderRadius:"50%", background:"#a3e635",
+                            <div style={{ width:8, height:8, borderRadius:"50%", background:"#0a0a0a",
                               flexShrink:0, animation:"pulse 2s ease-in-out infinite" }} />
                             <div style={{ flex:1, minWidth:0 }}>
                               <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:10, fontWeight:700,
@@ -1113,7 +1139,7 @@ export default function Dashboard() {
                 const pct = qTotal ? Math.round((qDone / qTotal) * 100) : 0;
                 const btnStyle = {
                   padding: "11px 22px", borderRadius: 10, border: "none", cursor: "pointer",
-                  background: "linear-gradient(135deg, #a3e635, #84cc16)", color: "#0a1a0a",
+                  background: "linear-gradient(135deg, #0a0a0a, #000000)", color: "#ffffff",
                   fontWeight: 800, fontSize: 13, whiteSpace: "nowrap",
                 };
 
@@ -1122,10 +1148,10 @@ export default function Dashboard() {
                     <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                       <div style={{
                         width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                        background: qAllDone ? (passed ? "linear-gradient(135deg,#34d399,#10b981)" : "linear-gradient(135deg,#a3e635,#84cc16)") : "rgba(0,0,0,0.06)",
+                        background: qAllDone ? (passed ? "linear-gradient(135deg,#111111,#000000)" : "linear-gradient(135deg,#0a0a0a,#000000)") : "rgba(0,0,0,0.06)",
                         display: "grid", placeItems: "center",
                       }}>
-                        {qAllDone ? <Award size={24} color="#0a1a0a" /> : <Lock size={22} color="rgba(0,0,0,0.4)" />}
+                        {qAllDone ? <Award size={24} color="#ffffff" /> : <Lock size={22} color="rgba(0,0,0,0.4)" />}
                       </div>
 
                       <div style={{ flex: 1, minWidth: 220 }}>
@@ -1133,7 +1159,7 @@ export default function Dashboard() {
                           <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#0a1a0a" }}>Cycle Quiz</p>
                           <span style={{
                             padding: "2px 9px", borderRadius: 99, fontSize: 10, fontWeight: 700,
-                            background: "rgba(163,230,53,0.15)", color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.06em",
+                            background: "rgba(0,0,0,0.15)", color: "#111111", textTransform: "uppercase", letterSpacing: "0.06em",
                           }}>{qLabel}</span>
                         </div>
                         <p style={{ margin: 0, fontSize: 13, color: "rgba(0,0,0,0.55)", lineHeight: 1.45 }}>
@@ -1145,7 +1171,7 @@ export default function Dashboard() {
                         </p>
                         {!qAllDone && (
                           <div style={{ height: 6, borderRadius: 99, background: "rgba(0,0,0,0.08)", overflow: "hidden", marginTop: 10, maxWidth: 360 }}>
-                            <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: "linear-gradient(90deg,#a3e635,#34d399)" }} />
+                            <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: "linear-gradient(90deg,#0a0a0a,#111111)" }} />
                           </div>
                         )}
                       </div>
@@ -1176,9 +1202,9 @@ export default function Dashboard() {
               {/* ══ 3 STAT CARDS ══ */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
                 {[
-                  { label:"Quiz Mastery", value: s.quizzes,    sub:`Latest: ${s.score}`,                accent:"#60a5fa", glow:"rgba(96,165,250,0.10)",  Icon: TrendingUp, description: "Attempts to improve" },
-                  { label:"Tasks Completed",   value: s.totalTasks, sub:`${s.unlocked} unlocked`,             accent:"#a3e635", glow:"rgba(163,230,53,0.10)",  Icon: CheckCircle2, description: `${s.done} of ${s.totalTasks} done` },
-                  { label:"XP Earned",    value:`${s.xp}`,   sub:`${s.nextLevelXP - s.xp} XP to next level`, accent:"#34d399", glow:"rgba(52,211,153,0.10)", Icon: Award, description: "Total experience points" },
+                  { label:"Quiz Mastery", value: s.quizzes,    sub:`Latest: ${s.score}`,                accent:"#111111", glow:"rgba(0,0,0,0.10)",  Icon: TrendingUp, description: "Attempts to improve" },
+                  { label:"Tasks Completed",   value: s.totalTasks, sub:`${s.unlocked} unlocked`,             accent:"#0a0a0a", glow:"rgba(0,0,0,0.10)",  Icon: CheckCircle2, description: `${s.done} of ${s.totalTasks} done` },
+                  { label:"XP Earned",    value:`${s.xp}`,   sub:`${s.nextLevelXP - s.xp} XP to next level`, accent:"#111111", glow:"rgba(0,0,0,0.10)", Icon: Award, description: "Total experience points" },
                 ].map(({ label, value, sub, accent, glow, Icon, description }) => (
                   <Glass key={label} className="stat-card" style={{ padding:22 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
@@ -1246,11 +1272,6 @@ export default function Dashboard() {
           {/* ── PROGRESS (Enhanced) ── */}
           {activeView === "progress" && (
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
-              <div style={{ marginBottom:4 }}>
-                <h2 style={{ margin:0, color:"#0a1a0a", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Progress Dashboard</h2>
-                <p style={{ margin:"6px 0 0", color:"rgba(0,0,0,0.5)", fontSize:14 }}>Track your learning journey and achievements.</p>
-              </div>
-              
               {/* Proficiency Level Overview */}
               <Glass>
                 <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
@@ -1265,9 +1286,9 @@ export default function Dashboard() {
               
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
                 {[
-                  { label:"Total XP",    value: s.xp,     Icon: Award,   accent:"#fbbf24", glow:"rgba(251,191,36,0.10)", suffix: " XP" },
-                  { label:"Tasks", value: `${s.done}/${s.totalTasks}`,  Icon: CheckCircle2, accent:"#a3e635", glow:"rgba(163,230,53,0.10)", suffix: "" },
-                  { label:"Streak",  value:s.streak, Icon: Flame,         accent:"#fb923c", glow:"rgba(251,146,60,0.10)", suffix: " days" },
+                  { label:"Total XP",    value: s.xp,     Icon: Award,   accent:"#111111", glow:"rgba(0,0,0,0.10)", suffix: " XP" },
+                  { label:"Tasks", value: `${s.done}/${s.totalTasks}`,  Icon: CheckCircle2, accent:"#0a0a0a", glow:"rgba(0,0,0,0.10)", suffix: "" },
+                  { label:"Streak",  value:s.streak, Icon: Flame,         accent:"#111111", glow:"rgba(0,0,0,0.10)", suffix: " days" },
                 ].map(({ label, value, Icon, accent, glow, suffix }) => (
                   <Glass key={label} className="stat-card" style={{ padding:28, textAlign:"center" }}>
                     <div style={{ width:46, height:46, borderRadius:13, background: glow,
@@ -1283,11 +1304,11 @@ export default function Dashboard() {
               <Glass>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
                   <p style={{ margin:0, color:"#0a1a0a", fontWeight:700, fontSize:15 }}>Course Completion</p>
-                  <p style={{ margin:0, color:"#7c3aed", fontWeight:900, fontSize:15 }}>{s.pct}%</p>
+                  <p style={{ margin:0, color:"#111111", fontWeight:900, fontSize:15 }}>{s.pct}%</p>
                 </div>
                 <div style={{ height:8, borderRadius:99, background:"rgba(0,0,0,0.08)", overflow:"hidden" }}>
                   <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
-                    background:"linear-gradient(90deg, #a3e635, #34d399)" }} />
+                    background:"linear-gradient(90deg, #0a0a0a, #111111)" }} />
                 </div>
                 <p style={{ margin:"10px 0 0", color:"rgba(0,0,0,0.4)", fontSize:13 }}>
                   {s.done} of {s.totalTasks} tasks completed
@@ -1316,10 +1337,6 @@ export default function Dashboard() {
 
             return (
               <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
-                <div style={{ marginBottom:4 }}>
-                  <h2 style={{ margin:0, color:"#0a1a0a", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Skill Assessment</h2>
-                  <p style={{ margin:"6px 0 0", color:"rgba(0,0,0,0.5)", fontSize:14 }}>Test your knowledge and advance your proficiency level.</p>
-                </div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
                   {/* Last Score Card */}
                   <Glass className="stat-card">
@@ -1328,7 +1345,7 @@ export default function Dashboard() {
                         textTransform:"uppercase", letterSpacing:"0.16em" }}>Last Score</p>
                       <span style={{ fontSize: 20 }}>📊</span>
                     </div>
-                    <p style={{ margin:0, color:"#60a5fa", fontSize:28, fontWeight:900, letterSpacing:"-0.03em" }}>
+                    <p style={{ margin:0, color:"#111111", fontSize:28, fontWeight:900, letterSpacing:"-0.03em" }}>
                       {lastScore}/{totalQuestions}
                     </p>
                     <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
@@ -1336,7 +1353,7 @@ export default function Dashboard() {
                         width: 6,
                         height: 6,
                         borderRadius: "50%",
-                        background: lastPercentage >= 80 ? "#22c55e" : lastPercentage >= 60 ? "#fb923c" : "#ef4444"
+                        background: lastPercentage >= 80 ? "#111111" : lastPercentage >= 60 ? "#111111" : "#555555"
                       }} />
                       <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:12, fontWeight: 600 }}>
                         {lastPercentage}%
@@ -1351,7 +1368,7 @@ export default function Dashboard() {
                         textTransform:"uppercase", letterSpacing:"0.16em" }}>Best Score</p>
                       <span style={{ fontSize: 20 }}>🏆</span>
                     </div>
-                    <p style={{ margin:0, color:"#34d399", fontSize:28, fontWeight:900, letterSpacing:"-0.03em" }}>
+                    <p style={{ margin:0, color:"#111111", fontSize:28, fontWeight:900, letterSpacing:"-0.03em" }}>
                       {bestScore}/{totalQuestions}
                     </p>
                     <p style={{ margin:"8px 0 0", color:"rgba(0,0,0,0.5)", fontSize:12, fontWeight: 600 }}>
@@ -1386,9 +1403,9 @@ export default function Dashboard() {
                       <button onClick={() => setShowAssessmentModal(true)} style={{
                         padding: "10px 18px",
                         borderRadius: 10,
-                        border: "1px solid rgba(163,230,53,0.3)",
-                        background: "rgba(163,230,53,0.1)",
-                        color: "#7c3aed",
+                        border: "1px solid rgba(0,0,0,0.3)",
+                        background: "rgba(0,0,0,0.1)",
+                        color: "#111111",
                         fontWeight: 700,
                         fontSize: 12,
                         cursor: "pointer",
@@ -1397,11 +1414,11 @@ export default function Dashboard() {
                         transition: "all 0.2s ease"
                       }}
                       onMouseEnter={(e) => {
-                        e.target.style.background = "rgba(163,230,53,0.15)";
-                        e.target.style.boxShadow = "0 4px 12px rgba(163,230,53,0.2)";
+                        e.target.style.background = "rgba(0,0,0,0.15)";
+                        e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
                       }}
                       onMouseLeave={(e) => {
-                        e.target.style.background = "rgba(163,230,53,0.1)";
+                        e.target.style.background = "rgba(0,0,0,0.1)";
                         e.target.style.boxShadow = "none";
                       }}>
                         See All Details
@@ -1416,17 +1433,17 @@ export default function Dashboard() {
                   <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:14, lineHeight:1.65 }}>
                     Taking assessments helps us gauge your proficiency and unlock more challenging content tailored to your skill level.
                   </p>
-                  <div style={{ marginTop: 16, padding: 12, borderRadius: 12, background: "rgba(163,230,53,0.1)" }}>
-                    <p style={{ margin: 0, fontSize: 12, color: "#7c3aed", fontWeight: 600 }}>
+                  <div style={{ marginTop: 16, padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.1)" }}>
+                    <p style={{ margin: 0, fontSize: 12, color: "#111111", fontWeight: 600 }}>
                       💡 Tip: Score 80% or higher to advance to the next proficiency level!
                     </p>
                   </div>
                   <button onClick={() => navigate("/assessment")} style={{
                     marginTop:22, padding:"12px 26px", borderRadius:12, border:"none",
-                    background:"linear-gradient(135deg, #a3e635, #84cc16)",
-                    color:"#0a1a0a", fontWeight:800, fontSize:14,
+                    background:"linear-gradient(135deg, #0a0a0a, #000000)",
+                    color:"#ffffff", fontWeight:800, fontSize:14,
                     cursor:"pointer", display:"inline-flex", alignItems:"center", gap:9,
-                    boxShadow:"0 8px 24px rgba(163,230,53,0.28)",
+                    boxShadow:"0 8px 24px rgba(0,0,0,0.28)",
                   }}>
                     Start Assessment <ArrowRight size={15} />
                   </button>
@@ -1497,19 +1514,19 @@ export default function Dashboard() {
                             <div key={index} style={{
                               padding: 16,
                               borderRadius: 14,
-                              background: "linear-gradient(135deg, rgba(163,230,53,0.08), rgba(163,230,53,0.02))",
-                              border: "1px solid rgba(163,230,53,0.2)",
+                              background: "linear-gradient(135deg, rgba(0,0,0,0.08), rgba(0,0,0,0.02))",
+                              border: "1px solid rgba(0,0,0,0.2)",
                               display: "flex",
                               alignItems: "center",
                               gap: 16,
                               transition: "all 0.2s ease"
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "linear-gradient(135deg, rgba(163,230,53,0.15), rgba(163,230,53,0.05))";
-                              e.currentTarget.style.boxShadow = "0 8px 20px rgba(163,230,53,0.15)";
+                              e.currentTarget.style.background = "linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.05))";
+                              e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.15)";
                             }}
                             onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "linear-gradient(135deg, rgba(163,230,53,0.08), rgba(163,230,53,0.02))";
+                              e.currentTarget.style.background = "linear-gradient(135deg, rgba(0,0,0,0.08), rgba(0,0,0,0.02))";
                               e.currentTarget.style.boxShadow = "none";
                             }}>
                               {/* Language & Number */}
@@ -1547,13 +1564,13 @@ export default function Dashboard() {
                                 <div style={{
                                   padding: "8px 14px",
                                   borderRadius: 10,
-                                  background: percentage >= 80 ? "rgba(34,197,94,0.15)" : percentage >= 60 ? "rgba(251,146,60,0.15)" : "rgba(239,68,68,0.15)",
+                                  background: percentage >= 80 ? "rgba(0,0,0,0.15)" : percentage >= 60 ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.15)",
                                   display: "inline-block"
                                 }}>
-                                  <p style={{ margin: 0, color: percentage >= 80 ? "#22c55e" : percentage >= 60 ? "#fb923c" : "#ef4444", fontWeight: 900, fontSize: 16 }}>
+                                  <p style={{ margin: 0, color: percentage >= 80 ? "#111111" : percentage >= 60 ? "#111111" : "#555555", fontWeight: 900, fontSize: 16 }}>
                                     {score}/{total}
                                   </p>
-                                  <p style={{ margin: "2px 0 0", color: percentage >= 80 ? "#22c55e" : percentage >= 60 ? "#fb923c" : "#ef4444", fontWeight: 700, fontSize: 10 }}>
+                                  <p style={{ margin: "2px 0 0", color: percentage >= 80 ? "#111111" : percentage >= 60 ? "#111111" : "#555555", fontWeight: 700, fontSize: 10 }}>
                                     {percentage}%
                                   </p>
                                 </div>
@@ -1580,17 +1597,17 @@ export default function Dashboard() {
                       }}>
                         <div style={{ textAlign: "center" }}>
                           <p style={{ margin: 0, color: "rgba(0,0,0,0.4)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Total</p>
-                          <p style={{ margin: "6px 0 0", color: "#a3e635", fontWeight: 900, fontSize: 20 }}>{attempts.length}</p>
+                          <p style={{ margin: "6px 0 0", color: "#0a0a0a", fontWeight: 900, fontSize: 20 }}>{attempts.length}</p>
                         </div>
                         <div style={{ textAlign: "center" }}>
                           <p style={{ margin: 0, color: "rgba(0,0,0,0.4)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Best</p>
-                          <p style={{ margin: "6px 0 0", color: "#34d399", fontWeight: 900, fontSize: 20 }}>
+                          <p style={{ margin: "6px 0 0", color: "#111111", fontWeight: 900, fontSize: 20 }}>
                             {Math.max(...attempts.map(a => a.score || 0))}/{attempts[0]?.totalQuestions || 0}
                           </p>
                         </div>
                         <div style={{ textAlign: "center" }}>
                           <p style={{ margin: 0, color: "rgba(0,0,0,0.4)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Avg</p>
-                          <p style={{ margin: "6px 0 0", color: "#60a5fa", fontWeight: 900, fontSize: 20 }}>
+                          <p style={{ margin: "6px 0 0", color: "#111111", fontWeight: 900, fontSize: 20 }}>
                             {Math.round(attempts.reduce((sum, a) => sum + (a.score || 0), 0) / attempts.length || 0)}
                           </p>
                         </div>
@@ -1606,18 +1623,14 @@ export default function Dashboard() {
           {/* ── LEARNING PATH (Enhanced) ── */}
           {activeView === "learningPath" && (
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
-              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:4 }}>
-                <div>
-                  <h2 style={{ margin:0, color:"#0a1a0a", fontSize:26, fontWeight:900, letterSpacing:"-0.03em" }}>Learning Path</h2>
-                  <p style={{ margin:"6px 0 0", color:"rgba(0,0,0,0.5)", fontSize:14 }}>
-                    {s.langLabel} • {s.done}/{s.totalTasks} tasks complete • {s.levelConfig.name} Level
-                  </p>
-                </div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+                <p style={{ margin:0, color:"rgba(0,0,0,0.6)", fontSize:14 }}>
+                  {s.langLabel} • {s.done}/{s.totalTasks} tasks complete • {s.levelConfig.name} Level
+                </p>
                 <button onClick={() => navigate("/learning-path")} style={{
-                  padding:"10px 20px", borderRadius:12, border:"none", cursor:"pointer",
-                  background:"rgba(163,230,53,0.15)", color:"#7c3aed", fontWeight:700, fontSize:13,
+                  padding:"10px 20px", border:"1px solid #0a0a0a", cursor:"pointer",
+                  background:"#ffffff", color:"#0a0a0a", fontWeight:700, fontSize:13,
                   display:"inline-flex", alignItems:"center", gap:8,
-                  boxShadow:"inset 0 0 0 1px rgba(163,230,53,0.2)",
                 }}>
                   Full View <ArrowRight size={14} />
                 </button>
@@ -1625,7 +1638,7 @@ export default function Dashboard() {
 
               <div style={{ height:6, borderRadius:99, background:"rgba(0,0,0,0.08)", overflow:"hidden" }}>
                 <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
-                  background:"linear-gradient(90deg, #a3e635, #34d399)" }} />
+                  background:"linear-gradient(90deg, #0a0a0a, #111111)" }} />
               </div>
 
               {!learningPaths.length ? (
@@ -1635,9 +1648,9 @@ export default function Dashboard() {
                   <p style={{ margin:"7px 0 0", color:"rgba(0,0,0,0.4)", fontSize:13 }}>Complete an assessment to generate your personalized learning path.</p>
                   <button onClick={() => setActiveView("assessment")} style={{
                     marginTop:22, padding:"11px 26px", borderRadius:12, border:"none",
-                    background:"linear-gradient(135deg, #a3e635, #84cc16)",
-                    color:"#0a1a0a", fontWeight:800, fontSize:13, cursor:"pointer",
-                    boxShadow:"0 8px 24px rgba(163,230,53,0.28)",
+                    background:"linear-gradient(135deg, #0a0a0a, #000000)",
+                    color:"#ffffff", fontWeight:800, fontSize:13, cursor:"pointer",
+                    boxShadow:"0 8px 24px rgba(0,0,0,0.28)",
                   }}>
                     Take Assessment
                   </button>
@@ -1646,20 +1659,18 @@ export default function Dashboard() {
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {s.tasks.slice(0, 8).map((task, i) => (
                     <div key={task.taskId} className="task-row" style={{
-                      borderRadius:14, padding:"15px 20px",
+                      padding:"15px 20px",
                       display:"flex", alignItems:"center", gap:16,
-                      opacity: task.status === "locked" ? 0.42 : 1,
-                      background:"rgba(0,0,0,0.04)",
-                      backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
-                      boxShadow:"inset 0 1px 0 rgba(0,0,0,0.05)",
+                      opacity: task.status === "locked" ? 0.5 : 1,
+                      background:"#ffffff", border:"1px solid #e6e6e6",
                     }}>
                       <div style={{ width:36, height:36, borderRadius:"50%", flexShrink:0,
                         display:"grid", placeItems:"center", fontWeight:900, fontSize:13,
-                        background: task.status === "completed" ? "rgba(52,211,153,0.15)"
-                          : task.status === "unlocked" ? "rgba(163,230,53,0.15)"
+                        background: task.status === "completed" ? "rgba(0,0,0,0.15)"
+                          : task.status === "unlocked" ? "rgba(0,0,0,0.15)"
                           : "rgba(0,0,0,0.08)",
-                        color: task.status === "completed" ? "#059669"
-                          : task.status === "unlocked" ? "#7c3aed"
+                        color: task.status === "completed" ? "#111111"
+                          : task.status === "unlocked" ? "#111111"
                           : "rgba(0,0,0,0.3)" }}>
                         {task.status === "completed" ? <CheckCircle2 size={16} /> : i + 1}
                       </div>
@@ -1679,7 +1690,7 @@ export default function Dashboard() {
                         borderRadius: 8,
                         border: "none",
                         background: "transparent",
-                        color: "#7c3aed",
+                        color: "#111111",
                         fontWeight: 600,
                         fontSize: 12,
                         cursor: "pointer"

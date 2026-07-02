@@ -1,11 +1,11 @@
 import React, { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 export default function AssessmentResult() {
   const location = useLocation();
   const navigate = useNavigate();
   const result = location.state?.result;
-  const language = location.state?.language?.toLowerCase();
 
   // Redirect safely if no result found
   useEffect(() => {
@@ -21,185 +21,167 @@ export default function AssessmentResult() {
   // ensure percentage is numeric and clamped 0..100
   const percentage = Math.max(0, Math.min(100, Number.isFinite(+rawPercentage) ? Math.round(+rawPercentage) : 0));
 
-  const getLevelStyles = () => {
-    switch (proficiencyLevel) {
-      case "Beginner":
-        return {
-          bg: "from-orange-500 to-orange-600",
-          icon: "🌱",
-          message: "Great start! Keep learning and practicing to improve your skills."
-        };
-      case "Intermediate":
-        return {
-          bg: "from-blue-500 to-blue-600",
-          icon: "🚀",
-          message: "Well done! You have a solid foundation. Keep building on it!"
-        };
-      case "Advanced":
-        return {
-          bg: "from-green-500 to-green-600",
-          icon: "⭐",
-          message: "Excellent work! You have strong knowledge in this language!"
-        };
-      default:
-        return {
-          bg: "from-gray-500 to-gray-600",
-          icon: "📊",
-          message: "Assessment completed successfully!"
-        };
-    }
-  };
-
-  const levelStyles = getLevelStyles();
-
-  const handleRetakeTest = () => {
-    if (language) {
-      navigate(`/assessment/test/${language}`, { replace: true });
-    } else {
-      navigate("/assessment");
-    }
-  };
+  const levelMessage = {
+    Beginner: "Great start! Keep learning and practicing to improve your skills.",
+    Intermediate: "Well done! You have a solid foundation. Keep building on it!",
+    Advanced: "Excellent work! You have strong knowledge in this language!",
+  }[proficiencyLevel] || "Assessment completed successfully!";
 
   /**
    * SVG circle math:
-   * r = 100 (same as before), circumference = 2 * Math.PI * r
-   * strokeDasharray = `${filled} ${circumference}`
+   * r = 100, circumference = 2 * Math.PI * r
    * fill percent = (percentage / 100) * circumference
    */
   const r = 100;
-  const strokeWidth = 20;
+  const strokeWidth = 16;
   const circumference = 2 * Math.PI * r;
   const filled = (percentage / 100) * circumference;
 
+  const stats = [
+    { label: "Correct Answers", value: score, mark: "✓" },
+    { label: "Incorrect Answers", value: totalQuestions - score, mark: "✗" },
+    { label: "Total Questions", value: totalQuestions, mark: "≡" },
+  ];
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center p-4 overflow-auto">
-      <div className="max-w-5xl w-full">
-
+    <div className="h-screen bg-white flex items-center justify-center p-4 overflow-hidden">
+      <motion.div
+        className="max-w-5xl w-full"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
         {/* Main Result Card */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+        <div className="border border-gray-200 overflow-hidden shadow-[0_30px_80px_-30px_rgba(0,0,0,0.25)]">
 
-          {/* Header */}
-          <div className={`bg-linear-to-r ${levelStyles.bg} p-6 md:p-8 text-white`}>
-            <div className="text-center">
-              <div className="text-4xl md:text-5xl mb-2 md:mb-3">{levelStyles.icon}</div>
-              <h1 className="text-2xl md:text-4xl font-black mb-2">Assessment Complete!</h1>
-              <p className="text-white/90 text-sm md:text-lg max-w-2xl mx-auto">{levelStyles.message}</p>
+          {/* Header — black block with line texture + drawn emblem */}
+          <div className="relative bg-black p-5 md:p-7 text-white text-center overflow-hidden">
+            {/* diagonal line texture */}
+            <div
+              className="absolute inset-0 opacity-[0.08]"
+              style={{
+                backgroundImage:
+                  "repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 1px, transparent 11px)",
+              }}
+            />
+            {/* faint concentric rings behind the emblem */}
+            <div className="pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10" />
+            <div className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/5" />
+
+            <div className="relative">
+              {/* Line-art emblem: concentric rings + drawn checkmark */}
+              <svg viewBox="0 0 100 100" className="mx-auto mb-3 h-12 w-12" fill="none">
+                <motion.circle
+                  cx="50" cy="50" r="45" stroke="white" strokeWidth="2" opacity="0.25"
+                  initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+                  transition={{ duration: 1, ease: "easeInOut" }}
+                />
+                <motion.circle
+                  cx="50" cy="50" r="33" stroke="white" strokeWidth="2" opacity="0.5"
+                  initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+                  transition={{ duration: 1, delay: 0.15, ease: "easeInOut" }}
+                />
+                <motion.path
+                  d="M34 51 l11 11 l21 -25" stroke="white" strokeWidth="5"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+                  transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
+                />
+              </svg>
+
+              <p className="mb-1.5 text-xs uppercase tracking-[0.3em] text-white/50">Initial Assessment</p>
+              <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight mb-2">
+                Assessment Complete
+              </h1>
+              <p className="text-white/70 text-sm max-w-2xl mx-auto">
+                {levelMessage}
+              </p>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-4 md:p-8">
-            <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+          <div className="p-5 md:p-8">
+            <div className="grid md:grid-cols-2 gap-6 md:gap-8 items-center">
 
               {/* Score Circle */}
               <div className="flex flex-col items-center justify-center">
-                <div className="relative mb-4">
-                  {/* Responsive SVG: viewBox used and Tailwind controls visual size */}
+                <div className="relative mb-5">
                   <svg
                     viewBox="0 0 224 224"
-                    className="w-36 h-36 md:w-56 md:h-56"
+                    className="w-36 h-36 md:w-48 md:h-48"
                     role="img"
                     aria-label={`Score ${percentage} percent`}
                     xmlns="http://www.w3.org/2000/svg"
                   >
-                    {/* Background circle */}
-                    <circle
-                      cx="112"
-                      cy="112"
-                      r={r}
-                      stroke="#E5E7EB"
-                      strokeWidth={strokeWidth}
-                      fill="none"
-                    />
-                    {/* Foreground progress */}
-                    <circle
-                      cx="112"
-                      cy="112"
-                      r={r}
-                      stroke="#E6FF03"
-                      strokeWidth={strokeWidth}
-                      fill="none"
-                      strokeDasharray={`${filled} ${circumference}`}
+                    <circle cx="112" cy="112" r={r} stroke="#EDEDED" strokeWidth={strokeWidth} fill="none" />
+                    <motion.circle
+                      cx="112" cy="112" r={r} stroke="#000000" strokeWidth={strokeWidth} fill="none"
                       strokeLinecap="round"
+                      strokeDasharray={circumference}
                       transform="rotate(-90 112 112)"
-                      className="transition-all duration-1000"
+                      initial={{ strokeDashoffset: circumference }}
+                      animate={{ strokeDashoffset: circumference - filled }}
+                      transition={{ duration: 1.4, delay: 0.3, ease: "easeInOut" }}
                     />
                   </svg>
 
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <div className="text-3xl md:text-6xl font-black text-gray-900">{percentage}%</div>
-                    <div className="text-sm md:text-lg text-gray-500 font-medium">
+                    <motion.div
+                      className="font-display text-4xl md:text-5xl font-bold text-black tracking-tight"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5, delay: 0.6 }}
+                    >
+                      {percentage}%
+                    </motion.div>
+                    <div className="text-sm md:text-lg text-gray-400 font-medium">
                       {score}/{totalQuestions}
                     </div>
                   </div>
                 </div>
 
                 {/* Proficiency Badge */}
-                <div className={`bg-linear-to-r ${levelStyles.bg} text-white px-6 md:px-8 py-3 rounded-2xl shadow-lg`}>
-                  <div className="text-center">
-                    <div className="text-xs md:text-sm font-medium opacity-90">Your Level</div>
-                    <div className="text-lg md:text-2xl font-black">{proficiencyLevel}</div>
-                  </div>
+                <div className="bg-black text-white px-8 py-2.5 text-center">
+                  <div className="text-xs font-medium text-white/60 uppercase tracking-wide">Your Level</div>
+                  <div className="font-display text-xl md:text-2xl font-bold">{proficiencyLevel}</div>
                 </div>
               </div>
 
               {/* Stats */}
-              <div className="flex flex-col justify-center space-y-3 md:space-y-4">
-                <div className="bg-green-100 rounded-2xl p-4 md:p-6 border-green-200 border-2">
-                  <div className="flex items-center justify-between">
+              <div className="flex flex-col justify-center gap-3">
+                {stats.map((s, i) => (
+                  <motion.div
+                    key={s.label}
+                    className="group border border-gray-200 p-4 md:p-5 flex items-center justify-between transition-colors hover:border-black"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 + i * 0.12 }}
+                  >
                     <div>
-                      <div className="text-xs md:text-sm font-medium text-green-700">Correct Answers</div>
-                      <div className="text-2xl md:text-4xl font-black text-green-600">{score}</div>
+                      <div className="text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wide">{s.label}</div>
+                      <div className="font-display text-2xl md:text-3xl font-bold text-black">{s.value}</div>
                     </div>
-                    <div className="text-2xl md:text-5xl">✓</div>
-                  </div>
-                </div>
-
-                <div className="bg-red-100 rounded-2xl p-4 md:p-6 border-red-200 border-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs md:text-sm font-medium text-red-700">Incorrect Answers</div>
-                      <div className="text-2xl md:text-4xl font-black text-red-600">{totalQuestions - score}</div>
+                    <div className="flex h-10 w-10 items-center justify-center border border-gray-200 text-lg text-black transition-colors group-hover:border-black">
+                      {s.mark}
                     </div>
-                    <div className="text-2xl md:text-5xl">✗</div>
-                  </div>
-                </div>
-
-                <div className="bg-blue-100 rounded-2xl p-4 md:p-6 border-blue-200 border-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs md:text-sm font-medium text-blue-700">Total Questions</div>
-                      <div className="text-2xl md:text-4xl font-black text-blue-600">{totalQuestions}</div>
-                    </div>
-                    <div className="text-2xl md:text-5xl">📝</div>
-                  </div>
-                </div>
+                  </motion.div>
+                ))}
               </div>
 
             </div>
 
-            {/* Buttons */}
-            <div className="grid md:grid-cols-2 gap-3 mt-6">
-              <button
-                onClick={handleRetakeTest}
-                className="w-full bg-white border-2 border-gray-300 text-gray-900 font-bold py-3 rounded-xl hover:bg-gray-50 transition-all"
-              >
-                Retake Test
-              </button>
-
-              <button
-                onClick={() => navigate("/dashboard")}
-                className="w-full bg-linear-to-r from-[#E6FF03] to-[#d7ee00] text-gray-900 font-bold py-3 rounded-xl hover:from-[#d7ee00] hover:to-[#c8e003] transition-all"
-              >
-                Go to Dashboard
-              </button>
-            </div>
+            {/* Button */}
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="mt-6 w-full bg-black text-white font-semibold py-3.5"
+            >
+              Go to Dashboard
+            </button>
 
           </div>
 
         </div>
-
-      </div>
+      </motion.div>
     </div>
   );
 }
