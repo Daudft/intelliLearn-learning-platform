@@ -33,35 +33,63 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F1F2F4] px-4">
-      <div className="bg-white w-full max-w-md rounded-3xl shadow-xl p-10">
-        
-        <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold text-gray-900">Forgot Password?</h2>
-          <p className="text-gray-600 mt-3">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black px-4 py-8">
+
+      {/* AMBIENT BACKGROUND — white→blue glow rising from the bottom (hero style) */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          background: `
+            radial-gradient(ellipse 90% 80% at 50% 108%,
+              #eaf3ff 0%,
+              #a9d0ff 12%,
+              #5aa8ff 26%,
+              rgba(47,127,224,0.35) 44%,
+              rgba(0,0,0,0) 68%),
+            #000000
+          `,
+        }}
+      />
+      {/* drifting blue orb for depth */}
+      <div className="absolute -left-24 top-10 z-0 h-72 w-72 rounded-full bg-sui-blue/20 blur-[110px] animate-sui-float" />
+
+      {/* CARD — dark glass */}
+      <div className="relative z-10 w-full max-w-md border border-white/10 bg-sui-deep/70 backdrop-blur-xl shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] p-8 md:p-10">
+
+        {/* LOGO */}
+        <Link to="/" className="mb-8 flex items-baseline justify-center leading-none">
+          <span className="text-xl font-bold text-white font-display tracking-tight">Intelli</span>
+          <span className="text-xl font-semibold text-sui-blue font-display tracking-tight">Learn</span>
+        </Link>
+
+        <div className="text-center mb-7">
+          <h2 className="text-3xl font-bold font-display tracking-tight bg-linear-to-b from-white via-white to-sui-pale bg-clip-text text-transparent">
+            Forgot Password?
+          </h2>
+          <p className="text-sm text-sui-mist mt-2">
             Enter your email address and we'll send you a link to reset your password.
           </p>
         </div>
 
         {/* ERROR MESSAGE */}
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <div className="mb-4 p-2.5 text-xs bg-red-500/10 text-red-300 border border-red-500/30 animate-fadeIn">
             {error}
           </div>
         )}
 
         {/* SUCCESS MESSAGE */}
         {success && (
-          <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+          <div className="mb-4 p-2.5 text-xs bg-green-500/10 text-green-300 border border-green-500/30 animate-fadeIn">
             ✓ Password reset link sent! Please check your email.
           </div>
         )}
 
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          
+        <form className="space-y-5" onSubmit={handleSubmit}>
+
           {/* EMAIL */}
           <div>
-            <label className="block font-medium text-gray-800 mb-1">
+            <label className="block font-medium text-sui-fog mb-1.5 text-sm">
               Email Address
             </label>
             <input
@@ -70,13 +98,8 @@ export default function ForgotPassword() {
               value={email}
               onChange={(e) => setEmail(e.target.value.trimStart())}
               required
-              className="
-                w-full px-4 py-3 rounded-xl
-                border border-black/20 bg-white text-gray-900 shadow-sm
-                hover:border-black/40
-                focus:border-black focus:ring-2 focus:ring-black/10
-                focus:outline-none transition-all duration-200
-              "
+              className="w-full px-3.5 py-2.5 border border-white/10 bg-white/5 text-white text-sm
+              outline-none placeholder:text-sui-mist/60 focus:border-sui-blue focus:ring-2 focus:ring-sui-blue/25 focus:bg-white/[0.07] transition"
             />
           </div>
 
@@ -84,8 +107,8 @@ export default function ForgotPassword() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#E6FF03] text-black font-semibold text-lg py-3 rounded-xl 
-            hover:bg-[#d7ee00] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-sui-blue text-white font-semibold text-sm py-3
+            hover:bg-sui-bright hover:shadow-[0_12px_32px_-8px_rgba(77,162,255,0.6)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Sending..." : "Send Reset Link"}
           </button>
@@ -95,7 +118,7 @@ export default function ForgotPassword() {
         <div className="text-center mt-6">
           <Link
             to="/signin"
-            className="text-blue-600 font-semibold hover:underline"
+            className="text-sui-bright text-sm font-semibold hover:underline transition"
           >
             ← Back to Sign In
           </Link>

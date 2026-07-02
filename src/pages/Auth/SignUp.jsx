@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import authService from "../../services/authService";
 
 export default function SignUp() {
@@ -152,15 +153,45 @@ int main() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F1F2F4] px-4">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black px-4 py-8">
+
+      {/* AMBIENT BACKGROUND — white→blue glow rising from the bottom (hero style) */}
       <div
-        className="bg-white w-full max-w-6xl
- rounded-3xl shadow-lg flex flex-col md:flex-row overflow-hidden min-h-[620px]"
-      >
-        {/* LEFT SIDE */}
-        <div className="w-full md:w-1/2 p-6 md:p-8 space-y-3">
-          <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
-          <p className="text-gray-600">Join IntelliLearn and start improving your skills.</p>
+        className="absolute inset-0 z-0"
+        style={{
+          background: `
+            radial-gradient(ellipse 90% 80% at 50% 108%,
+              #eaf3ff 0%,
+              #a9d0ff 12%,
+              #5aa8ff 26%,
+              rgba(47,127,224,0.35) 44%,
+              rgba(0,0,0,0) 68%),
+            #000000
+          `,
+        }}
+      />
+      {/* drifting blue orb for depth */}
+      <div className="absolute -left-24 top-10 z-0 h-72 w-72 rounded-full bg-sui-blue/20 blur-[110px] animate-sui-float" />
+
+      {/* CARD — dark glass */}
+      <div className="relative z-10 w-full max-w-6xl border border-white/10 bg-sui-deep/70 backdrop-blur-xl shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] flex flex-col md:flex-row overflow-hidden min-h-[640px]">
+
+        {/* hairline divider between panels */}
+        <div className="pointer-events-none absolute left-1/2 top-0 hidden md:block h-full w-px bg-linear-to-b from-transparent via-sui-blue/30 to-transparent" />
+
+        {/* LEFT SIDE — FORM */}
+        <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center bg-white">
+
+          {/* LOGO */}
+          <Link to="/" className="mb-8 flex items-baseline leading-none">
+            <span className="text-xl font-bold text-sui-sea font-display tracking-tight">Intelli</span>
+            <span className="text-xl font-semibold text-sui-bright font-display tracking-tight">Learn</span>
+          </Link>
+
+          <h2 className="text-3xl font-bold font-display tracking-tight text-sui-sea">
+            Create an account
+          </h2>
+          <p className="text-sm text-gray-500 mt-1.5 mb-6">Join IntelliLearn and start improving your skills.</p>
 
           {/* SUCCESS / ERROR */}
           {message.text && (
@@ -168,12 +199,12 @@ int main() {
               role="alert"
               aria-live="polite"
               className={`
-    p-2 rounded-md text-xs 
-    transition-all duration-300 ease-in-out
-    ${message.type === "success"
-                  ? "bg-green-100 text-green-700 border border-green-300 animate-fadeIn"
-                  : "bg-red-100 text-red-700 border border-red-300 animate-fadeIn"}
-  `}
+                mb-4 p-2.5 text-xs
+                transition-all duration-300 ease-in-out animate-fadeIn
+                ${message.type === "success"
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-red-50 text-red-700 border border-red-200"}
+              `}
             >
               {message.text}
             </div>
@@ -182,35 +213,35 @@ int main() {
           <form className="space-y-4" onSubmit={handleSignUp}>
             {/* FULL NAME */}
             <div>
-              <label className="block font-medium text-gray-800 mb-1 text-sm">Full Name</label>
+              <label className="block font-medium text-gray-700 mb-1.5 text-sm">Name</label>
               <input
                 type="text"
                 placeholder="Enter your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-lg border border-black/10 bg-white text-gray-900
-                outline-none focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition text-sm"
+                className="w-full px-3.5 py-2.5 border border-gray-200 bg-gray-50 text-sui-sea text-sm
+                outline-none placeholder:text-gray-400 focus:border-sui-blue focus:ring-2 focus:ring-sui-blue/25 focus:bg-white transition"
               />
             </div>
 
             {/* EMAIL */}
             <div>
-              <label className="block font-medium text-gray-800 mb-1 text-sm">Email Address</label>
+              <label className="block font-medium text-gray-700 mb-1.5 text-sm">Email</label>
               <input
                 type="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value.trimStart())}
                 required
-                className="w-full px-3 py-2 rounded-lg border border-black/10 bg-white text-gray-900
-                outline-none focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition text-sm"
+                className="w-full px-3.5 py-2.5 border border-gray-200 bg-gray-50 text-sui-sea text-sm
+                outline-none placeholder:text-gray-400 focus:border-sui-blue focus:ring-2 focus:ring-sui-blue/25 focus:bg-white transition"
               />
             </div>
 
             {/* PASSWORD */}
             <div>
-              <label className="block font-medium text-gray-800 mb-1 text-sm">Password</label>
+              <label className="block font-medium text-gray-700 mb-1.5 text-sm">Password</label>
 
               <div className="relative">
                 <input
@@ -219,54 +250,54 @@ int main() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className={`w-full px-3 py-2 rounded-lg border ${
-                    strength === "weak" ? "border-red-400" : "border-black/10"
-                  } bg-white text-gray-900 outline-none focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition text-sm`}
+                  className={`w-full px-3.5 py-2.5 pr-11 border ${
+                    strength === "weak" ? "border-red-300" : "border-gray-200"
+                  } bg-gray-50 text-sui-sea text-sm outline-none placeholder:text-gray-400 focus:border-sui-blue focus:ring-2 focus:ring-sui-blue/25 focus:bg-white transition`}
                 />
 
-                {/* 👁 EYE ICON */}
-                <span
+                <button
+                  type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-2.5 cursor-pointer text-gray-600 text-sm"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-sui-bright transition"
+                  aria-label={showPass ? "Hide password" : "Show password"}
                 >
-                  {showPass ? "🙈" : "👁️"}
-                </span>
+                  {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
 
               {/* PASSWORD RULE */}
-              <p className="text-xs text-gray-500 mt-1">Use uppercase, lowercase, number, symbol, and 8+ characters.</p>
+              <p className="text-xs text-gray-400 mt-1.5">Use uppercase, lowercase, number, symbol, and 8+ characters.</p>
 
-              {/* PASSWORD STRENGTH BAR */}
-              {/* 3–Step Password Strength Indicator */}
+              {/* PASSWORD STRENGTH BAR — 3-Step Indicator */}
               <div className={`flex gap-2 mt-2 transition-opacity ${password ? "opacity-100" : "opacity-0"}`}>
                 {/* Step 1 */}
                 <div
-                  className={`w-8 h-1 rounded-full transition-all duration-300 ${
+                  className={`w-8 h-1 transition-all duration-300 ${
                     strength === "weak" || strength === "medium" || strength === "strong"
                       ? strength === "weak"
                         ? "bg-red-500"
                         : strength === "medium"
                         ? "bg-yellow-500"
                         : "bg-green-500"
-                      : "bg-gray-300"
+                      : "bg-gray-200"
                   }`}
                 />
 
                 {/* Step 2 */}
                 <div
-                  className={`w-8 h-1 rounded-full transition-all duration-300 ${
+                  className={`w-8 h-1 transition-all duration-300 ${
                     strength === "medium" || strength === "strong"
                       ? strength === "medium"
                         ? "bg-yellow-500"
                         : "bg-green-500"
-                      : "bg-gray-300"
+                      : "bg-gray-200"
                   }`}
                 />
 
                 {/* Step 3 */}
                 <div
-                  className={`w-8 h-1 rounded-full transition-all duration-300 ${
-                    strength === "strong" ? "bg-green-500" : "bg-gray-300"
+                  className={`w-8 h-1 transition-all duration-300 ${
+                    strength === "strong" ? "bg-green-500" : "bg-white/15"
                   }`}
                 />
               </div>
@@ -281,7 +312,7 @@ int main() {
 
             {/* CONFIRM PASSWORD */}
             <div>
-              <label className="block font-medium text-gray-800 mb-1 text-sm">Confirm Password</label>
+              <label className="block font-medium text-gray-700 mb-1.5 text-sm">Confirm Password</label>
 
               <div className="relative">
                 <input
@@ -290,73 +321,103 @@ int main() {
                   value={passwordConfirm}
                   onChange={(e) => setPasswordConfirm(e.target.value)}
                   required
-                  className="w-full px-3 py-2 rounded-lg border border-black/10 bg-white text-gray-900
-                  outline-none focus:border-gray-300 focus:ring-1 focus:ring-gray-200 transition text-sm"
+                  className="w-full px-3.5 py-2.5 pr-11 border border-gray-200 bg-gray-50 text-sui-sea text-sm
+                  outline-none placeholder:text-gray-400 focus:border-sui-blue focus:ring-2 focus:ring-sui-blue/25 focus:bg-white transition"
                 />
 
-                {/* 👁 CONFIRM EYE */}
-                <span
+                <button
+                  type="button"
                   onClick={() => setShowConfirmPass(!showConfirmPass)}
-                  className="absolute right-3 top-2.5 cursor-pointer text-gray-600 text-sm"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-sui-bright transition"
+                  aria-label={showConfirmPass ? "Hide password" : "Show password"}
                 >
-                  {showConfirmPass ? "🙈" : "👁️"}
-                </span>
+                  {showConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#E6FF03] text-black font-semibold text-base py-2 rounded-lg 
-              hover:bg-[#d7ee00] transition shadow disabled:opacity-50"
+              className="w-full bg-sui-blue text-white font-semibold text-sm py-3 mt-1
+              hover:bg-sui-bright hover:shadow-[0_12px_32px_-8px_rgba(77,162,255,0.6)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Creating..." : "Create Account"}
+              {loading ? "Creating..." : "Sign up"}
             </button>
           </form>
 
-          <p className="text-center text-gray-700 text-sm">
+          <p className="text-center text-gray-500 text-sm mt-6">
             Already have an account?{" "}
-            <Link to="/signin" className="text-blue-600 font-semibold hover:underline">
-              Sign In
+            <Link to="/signin" className="text-sui-bright font-semibold hover:underline transition">
+              Log in
             </Link>
           </p>
         </div>
 
-        {/* RIGHT SIDE VISUALS (unchanged) */}
-        <div className="hidden md:flex w-1/2 bg-[#0A0A0A] relative text-white p-8 overflow-hidden">
+        {/* RIGHT SIDE — SHOWCASE PANEL */}
+        <div className="hidden md:flex w-1/2 relative text-white p-10 overflow-hidden">
+          {/* deep gradient base */}
+          <div className="absolute inset-0 bg-linear-to-br from-sui-sea via-sui-deep to-black" />
+          {/* white→blue glow rising from the bottom */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `radial-gradient(ellipse 100% 70% at 60% 115%,
+                rgba(234,243,255,0.35) 0%,
+                rgba(90,168,255,0.28) 26%,
+                rgba(47,127,224,0.12) 46%,
+                rgba(0,0,0,0) 70%)`,
+            }}
+          />
+          {/* subtle grid */}
           <div
             className="absolute inset-0 opacity-[0.06]
-            bg-[linear-gradient(to_right,#ffffff12_1px,transparent_1px),
-            linear-gradient(to_bottom,#ffffff12_1px,transparent_1px)]
-            bg-size-[30px_30px]"
+            bg-[linear-gradient(to_right,#ffffff20_1px,transparent_1px),
+            linear-gradient(to_bottom,#ffffff20_1px,transparent_1px)]
+            bg-size-[34px_34px]"
           />
+          {/* corner glow */}
+          <div className="absolute -top-16 -right-16 h-72 w-72 rounded-full bg-sui-blue/25 blur-[100px]" />
 
-          <div className="absolute top-8 left-8 w-16 h-16 border border-gray-600 rounded-lg opacity-30"></div>
-          <div className="absolute bottom-10 right-10 w-24 h-24 border border-gray-600 rounded-full opacity-20"></div>
-          <div className="absolute top-1/2 right-14 w-14 h-14 border border-gray-600 rotate-45 opacity-30"></div>
+          <div className="relative z-10 flex w-full flex-col">
+            {/* FLOATING CODE CARD */}
+            <div className="border border-white/10 bg-white/[0.04] p-4 shadow-[0_25px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-md ring-1 ring-sui-blue/10">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-sui-fog">Live Preview</span>
+                <div className="flex gap-1.5">
+                  {["python", "java", "c"].map((language) => (
+                    <button
+                      key={language}
+                      type="button"
+                      onClick={() => setLang(language)}
+                      className={`px-2.5 py-1 text-[11px] font-semibold transition ${
+                        lang === language
+                          ? "bg-sui-blue text-white"
+                          : "bg-white/5 border border-white/10 text-sui-mist hover:bg-white/10"
+                      }`}
+                    >
+                      {language.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="relative z-10 w-full">
-            <h3 className="text-3xl font-semibold mb-5">Learn. Build. Innovate.</h3>
-
-            <div className="flex gap-2 mb-4">
-              {["python", "java", "c"].map((language) => (
-                <button
-                  key={language}
-                  onClick={() => setLang(language)}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition ${
-                    lang === language ? "bg-[#E6FF03] text-black" : "bg-white/10 border border-gray-700 text-gray-300 hover:bg-white/20"
-                  }`}
-                >
-                  {language.toUpperCase()}
-                </button>
-              ))}
+              <div
+                className="bg-black/50 p-4 font-mono text-[13px] leading-relaxed text-white whitespace-pre-wrap"
+                style={{ height: "230px", overflow: "hidden" }}
+              >
+                {codeSamples[lang]}
+              </div>
             </div>
 
-            <div
-              className="bg-black/40 rounded-lg p-4 shadow-lg font-mono text-sm text-[#E6FF03] whitespace-pre-wrap"
-              style={{ height: "220px", overflow: "hidden" }}
-            >
-              {codeSamples[lang]}
+            {/* CAPTION */}
+            <div className="mt-auto pt-10 text-center">
+              <h3 className="text-2xl font-semibold font-display tracking-tight bg-linear-to-b from-white to-sui-pale bg-clip-text text-transparent">
+                Learn. Build. Innovate.
+              </h3>
+              <p className="mt-2 text-sm text-sui-fog/80 max-w-sm mx-auto">
+                Welcome to IntelliLearn — AI-powered practice that adapts to your level and guides every step of your learning path.
+              </p>
             </div>
           </div>
         </div>
