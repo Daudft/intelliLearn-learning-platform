@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { Send, Check } from 'lucide-react';
 import './CodeEditor-Simple.css';
 
+const FILE_NAMES = { c: 'solution.c', python: 'solution.py', java: 'Solution.java' };
+
 export default function CodeEditor({
   initialCode = '',
   onSubmit,
@@ -9,7 +11,9 @@ export default function CodeEditor({
   canSubmit = true,
   passScore = 7,
   qualityScore = null,
+  language = '',
 }) {
+  const filename = FILE_NAMES[String(language).toLowerCase()] || 'solution.txt';
   const [code, setCode] = useState(initialCode);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -38,6 +42,13 @@ export default function CodeEditor({
 
   return (
     <div className="code-editor-container-simple">
+      {/* IDE-style top bar */}
+      <div className="code-topbar">
+        <div className="code-dots"><span></span><span></span><span></span></div>
+        <span className="code-filename">{filename}</span>
+        <span className="code-lang-tag">{(language || 'code').toUpperCase()}</span>
+      </div>
+
       {/* Large Code Editor Area */}
       <textarea
         ref={editorRef}

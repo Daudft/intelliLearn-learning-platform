@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight, ClipboardList, Flame, Layers,
   LayoutDashboard, LogOut, Target, TrendingUp,
   BookOpen, CheckCircle2, Lock, Circle, ChevronRight, Play,
   Award, BarChart3, Sparkles, Star, Trophy, Zap,
-  Brain, Rocket, Mountain, Compass, Crown
+  Brain, Rocket, Mountain, Compass, Crown, Medal, Users
 } from "lucide-react";
 import assessmentService from "../../services/assessmentService";
 import authService from "../../services/authService";
 import learningPathService from "../../services/learningPathService";
+import userService from "../../services/userService";
 import QuizModal from "../../components/QuizModal/QuizModal";
 
 /* ─── helpers ─── */
@@ -27,8 +28,8 @@ function getLangEmoji(l) {
 }
 
 function getLangColor() {
-  // Monochrome theme — every language uses the same near-black accent.
-  return "#111111";
+  // Brand blue accent used across the learning cards.
+  return "#2f6bff";
 }
 
 /* ─── Proficiency Level Configuration ─── */
@@ -116,6 +117,15 @@ function StatusPill({ status }) {
 }
 
 const DISPLAY_FONT = "'Space Grotesk', system-ui, sans-serif";
+
+/* ─── Accent palette (matching-color icons) ─── */
+const C = {
+  blue:   { solid:"#2f6bff", grad:"linear-gradient(135deg,#2f6bff,#4da2ff)", soft:"#eaf0ff" },
+  flame:  { solid:"#ff6b35", grad:"linear-gradient(135deg,#ff6b35,#ff9d4d)", soft:"#fff1ea" },
+  violet: { solid:"#7c5cff", grad:"linear-gradient(135deg,#7c5cff,#9d86ff)", soft:"#f0ecff" },
+  green:  { solid:"#12b76a", grad:"linear-gradient(135deg,#12b76a,#3ddc97)", soft:"#e6f7ef" },
+  amber:  { solid:"#f79009", grad:"linear-gradient(135deg,#f79009,#fdb022)", soft:"#fef3e2" },
+};
 
 /* ─── Card (sharp, white, hairline border) ─── */
 function Glass({ children, className = "", style = {} }) {
@@ -210,9 +220,30 @@ const NAV = [
   { id:"progress",     label:"Progress",     Icon: Target, description: "Track your journey" },
   { id:"assessment",   label:"Assessment",   Icon: ClipboardList, description: "Test skills" },
   { id:"learningPath", label:"Learning Path", Icon: Layers, description: "Your roadmap" },
+  { id:"leaderboard",  label:"Leaderboard",  Icon: Trophy, description: "Compete & rank" },
 ];
 
 const DAYS = ["M","T","W","T","F","S","S"];
+
+/* ─── Leaderboard styling ─── */
+const RANK = {
+  1: { grad:"linear-gradient(135deg,#ffd93b,#ff9500)", ring:"#ffb300", glow:"rgba(255,180,0,0.5)",  emoji:"🥇" },
+  2: { grad:"linear-gradient(135deg,#cfd8e3,#94a3b8)", ring:"#94a3b8", glow:"rgba(148,163,184,0.5)", emoji:"🥈" },
+  3: { grad:"linear-gradient(135deg,#f0a868,#c2703c)", ring:"#c2703c", glow:"rgba(194,112,60,0.5)",  emoji:"🥉" },
+};
+function avatarGrad(name) {
+  const g = [
+    "linear-gradient(135deg,#2f6bff,#4da2ff)",
+    "linear-gradient(135deg,#7c5cff,#b06bff)",
+    "linear-gradient(135deg,#ff6b9d,#ff8f5e)",
+    "linear-gradient(135deg,#12b76a,#3ddc97)",
+    "linear-gradient(135deg,#ff6b35,#ffb020)",
+    "linear-gradient(135deg,#06b6d4,#22d3ee)",
+  ];
+  let h = 0; const s = String(name || "U");
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
+  return g[h % g.length];
+}
 
 /* ════════════════════════════════════════════════════════ */
 export default function Dashboard() {
@@ -230,6 +261,18 @@ export default function Dashboard() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizLang, setQuizLang] = useState(null);
   const [advancing, setAdvancing] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [lbLoading, setLbLoading] = useState(true);
+  const [rankCelebration, setRankCelebration] = useState(null);
+  const prevRankRef = useRef(null);
+  const rankConfetti = useMemo(() => Array.from({ length: 26 }, (_, i) => ({
+    left: `${Math.round(Math.random() * 100)}%`,
+    size: 7 + Math.round(Math.random() * 9),
+    color: ['#ffd93b','#2f6bff','#ff6b9d','#12b76a','#7c5cff','#ff6b35','#22e39b'][i % 7],
+    dur: 1.8 + Math.random() * 1.4,
+    delay: Math.random() * 0.6,
+    round: Math.random() > 0.5,
+  })), []);
 
   useEffect(() => {
     const boot = async () => {
@@ -262,6 +305,35 @@ export default function Dashboard() {
     };
     boot();
   }, [navigate]);
+
+  // Real-time leaderboard — refresh on open + poll every 15s while viewing
+  const refreshLeaderboard = useCallback(async () => {
+    try {
+      const lr = await userService.getLeaderboard();
+      const rows = Array.isArray(lr?.leaderboard) ? lr.leaderboard : [];
+      setLeaderboard(rows);
+      const cu = getStoredUser();
+      const myId = String(cu?.id || cu?._id || "");
+      const newRank = rows.find(r => String(r.userId) === myId)?.rank ?? null;
+      if (prevRankRef.current != null && newRank != null && newRank < prevRankRef.current) {
+        setRankCelebration({ from: prevRankRef.current, to: newRank });
+      }
+      if (newRank != null) prevRankRef.current = newRank;
+    } catch { /* ignore */ } finally { setLbLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (activeView !== "leaderboard") return;
+    refreshLeaderboard();
+    const id = setInterval(refreshLeaderboard, 15000);
+    return () => clearInterval(id);
+  }, [activeView, refreshLeaderboard]);
+
+  useEffect(() => {
+    if (!rankCelebration) return;
+    const t = setTimeout(() => setRankCelebration(null), 3800);
+    return () => clearTimeout(t);
+  }, [rankCelebration]);
 
   const later = useMemo(() => attempts.filter(a => Number(a?.attemptNumber || 0) > 1), [attempts]);
 
@@ -380,7 +452,7 @@ export default function Dashboard() {
       <div style={{ maxWidth:360, width:"100%", borderRadius:24, padding:36, textAlign:"center",
         background:"rgba(255,255,255,0.8)", backdropFilter:"blur(24px)",
         boxShadow:"0 12px 40px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.6)" }}>
-        <p style={{ margin:0, color:"#0a1a0a", fontWeight:800, fontSize:18, fontFamily:"system-ui" }}>Something went wrong</p>
+        <p style={{ margin:0, color:"#0a0a0a", fontWeight:800, fontSize:18, fontFamily:"system-ui" }}>Something went wrong</p>
         <p style={{ margin:"10px 0 0", color:"rgba(0,0,0,0.5)", fontSize:13, fontFamily:"system-ui" }}>{error}</p>
         <button onClick={() => window.location.reload()} style={{ marginTop:24, padding:"11px 28px",
           borderRadius:12, background:"#0a0a0a", fontWeight:800, fontSize:13, color:"#ffffff", border:"none", cursor:"pointer" }}>
@@ -391,6 +463,7 @@ export default function Dashboard() {
   );
 
   const initial = (user?.name || "U").charAt(0).toUpperCase();
+  const LevelIcon = s.levelConfig.icon;
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", background: pageBg,
@@ -501,22 +574,15 @@ export default function Dashboard() {
             <div>
               <p style={{ margin:0, color:"rgba(0,0,0,0.45)", fontSize:12, fontWeight:600,
                 textTransform:"uppercase", letterSpacing:"0.18em" }}>
-                {activeView === "dashboard" ? "Overview" : activeView === "learningPath" ? "Your roadmap" : activeView === "progress" ? "Your journey" : "Test skills"}
+                {activeView === "dashboard" ? "Overview" : activeView === "learningPath" ? "Your roadmap" : activeView === "progress" ? "Your journey" : activeView === "leaderboard" ? "Compete & rank" : "Test skills"}
               </p>
               <h1 style={{ margin:"6px 0 0", color:"#0a0a0a", fontSize:32, fontWeight:700,
                 letterSpacing:"-0.03em", fontFamily:DISPLAY_FONT, lineHeight:1 }}>
                 {activeView === "dashboard" ? `Welcome back, ${user?.name?.split(" ")[0] || "Learner"}` :
                  activeView === "progress" ? "Progress" :
-                 activeView === "assessment" ? "Skill Assessment" : "Learning Path"}
+                 activeView === "assessment" ? "Skill Assessment" :
+                 activeView === "leaderboard" ? "Leaderboard" : "Learning Path"}
               </h1>
-            </div>
-            <div style={{ display:"inline-flex", alignItems:"center", gap:10, padding:"10px 16px",
-              background:"#0a0a0a", color:"#fff" }}>
-              <span style={{ fontSize:16 }}>{s.levelConfig.badge}</span>
-              <div style={{ lineHeight:1.15 }}>
-                <div style={{ fontSize:9, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.14em", fontWeight:700 }}>Level</div>
-                <div style={{ fontSize:13, fontWeight:700, fontFamily:DISPLAY_FONT }}>{s.levelConfig.name}</div>
-              </div>
             </div>
           </div>
 
@@ -525,395 +591,140 @@ export default function Dashboard() {
           {activeView === "dashboard" && (
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
 
-              {/* ══ HERO: Profile card + Streak card side by side ══ */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1.3fr", gap:16 }}>
+              {/* ══ HERO: Profile banner (blue membership card) ══ */}
+              <Glass style={{ padding:0, overflow:"hidden", position:"relative", border:"none",
+                background:"linear-gradient(120deg,#1e5cff 0%,#2f6bff 45%,#4da2ff 100%)",
+                boxShadow:"0 16px 40px rgba(47,107,255,0.28)" }}>
+                {/* decorative glow */}
+                <div style={{ position:"absolute", top:-70, right:-20, width:230, height:230, borderRadius:"50%", background:"radial-gradient(circle,rgba(255,255,255,0.20),transparent 70%)", pointerEvents:"none" }} />
+                <div style={{ position:"absolute", bottom:-90, right:150, width:210, height:210, borderRadius:"50%", background:"radial-gradient(circle,rgba(255,255,255,0.10),transparent 70%)", pointerEvents:"none" }} />
+                <div style={{ position:"absolute", inset:0, background:"radial-gradient(circle at 10% 15%, rgba(255,255,255,0.14), transparent 45%)", pointerEvents:"none" }} />
 
-                {/* Profile Card - Premium Design */}
-                <Glass style={{ 
-                  display:"flex", flexDirection:"column", alignItems:"center",
-                  justifyContent:"center", padding:"28px 24px", textAlign:"center", position:"relative",
-                  overflow: "hidden",
-                  background: `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.6) 100%),
-                               linear-gradient(45deg, ${s.levelConfig.color}08, ${s.levelConfig.color}04)`,
-                  backdropFilter: "blur(24px)",
-                  WebkitBackdropFilter: "blur(24px)"
-                }}>
-                  {/* Animated background orbs */}
-                  <div style={{ 
-                    position:"absolute", top:-40, right:-40, width:160, height:160, 
-                    borderRadius:"50%", background:`radial-gradient(circle, ${s.levelConfig.color}20, transparent)`,
-                    animation: "pulse 4s ease-in-out infinite", pointerEvents: "none"
-                  }} />
-                  <div style={{ 
-                    position:"absolute", bottom:-60, left:-60, width:140, height:140, 
-                    borderRadius:"50%", background:`radial-gradient(circle, ${s.levelConfig.color}10, transparent)`,
-                    animation: "pulse 5s ease-in-out infinite 0.5s", pointerEvents: "none"
-                  }} />
+                <div style={{ position:"relative", display:"flex", alignItems:"center", gap:24, padding:"24px 30px", flexWrap:"wrap" }}>
 
-                  {/* Badge - Level */}
-                  <div style={{ 
-                    position:"absolute", top:16, right:16, 
-                    fontSize:28, animation: "pulse 2s ease-in-out infinite"
-                  }}>
-                    {s.levelConfig.badge}
-                  </div>
-
-                  {/* Avatar */}
-                  <div style={{ marginBottom:16, position:"relative", zIndex: 1 }}>
-                    <div style={{
-                      width:90,
-                      height:90,
-                      borderRadius:"50%",
-                      background: s.levelConfig.bgGradient,
-                      display:"grid",
-                      placeItems:"center",
-                      fontSize:40,
-                      fontWeight:900,
-                      color:"white",
-                      boxShadow: `0 12px 40px ${s.levelConfig.color}60, inset 0 2px 8px rgba(255,255,255,0.3)`,
-                      position:"relative",
-                      border: "2px solid rgba(255,255,255,0.8)",
-                      animation: "float 3s ease-in-out infinite"
-                    }}>
-                      {initial}
-                      <div style={{ 
-                        position: "absolute", 
-                        inset: 0, 
-                        borderRadius: "50%",
-                        background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent)`,
-                        pointerEvents: "none"
-                      }} />
-                    </div>
-                  </div>
-
-                  {/* Welcome Text */}
-                  <div style={{ marginBottom:10, position:"relative", zIndex: 1 }}>
-                    <p style={{ 
-                      margin:0, 
-                      color:"#0a1a0a", 
-                      fontWeight:900, 
-                      fontSize:20,
-                      letterSpacing:"-0.02em",
-                      background: `linear-gradient(135deg, ${s.levelConfig.color}, #111111)`,
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      backgroundClip: "text"
-                    }}>
-                      Hi, {user?.name?.split(" ")[0] || "Learner"}! 👋
-                    </p>
-                  </div>
-
-                  {/* Proficiency Badge */}
-                  <div style={{ 
-                    marginBottom:12, 
-                    padding:"6px 14px", 
-                    borderRadius:50,
-                    background: `linear-gradient(135deg, ${s.levelConfig.color}20, ${s.levelConfig.color}10)`,
-                    border: `1.5px solid ${s.levelConfig.color}40`,
-                    display:"inline-flex", 
-                    alignItems:"center", 
-                    gap:6,
-                    boxShadow: `0 4px 16px ${s.levelConfig.color}15`,
-                    animation: "fadeUp 0.6s ease 0.3s both"
-                  }}>
-                    <div style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: "50%",
-                      background: `linear-gradient(135deg, ${s.levelConfig.color}, ${s.levelConfig.color}dd)`,
-                      display: "grid",
-                      placeItems: "center",
-                      color: "white",
-                      fontWeight: 800,
-                      fontSize: 11
-                    }}>
-                      {s.levelConfig.badge}
-                    </div>
-                    <span style={{ 
-                      color:s.levelConfig.color, 
-                      fontWeight:800, 
-                      fontSize:11, 
-                      textTransform:"uppercase",
-                      letterSpacing:"0.12em"
-                    }}>
-                      {s.levelConfig.name}
-                    </span>
-                  </div>
-
-                  {/* Language Info */}
-                  <div style={{
-                    marginBottom: 14,
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    background: "rgba(0,0,0,0.03)",
-                    border: "1px solid rgba(0,0,0,0.06)",
-                    position:"relative", zIndex: 1
-                  }}>
-                    <p style={{ margin:"0 0 3px", color:"rgba(0,0,0,0.4)", fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em" }}>
-                      Current Language
-                    </p>
-                    <p style={{ margin:0, color:"#0a1a0a", fontWeight:800, fontSize:13, letterSpacing:"-0.01em" }}>
-                      {s.langEmoji} {s.langLabel}
-                    </p>
-                  </div>
-
-                  {/* Description */}
-                  <p style={{ 
-                    margin:"0 0 12px", 
-                    color:"rgba(0,0,0,0.55)", 
-                    fontSize:11,
-                    lineHeight: 1.4,
-                    fontWeight: 500,
-                    maxWidth: 220,
-                    position:"relative", zIndex: 1
-                  }}>
-                    {s.levelConfig.description}
-                  </p>
-                  
-                  {/* XP Progress - Enhanced */}
-                  <div style={{ 
-                    marginBottom: 12, 
-                    width: "100%",
-                    padding: "0 12px",
-                    position:"relative", zIndex: 1
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, alignItems: "center" }}>
-                      <span style={{ fontSize: 10, color: "rgba(0,0,0,0.5)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                        XP Progress
-                      </span>
-                      <span style={{
-                        color: s.levelConfig.color,
-                        fontWeight: 800,
-                        background: `${s.levelConfig.color}15`,
-                        padding: "2px 8px",
-                        borderRadius: 4,
-                        fontSize: 10
-                      }}>
-                        {s.xp} / {s.nextLevelXP}
-                      </span>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 50, background: "rgba(0,0,0,0.08)", overflow: "hidden" }}>
+                  {/* Identity */}
+                  <div style={{ display:"flex", alignItems:"center", gap:18, flex:1, minWidth:260 }}>
+                    <div style={{ position:"relative", flexShrink:0 }}>
                       <div style={{
-                        height: "100%",
-                        borderRadius: 50,
-                        width: `${(s.xp / s.nextLevelXP) * 100}%`,
-                        background: `linear-gradient(90deg, ${s.levelConfig.color}, #111111)`,
-                        transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
-                        boxShadow: `0 0 12px ${s.levelConfig.color}60`
-                      }} />
+                        width:70, height:70, borderRadius:"50%",
+                        background:"#fff", color:C.blue.solid, display:"grid", placeItems:"center",
+                        fontSize:28, fontWeight:800, fontFamily:DISPLAY_FONT,
+                        boxShadow:"0 10px 24px rgba(0,0,0,0.22)",
+                      }}>{initial}</div>
+                      <div style={{ position:"absolute", right:2, bottom:2, width:16, height:16, borderRadius:"50%", background:"#22e39b", border:"3px solid #2f6bff" }} />
+                    </div>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:9, flexWrap:"wrap" }}>
+                        <h3 style={{ margin:0, fontSize:22, fontWeight:700, fontFamily:DISPLAY_FONT, letterSpacing:"-0.02em", color:"#fff" }}>
+                          {user?.name || "Learner"}
+                        </h3>
+                        <span style={{
+                          display:"inline-flex", alignItems:"center", gap:6, padding:"4px 11px",
+                          borderRadius:99, background:"rgba(255,255,255,0.2)", color:"#fff",
+                          fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.1em",
+                        }}>
+                          <LevelIcon size={12} color="#fff" /> {s.levelConfig.name}
+                        </span>
+                      </div>
+                      <p style={{ margin:"4px 0 0", fontSize:12.5, color:"rgba(255,255,255,0.78)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {user?.email || ""}
+                      </p>
+                      <div style={{ marginTop:11, display:"inline-flex", alignItems:"center", gap:8, padding:"6px 12px", borderRadius:10, background:"rgba(255,255,255,0.16)", border:"1px solid rgba(255,255,255,0.22)" }}>
+                        <span style={{ fontSize:9, fontWeight:700, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:"0.1em" }}>Learning</span>
+                        <span style={{ fontSize:12.5, fontWeight:800, color:"#fff" }}>{s.langEmoji} {s.langLabel}</span>
+                      </div>
                     </div>
                   </div>
-                  
-                  {/* Next level info - Enhanced */}
-                  {s.nextLevelConfig && (
-                    <div style={{ 
-                      padding: 10, 
-                      borderRadius: 12, 
-                      background: `linear-gradient(135deg, ${s.nextLevelConfig.color}10, ${s.nextLevelConfig.color}05)`,
-                      border: `1px solid ${s.nextLevelConfig.color}20`,
-                      width: "100%",
-                      position:"relative", zIndex: 1
-                    }}>
-                      <p style={{ 
-                        margin: 0, 
-                        fontSize: 10, 
-                        color: s.nextLevelConfig.color,
-                        fontWeight: 700,
-                        lineHeight: 1.3
-                      }}>
-                        🎯 <strong>Next:</strong> {s.nextLevelConfig.name}
-                      </p>
-                      <p style={{ 
-                        margin: "3px 0 0", 
-                        fontSize: 9, 
-                        color: "rgba(0,0,0,0.4)",
-                        lineHeight: 1.2
-                      }}>
-                        {s.nextLevelConfig.requirements}
-                      </p>
+
+                  {/* XP / next level */}
+                  <div style={{ width:300, maxWidth:"100%", flexShrink:0 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.78)", textTransform:"uppercase", letterSpacing:"0.1em" }}>XP Progress</span>
+                      <span style={{ fontSize:11, fontWeight:800, color:C.blue.solid, background:"#fff", padding:"2px 9px", borderRadius:5, fontFamily:DISPLAY_FONT }}>{s.xp} / {s.nextLevelXP}</span>
                     </div>
-                  )}
-
-                  <style>{`
-                    @keyframes float {
-                      0%, 100% { transform: translateY(0px); }
-                      50% { transform: translateY(-8px); }
-                    }
-                  `}</style>
-                </Glass>
-
-                {/* Enhanced Streak Card - Premium Design */}
-                <Glass style={{ 
-                  padding:"24px 28px", 
-                  position:"relative", 
-                  overflow:"hidden",
-                  background: `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%),
-                               linear-gradient(45deg, rgba(0,0,0,0.08), rgba(0,0,0,0.02))`,
-                  backdropFilter: "blur(24px)",
-                  WebkitBackdropFilter: "blur(24px)"
-                }}>
-                  {/* Animated background flame */}
-                  <div style={{ 
-                    position:"absolute", 
-                    top: -40, right: -40, 
-                    width:200, height:200, 
-                    borderRadius:"50%", 
-                    background:"radial-gradient(circle, rgba(0,0,0,0.15) 0%, transparent 70%)",
-                    animation: "pulse 4s ease-in-out infinite", 
-                    pointerEvents: "none",
-                    zIndex: 0
-                  }} />
-
-                  {/* Content */}
-                  <div style={{ position: "relative", zIndex: 1 }}>
-                    {/* Top row - Icon and Title */}
-                    <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:18 }}>
-                      <div style={{ 
-                        width:52, height:52, 
-                        borderRadius:14, 
-                        flexShrink:0,
-                        background: "linear-gradient(135deg, rgba(0,0,0,0.2), rgba(0,0,0,0.1))",
-                        border: "1.5px solid rgba(0,0,0,0.3)",
-                        display:"grid", 
-                        placeItems:"center",
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-                        position: "relative"
-                      }}>
-                        <Flame size={24} color="#111111" />
-                        <div style={{ 
-                          position: "absolute", 
-                          inset: 0, 
-                          borderRadius: 16,
-                          background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent)",
-                          pointerEvents: "none"
-                        }} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ 
-                          margin:0, 
-                          color:"rgba(0,0,0,0.5)", 
-                          fontSize:9, 
-                          fontWeight:700,
-                          textTransform:"uppercase", 
-                          letterSpacing:"0.12em"
-                        }}>Learning Streak</p>
-                        <p style={{ 
-                          margin:"4px 0 0", 
-                          color:"#111111", 
-                          fontWeight:900, 
-                          fontSize:28,
-                          letterSpacing:"-0.02em",
-                          lineHeight: 1
-                        }}>
-                          {s.streak} day{s.streak !== 1 ? 's' : ''}
+                    <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.25)", overflow:"hidden" }}>
+                      <div style={{ height:"100%", borderRadius:99, width:`${Math.min(100,(s.xp/s.nextLevelXP)*100)}%`, background:"#fff", boxShadow:"0 0 12px rgba(255,255,255,0.7)", transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
+                    </div>
+                    {s.nextLevelConfig && (
+                      <div style={{ marginTop:11, display:"flex", alignItems:"center", gap:8, padding:"9px 12px", borderRadius:10, background:"rgba(255,255,255,0.14)", border:"1px solid rgba(255,255,255,0.2)" }}>
+                        <Target size={14} color="#fff" style={{ flexShrink:0 }} />
+                        <p style={{ margin:0, fontSize:10.5, color:"rgba(255,255,255,0.85)", lineHeight:1.35 }}>
+                          <strong style={{ color:"#fff" }}>Next: {s.nextLevelConfig.name}</strong> — {s.nextLevelConfig.requirements}
                         </p>
                       </div>
-                      <div style={{ 
-                        textAlign: "center",
-                        padding: "8px 12px",
-                        borderRadius: 10,
-                        background: "rgba(0,0,0,0.1)",
-                        border: "1px solid rgba(0,0,0,0.2)"
-                      }}>
-                        <p style={{ margin: 0, fontSize: 9, color: "rgba(0,0,0,0.4)", fontWeight: 600 }}>to perfect</p>
-                        <p style={{ 
-                          margin: "2px 0 0", 
-                          fontSize: 12, 
-                          color: "#111111", 
-                          fontWeight: 900,
-                          letterSpacing: "-0.01em"
-                        }}>
-                          {7 - s.streak}
-                        </p>
+                    )}
+                  </div>
+                </div>
+              </Glass>
+
+              {/* ══ HERO: Streak banner ══ */}
+              <Glass style={{ padding:"22px 28px", position:"relative", overflow:"hidden" }}>
+                {/* faded flame watermark */}
+                <div style={{ position:"absolute", top:-34, right:-16, opacity:0.06, pointerEvents:"none", transform:"rotate(8deg)" }}>
+                  <Flame size={168} color={C.flame.solid} fill={C.flame.solid} />
+                </div>
+
+                <div style={{ position:"relative", display:"flex", alignItems:"center", gap:26, flexWrap:"wrap" }}>
+
+                  {/* Flame + days */}
+                  <div style={{ display:"flex", alignItems:"center", gap:15, flexShrink:0 }}>
+                    <div style={{ position:"relative" }}>
+                      <div style={{ position:"absolute", inset:-7, borderRadius:20, background:C.flame.solid, opacity:0.20, filter:"blur(11px)" }} />
+                      <div style={{ position:"relative", width:58, height:58, borderRadius:16, background:C.flame.grad, display:"grid", placeItems:"center", boxShadow:"0 8px 22px rgba(255,107,53,0.42)" }}>
+                        <Flame size={27} color="#fff" fill="#fff" />
                       </div>
                     </div>
-
-                    {/* Day bubbles with enhanced styling */}
-                    <div style={{ 
-                      display:"flex", 
-                      justifyContent:"space-between", 
-                      alignItems:"center", 
-                      gap:5,
-                      marginBottom: 14,
-                      padding: "12px 10px",
-                      borderRadius: 12,
-                      background: "rgba(0,0,0,0.02)",
-                      border: "1px solid rgba(0,0,0,0.04)"
-                    }}>
-                      {DAYS.map((d, i) => {
-                        const isToday = i === s.todayDayIndex;
-                        const inStreak = i >= (s.todayDayIndex - s.streak + 1) && i <= s.todayDayIndex;
-                        
-                        return (
-                          <div key={i} style={{
-                            width:36, height:36, 
-                            borderRadius:"50%",
-                            display:"grid", 
-                            placeItems:"center",
-                            background: inStreak ? "#111111"
-                              : "rgba(0,0,0,0.06)",
-                            border: isToday ? "2px solid rgba(255,255,255,0.6)" : "none",
-                            boxShadow: isToday ? "0 5px 16px rgba(0,0,0,0.3), inset 0 1px 3px rgba(255,255,255,0.3)" : "none",
-                            transition:"all .3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                            flexShrink: 0,
-                            position: "relative",
-                            cursor: "default"
-                          }}>
-                            <span style={{
-                              fontSize: 9,
-                              fontWeight: 800,
-                              color: inStreak ? "#fff" : "rgba(0,0,0,0.2)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.05em"
-                            }}>
-                              {d}
-                            </span>
-                            {isToday && (
-                              <div style={{
-                                position: "absolute",
-                                inset: 0,
-                                borderRadius: "50%",
-                                background: "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), transparent)",
-                                pointerEvents: "none"
-                              }} />
-                            )}
-                          </div>
-                        );
-                      })}
+                    <div>
+                      <p style={{ margin:0, fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.45)", textTransform:"uppercase", letterSpacing:"0.12em" }}>Learning Streak</p>
+                      <div style={{ display:"flex", alignItems:"baseline", gap:5, marginTop:3 }}>
+                        <span style={{ fontSize:36, fontWeight:900, color:"#0a0a0a", fontFamily:DISPLAY_FONT, letterSpacing:"-0.02em", lineHeight:1 }}>{s.streak}</span>
+                        <span style={{ fontSize:14, fontWeight:700, color:"rgba(0,0,0,0.4)" }}>day{s.streak !== 1 ? "s" : ""}</span>
+                      </div>
                     </div>
+                  </div>
 
-                    {/* Motivation message with enhanced styling */}
-                    <div style={{ 
-                      padding:"12px 14px", 
-                      borderRadius:12, 
-                      background: s.streak === 7 
-                        ? "linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.08))"
-                        : "rgba(0,0,0,0.03)",
-                      border: s.streak === 7
-                        ? "1.5px solid rgba(0,0,0,0.3)"
-                        : "1px solid rgba(0,0,0,0.06)",
-                      textAlign: "center"
-                    }}>
-                      <p style={{ 
-                        margin: 0, 
-                        fontSize: 12, 
-                        fontWeight: 600,
-                        color: s.streak === 7 ? "#111111" : "rgba(0,0,0,0.55)",
-                        lineHeight: 1.4
-                      }}>
-                        {s.streak === 1 ? "🚀 Every journey starts with a single step! Keep it up!" 
-                          : s.streak === 2 ? "⚡ Consistency is key. You're on your way!"
-                          : s.streak === 3 ? "🔥 Three days strong! Momentum is building!"
-                          : s.streak === 4 ? "💪 Halfway there! Don't stop now!"
-                          : s.streak === 5 ? "🎯 Five days in! You're crushing it!"
-                          : s.streak === 6 ? "🌟 One more day to perfection!"
-                          : s.streak === 7 ? "🏆 PERFECT WEEK! You're absolutely unstoppable!"
-                          : "📚 Keep learning every single day!"}
+                  {/* Day chain on a connecting track (center, grows) */}
+                  <div style={{ flex:1, minWidth:250, position:"relative", display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0 8px" }}>
+                    <div style={{ position:"absolute", left:24, right:24, top:"50%", height:3, background:"rgba(0,0,0,0.07)", transform:"translateY(-50%)", borderRadius:99 }} />
+                    {DAYS.map((d, i) => {
+                      const isToday = i === s.todayDayIndex;
+                      const inStreak = i >= (s.todayDayIndex - s.streak + 1) && i <= s.todayDayIndex;
+                      return (
+                        <div key={i} style={{
+                          position:"relative",
+                          width:38, height:38, borderRadius:"50%", display:"grid", placeItems:"center",
+                          background: inStreak ? C.flame.grad : "#fff",
+                          border: inStreak ? "none" : "2px solid rgba(0,0,0,0.1)",
+                          boxShadow: isToday ? `0 0 0 3px #fff, 0 0 0 5px ${C.flame.solid}` : inStreak ? "0 4px 10px rgba(255,107,53,0.35)" : "none",
+                          transition:"all .3s cubic-bezier(0.34,1.56,0.64,1)", flexShrink:0,
+                        }}>
+                          {inStreak
+                            ? <Flame size={15} color="#fff" fill="#fff" />
+                            : <span style={{ fontSize:10, fontWeight:800, color:"rgba(0,0,0,0.3)" }}>{d}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* This-week ring (right) */}
+                  <div style={{ display:"flex", alignItems:"center", gap:13, flexShrink:0 }}>
+                    <div style={{ position:"relative", width:66, height:66, display:"grid", placeItems:"center" }}>
+                      <div style={{ position:"absolute", inset:0 }}>
+                        <Ring pct={Math.min(100, Math.round(Math.min(s.streak,7)/7*100))} size={66} stroke={6} color={C.flame.solid} />
+                      </div>
+                      <div style={{ fontSize:16, fontWeight:900, color:"#0a0a0a", fontFamily:DISPLAY_FONT, lineHeight:1 }}>
+                        {Math.min(s.streak,7)}<span style={{ fontSize:10, fontWeight:700, color:"rgba(0,0,0,0.4)" }}>/7</span>
+                      </div>
+                    </div>
+                    <div style={{ maxWidth:140 }}>
+                      <p style={{ margin:0, fontSize:10, fontWeight:700, color:"rgba(0,0,0,0.45)", textTransform:"uppercase", letterSpacing:"0.1em" }}>This Week</p>
+                      <p style={{ margin:"4px 0 0", fontSize:11, fontWeight:600, color:"rgba(0,0,0,0.55)", lineHeight:1.35 }}>
+                        {s.streak >= 7 ? "Perfect week! 🏆" : `${7 - s.streak} more to a perfect week 🔥`}
                       </p>
                     </div>
                   </div>
-                </Glass>
-              </div>
+                </div>
+              </Glass>
 
               {/* ══ CONTINUE LEARNING CARD (WITH CAROUSEL) ══ */}
               <Glass style={{ padding:0, overflow:"hidden" }}>
@@ -991,7 +802,7 @@ export default function Dashboard() {
                               {/* Info */}
                               <div style={{ flex:1 }}>
                                 <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-                                  <p style={{ margin:0, color:"#0a1a0a", fontWeight:800, fontSize:18,
+                                  <p style={{ margin:0, color:"#0a0a0a", fontWeight:800, fontSize:18,
                                     letterSpacing:"-0.02em" }}>{langLabel}</p>
                                   <span style={{ padding:"2px 10px", borderRadius:99, fontSize:10, fontWeight:700,
                                     background:"rgba(0,0,0,0.15)", color:"#111111",
@@ -1006,7 +817,7 @@ export default function Dashboard() {
                                 <div style={{ height:6, borderRadius:99, background:"rgba(0,0,0,0.08)",
                                   overflow:"hidden", maxWidth:320 }}>
                                   <div style={{ height:"100%", borderRadius:99, width:`${pct}%`,
-                                    background:`linear-gradient(90deg, ${langColor}, #111111)`,
+                                    background:C.blue.grad,
                                     transition:"width 1s cubic-bezier(.4,0,.2,1)" }} />
                                 </div>
                               </div>
@@ -1018,14 +829,14 @@ export default function Dashboard() {
                                   <div style={{ position:"absolute", inset:0 }}>
                                     <Ring pct={pct} size={60} stroke={5} color={langColor} />
                                   </div>
-                                  <span style={{ color:"#0a1a0a", fontWeight:800, fontSize:13, position:"relative" }}>
+                                  <span style={{ color:"#0a0a0a", fontWeight:800, fontSize:13, position:"relative" }}>
                                     {pct}%
                                   </span>
                                 </div>
 
                                 <button className="continue-btn" onClick={() => navigate("/learning-path")} style={{
                                   padding:"12px 22px", borderRadius:12, border:"none", cursor:"pointer",
-                                  background:`linear-gradient(135deg, #0a0a0a, #000000)`,
+                                  background:`linear-gradient(135deg, #2f6bff, #4da2ff)`,
                                   color:"#ffffff", fontWeight:800, fontSize:14,
                                   display:"inline-flex", alignItems:"center", gap:8,
                                   boxShadow:"0 8px 24px rgba(0,0,0,0.3)",
@@ -1139,7 +950,7 @@ export default function Dashboard() {
                 const pct = qTotal ? Math.round((qDone / qTotal) * 100) : 0;
                 const btnStyle = {
                   padding: "11px 22px", borderRadius: 10, border: "none", cursor: "pointer",
-                  background: "linear-gradient(135deg, #0a0a0a, #000000)", color: "#ffffff",
+                  background: "linear-gradient(135deg, #2f6bff, #4da2ff)", color: "#ffffff",
                   fontWeight: 800, fontSize: 13, whiteSpace: "nowrap",
                 };
 
@@ -1148,15 +959,16 @@ export default function Dashboard() {
                     <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                       <div style={{
                         width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                        background: qAllDone ? (passed ? "linear-gradient(135deg,#111111,#000000)" : "linear-gradient(135deg,#0a0a0a,#000000)") : "rgba(0,0,0,0.06)",
+                        background: qAllDone ? C.blue.grad : "rgba(0,0,0,0.05)",
                         display: "grid", placeItems: "center",
+                        boxShadow: qAllDone ? "0 8px 22px rgba(47,107,255,0.30)" : "none",
                       }}>
-                        {qAllDone ? <Award size={24} color="#ffffff" /> : <Lock size={22} color="rgba(0,0,0,0.4)" />}
+                        {qAllDone ? <Award size={24} color="#ffffff" /> : <Lock size={22} color="rgba(0,0,0,0.35)" />}
                       </div>
 
                       <div style={{ flex: 1, minWidth: 220 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#0a1a0a" }}>Cycle Quiz</p>
+                          <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#0a0a0a" }}>Cycle Quiz</p>
                           <span style={{
                             padding: "2px 9px", borderRadius: 99, fontSize: 10, fontWeight: 700,
                             background: "rgba(0,0,0,0.15)", color: "#111111", textTransform: "uppercase", letterSpacing: "0.06em",
@@ -1171,7 +983,7 @@ export default function Dashboard() {
                         </p>
                         {!qAllDone && (
                           <div style={{ height: 6, borderRadius: 99, background: "rgba(0,0,0,0.08)", overflow: "hidden", marginTop: 10, maxWidth: 360 }}>
-                            <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: "linear-gradient(90deg,#0a0a0a,#111111)" }} />
+                            <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: C.blue.grad }} />
                           </div>
                         )}
                       </div>
@@ -1202,33 +1014,38 @@ export default function Dashboard() {
               {/* ══ 3 STAT CARDS ══ */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
                 {[
-                  { label:"Quiz Mastery", value: s.quizzes,    sub:`Latest: ${s.score}`,                accent:"#111111", glow:"rgba(0,0,0,0.10)",  Icon: TrendingUp, description: "Attempts to improve" },
-                  { label:"Tasks Completed",   value: s.totalTasks, sub:`${s.unlocked} unlocked`,             accent:"#0a0a0a", glow:"rgba(0,0,0,0.10)",  Icon: CheckCircle2, description: `${s.done} of ${s.totalTasks} done` },
-                  { label:"XP Earned",    value:`${s.xp}`,   sub:`${s.nextLevelXP - s.xp} XP to next level`, accent:"#111111", glow:"rgba(0,0,0,0.10)", Icon: Award, description: "Total experience points" },
-                ].map(({ label, value, sub, accent, glow, Icon, description }) => (
-                  <Glass key={label} className="stat-card" style={{ padding:22 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-                      <div>
-                        <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700,
-                          textTransform:"uppercase", letterSpacing:"0.14em" }}>{label}</p>
-                        <p style={{ margin:"2px 0 0", fontSize:10, color: "rgba(0,0,0,0.4)" }}>{description}</p>
+                  { label:"Quiz Mastery",    value: s.quizzes,    sub:`Latest: ${s.score}`,                        c: C.violet, Icon: TrendingUp,   description: "Attempts to improve" },
+                  { label:"Tasks Completed", value: s.totalTasks, sub:`${s.unlocked} unlocked`,                     c: C.green,  Icon: CheckCircle2, description: `${s.done} of ${s.totalTasks} done` },
+                  { label:"XP Earned",       value:`${s.xp}`,     sub:`${s.nextLevelXP - s.xp} XP to next level`,  c: C.amber,  Icon: Award,        description: "Total experience points" },
+                ].map(({ label, value, sub, c, Icon, description }) => (
+                  <Glass key={label} className="stat-card" style={{ padding:0, overflow:"hidden" }}>
+                    <div style={{ height:3, background:c.grad }} />
+                    <div style={{ padding:22 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+                        <div>
+                          <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700,
+                            textTransform:"uppercase", letterSpacing:"0.14em" }}>{label}</p>
+                          <p style={{ margin:"2px 0 0", fontSize:10, color: "rgba(0,0,0,0.4)" }}>{description}</p>
+                        </div>
+                        <div style={{ width:38, height:38, borderRadius:11, background: c.soft,
+                          display:"grid", placeItems:"center" }}>
+                          <Icon size={17} color={c.solid} />
+                        </div>
                       </div>
-                      <div style={{ width:33, height:33, borderRadius:10, background: glow,
-                        display:"grid", placeItems:"center" }}>
-                        <Icon size={15} color={accent} />
-                      </div>
+                      <p style={{ margin:0, color:"#0a0a0a", fontSize:36, fontWeight:900,
+                        letterSpacing:"-0.03em", lineHeight:1, fontFamily:DISPLAY_FONT }}>{value}</p>
+                      <p style={{ margin:"8px 0 0", color:"rgba(0,0,0,0.4)", fontSize:12 }}>{sub}</p>
                     </div>
-                    <p style={{ margin:0, color:"#0a1a0a", fontSize:36, fontWeight:900,
-                      letterSpacing:"-0.03em", lineHeight:1 }}>{value}</p>
-                    <p style={{ margin:"8px 0 0", color:"rgba(0,0,0,0.4)", fontSize:12 }}>{sub}</p>
                   </Glass>
                 ))}
               </div>
 
               {/* Proficiency Achievement Banner */}
-              <Glass style={{ background: `linear-gradient(135deg, ${s.levelConfig.color}15, rgba(255,255,255,0.7))`, padding: 20 }}>
+              <Glass style={{ background: "linear-gradient(135deg, #f7f7f7, #ffffff)", padding: 22 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-                  <div style={{ fontSize: 48 }}>{s.levelConfig.badge}</div>
+                  <div style={{ width:56, height:56, borderRadius:14, background:C.blue.grad, display:"grid", placeItems:"center", flexShrink:0, boxShadow:"0 8px 22px rgba(47,107,255,0.30)" }}>
+                    <LevelIcon size={26} color="#ffffff" />
+                  </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                       <Sparkles size={16} color={s.levelConfig.color} />
@@ -1251,14 +1068,15 @@ export default function Dashboard() {
                         padding: "10px 20px",
                         borderRadius: 12,
                         border: "none",
-                        background: s.levelConfig.bgGradient,
+                        background: C.blue.grad,
                         color: "white",
                         fontWeight: 700,
                         fontSize: 13,
                         cursor: "pointer",
                         display: "inline-flex",
                         alignItems: "center",
-                        gap: 8
+                        gap: 8,
+                        boxShadow: "0 8px 22px rgba(47,107,255,0.30)"
                       }}
                     >
                       Level Up <Zap size={14} />
@@ -1272,47 +1090,73 @@ export default function Dashboard() {
           {/* ── PROGRESS (Enhanced) ── */}
           {activeView === "progress" && (
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
-              {/* Proficiency Level Overview */}
-              <Glass>
-                <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-                  <ProficiencyBadge level={s.level} size="lg" />
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{s.levelConfig.name} Level</h3>
-                    <p style={{ margin: "5px 0 0", color: "rgba(0,0,0,0.6)" }}>{s.levelConfig.description}</p>
-                    <XPProgressBar xp={s.xp} nextLevelXP={s.nextLevelXP} />
+              {/* Proficiency overview — blue banner */}
+              <Glass style={{ padding:0, overflow:"hidden", position:"relative", border:"none",
+                background:"linear-gradient(120deg,#1e5cff 0%,#2f6bff 45%,#4da2ff 100%)",
+                boxShadow:"0 16px 40px rgba(47,107,255,0.28)" }}>
+                <div style={{ position:"absolute", top:-70, right:-20, width:230, height:230, borderRadius:"50%", background:"radial-gradient(circle,rgba(255,255,255,0.20),transparent 70%)", pointerEvents:"none" }} />
+                <div style={{ position:"absolute", inset:0, background:"radial-gradient(circle at 10% 15%, rgba(255,255,255,0.14), transparent 45%)", pointerEvents:"none" }} />
+                <div style={{ position:"relative", display:"flex", alignItems:"center", gap:22, padding:"26px 30px", flexWrap:"wrap" }}>
+                  <div style={{ width:68, height:68, borderRadius:18, background:"rgba(255,255,255,0.18)", border:"1px solid rgba(255,255,255,0.3)", display:"grid", placeItems:"center", flexShrink:0 }}>
+                    <LevelIcon size={31} color="#fff" />
+                  </div>
+                  <div style={{ flex:1, minWidth:250 }}>
+                    <p style={{ margin:0, fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.14em" }}>Current Level</p>
+                    <h3 style={{ margin:"3px 0 0", fontSize:24, fontWeight:700, color:"#fff", fontFamily:DISPLAY_FONT, letterSpacing:"-0.02em" }}>{s.levelConfig.name}</h3>
+                    <p style={{ margin:"4px 0 13px", fontSize:12.5, color:"rgba(255,255,255,0.8)" }}>{s.levelConfig.description}</p>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:7 }}>
+                      <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.1em" }}>XP Progress</span>
+                      <span style={{ fontSize:11, fontWeight:800, color:C.blue.solid, background:"#fff", padding:"2px 9px", borderRadius:5, fontFamily:DISPLAY_FONT }}>{s.xp} / {s.nextLevelXP}</span>
+                    </div>
+                    <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.25)", overflow:"hidden" }}>
+                      <div style={{ height:"100%", borderRadius:99, width:`${Math.min(100,(s.xp/s.nextLevelXP)*100)}%`, background:"#fff", boxShadow:"0 0 12px rgba(255,255,255,0.7)", transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
+                    </div>
                   </div>
                 </div>
               </Glass>
-              
+
+              {/* Colored stat cards */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
                 {[
-                  { label:"Total XP",    value: s.xp,     Icon: Award,   accent:"#111111", glow:"rgba(0,0,0,0.10)", suffix: " XP" },
-                  { label:"Tasks", value: `${s.done}/${s.totalTasks}`,  Icon: CheckCircle2, accent:"#0a0a0a", glow:"rgba(0,0,0,0.10)", suffix: "" },
-                  { label:"Streak",  value:s.streak, Icon: Flame,         accent:"#111111", glow:"rgba(0,0,0,0.10)", suffix: " days" },
-                ].map(({ label, value, Icon, accent, glow, suffix }) => (
-                  <Glass key={label} className="stat-card" style={{ padding:28, textAlign:"center" }}>
-                    <div style={{ width:46, height:46, borderRadius:13, background: glow,
-                      display:"grid", placeItems:"center", margin:"0 auto 18px" }}>
-                      <Icon size={21} color={accent} />
+                  { label:"Total XP",   value:`${s.xp}`,                  c:C.blue,  Icon:Award,        description:"Experience earned" },
+                  { label:"Tasks Done", value:`${s.done}/${s.totalTasks}`, c:C.green, Icon:CheckCircle2, description:"Across all paths" },
+                  { label:"Day Streak", value:`${s.streak}`,              c:C.flame, Icon:Flame,        description:"Keep it going" },
+                ].map(({ label, value, c, Icon, description }) => (
+                  <Glass key={label} className="stat-card" style={{ padding:0, overflow:"hidden" }}>
+                    <div style={{ height:3, background:c.grad }} />
+                    <div style={{ padding:22 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+                        <div>
+                          <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.14em" }}>{label}</p>
+                          <p style={{ margin:"2px 0 0", fontSize:10, color:"rgba(0,0,0,0.4)" }}>{description}</p>
+                        </div>
+                        <div style={{ width:38, height:38, borderRadius:11, background:c.soft, display:"grid", placeItems:"center" }}>
+                          <Icon size={17} color={c.solid} />
+                        </div>
+                      </div>
+                      <p style={{ margin:0, color:"#0a0a0a", fontSize:36, fontWeight:900, letterSpacing:"-0.03em", lineHeight:1, fontFamily:DISPLAY_FONT }}>{value}</p>
                     </div>
-                    <p style={{ margin:0, color:"#0a1a0a", fontSize:38, fontWeight:900, letterSpacing:"-0.03em" }}>{value}{suffix}</p>
-                    <p style={{ margin:"7px 0 0", color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700,
-                      textTransform:"uppercase", letterSpacing:"0.14em" }}>{label}</p>
                   </Glass>
                 ))}
               </div>
+
+              {/* Course completion */}
               <Glass>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-                  <p style={{ margin:0, color:"#0a1a0a", fontWeight:700, fontSize:15 }}>Course Completion</p>
-                  <p style={{ margin:0, color:"#111111", fontWeight:900, fontSize:15 }}>{s.pct}%</p>
+                <div style={{ display:"flex", alignItems:"center", gap:24, flexWrap:"wrap" }}>
+                  <div style={{ position:"relative", width:90, height:90, display:"grid", placeItems:"center", flexShrink:0 }}>
+                    <div style={{ position:"absolute", inset:0 }}>
+                      <Ring pct={s.pct} size={90} stroke={8} color={C.blue.solid} />
+                    </div>
+                    <div style={{ fontSize:21, fontWeight:900, color:"#0a0a0a", fontFamily:DISPLAY_FONT }}>{s.pct}%</div>
+                  </div>
+                  <div style={{ flex:1, minWidth:220 }}>
+                    <p style={{ margin:0, color:"#0a0a0a", fontWeight:700, fontSize:16, fontFamily:DISPLAY_FONT }}>Course Completion</p>
+                    <p style={{ margin:"4px 0 14px", color:"rgba(0,0,0,0.5)", fontSize:13 }}>{s.done} of {s.totalTasks} tasks completed</p>
+                    <div style={{ height:8, borderRadius:99, background:"rgba(0,0,0,0.08)", overflow:"hidden" }}>
+                      <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`, background:C.blue.grad, transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
+                    </div>
+                  </div>
                 </div>
-                <div style={{ height:8, borderRadius:99, background:"rgba(0,0,0,0.08)", overflow:"hidden" }}>
-                  <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
-                    background:"linear-gradient(90deg, #0a0a0a, #111111)" }} />
-                </div>
-                <p style={{ margin:"10px 0 0", color:"rgba(0,0,0,0.4)", fontSize:13 }}>
-                  {s.done} of {s.totalTasks} tasks completed
-                </p>
               </Glass>
             </div>
           )}
@@ -1338,88 +1182,63 @@ export default function Dashboard() {
             return (
               <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
-                  {/* Last Score Card */}
-                  <Glass className="stat-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                      <p style={{ margin:0, color:"rgba(0,0,0,0.4)", fontSize:10, fontWeight:700,
-                        textTransform:"uppercase", letterSpacing:"0.16em" }}>Last Score</p>
-                      <span style={{ fontSize: 20 }}>📊</span>
-                    </div>
-                    <p style={{ margin:0, color:"#111111", fontSize:28, fontWeight:900, letterSpacing:"-0.03em" }}>
-                      {lastScore}/{totalQuestions}
-                    </p>
-                    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: lastPercentage >= 80 ? "#111111" : lastPercentage >= 60 ? "#111111" : "#555555"
-                      }} />
-                      <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:12, fontWeight: 600 }}>
-                        {lastPercentage}%
-                      </p>
+                  {/* Last Score */}
+                  <Glass className="stat-card" style={{ padding:0, overflow:"hidden" }}>
+                    <div style={{ height:3, background:C.blue.grad }} />
+                    <div style={{ padding:22 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                        <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.14em" }}>Last Score</p>
+                        <div style={{ width:38, height:38, borderRadius:11, background:C.blue.soft, display:"grid", placeItems:"center" }}><BarChart3 size={17} color={C.blue.solid} /></div>
+                      </div>
+                      <p style={{ margin:0, color:"#0a0a0a", fontSize:32, fontWeight:900, letterSpacing:"-0.03em", lineHeight:1, fontFamily:DISPLAY_FONT }}>{lastScore}/{totalQuestions}</p>
+                      <div style={{ marginTop:11, display:"inline-flex", alignItems:"center", padding:"3px 10px", borderRadius:99, background:C.blue.soft }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:C.blue.solid }}>{lastPercentage}%</span>
+                      </div>
                     </div>
                   </Glass>
 
-                  {/* Best Score Card */}
-                  <Glass className="stat-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                      <p style={{ margin:0, color:"rgba(0,0,0,0.4)", fontSize:10, fontWeight:700,
-                        textTransform:"uppercase", letterSpacing:"0.16em" }}>Best Score</p>
-                      <span style={{ fontSize: 20 }}>🏆</span>
+                  {/* Best Score */}
+                  <Glass className="stat-card" style={{ padding:0, overflow:"hidden" }}>
+                    <div style={{ height:3, background:C.amber.grad }} />
+                    <div style={{ padding:22 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                        <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.14em" }}>Best Score</p>
+                        <div style={{ width:38, height:38, borderRadius:11, background:C.amber.soft, display:"grid", placeItems:"center" }}><Trophy size={17} color={C.amber.solid} /></div>
+                      </div>
+                      <p style={{ margin:0, color:"#0a0a0a", fontSize:32, fontWeight:900, letterSpacing:"-0.03em", lineHeight:1, fontFamily:DISPLAY_FONT }}>{bestScore}/{totalQuestions}</p>
+                      <p style={{ margin:"11px 0 0", color:"rgba(0,0,0,0.45)", fontSize:12, fontWeight:600 }}>{attempts.length} attempt{attempts.length !== 1 ? "s" : ""}</p>
                     </div>
-                    <p style={{ margin:0, color:"#111111", fontSize:28, fontWeight:900, letterSpacing:"-0.03em" }}>
-                      {bestScore}/{totalQuestions}
-                    </p>
-                    <p style={{ margin:"8px 0 0", color:"rgba(0,0,0,0.5)", fontSize:12, fontWeight: 600 }}>
-                      {attempts.length} attempt{attempts.length !== 1 ? "s" : ""}
-                    </p>
                   </Glass>
 
-                  {/* Current Level Based on Last Score Card */}
-                  <Glass className="stat-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                      <p style={{ margin:0, color:"rgba(0,0,0,0.4)", fontSize:10, fontWeight:700,
-                        textTransform:"uppercase", letterSpacing:"0.16em" }}>Current Level</p>
-                      <span style={{ fontSize: 20 }}>{lastScoreConfig.badge}</span>
+                  {/* Current Level */}
+                  <Glass className="stat-card" style={{ padding:0, overflow:"hidden" }}>
+                    <div style={{ height:3, background:C.violet.grad }} />
+                    <div style={{ padding:22 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                        <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.14em" }}>Current Level</p>
+                        <div style={{ width:38, height:38, borderRadius:11, background:C.violet.soft, display:"grid", placeItems:"center" }}><Star size={17} color={C.violet.solid} /></div>
+                      </div>
+                      <p style={{ margin:0, color:"#0a0a0a", fontSize:24, fontWeight:900, letterSpacing:"-0.02em", lineHeight:1, fontFamily:DISPLAY_FONT }}>{lastScoreConfig.name}</p>
+                      <p style={{ margin:"9px 0 0", color:"rgba(0,0,0,0.45)", fontSize:12, fontWeight:600, lineHeight:1.4 }}>{lastScoreConfig.description}</p>
                     </div>
-                    <p style={{ margin:0, color: lastScoreConfig.color, fontSize:28, fontWeight:900, letterSpacing:"-0.03em" }}>
-                      {lastScoreConfig.name}
-                    </p>
-                    <p style={{ margin:"8px 0 0", color:"rgba(0,0,0,0.5)", fontSize:12, fontWeight: 600 }}>
-                      {lastScoreConfig.description}
-                    </p>
                   </Glass>
                 </div>
 
                 {/* Action Card */}
                 <Glass>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <div>
-                      <h3 style={{ margin:"0 0 4px", color:"#0a1a0a", fontWeight:800, fontSize:17 }}>Assessment History</h3>
-                      <p style={{ margin: 0, color: "rgba(0,0,0,0.5)", fontSize: 12 }}>Track all your assessment attempts</p>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:16, flexWrap:"wrap" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                      <div style={{ width:44, height:44, borderRadius:12, background:C.blue.soft, display:"grid", placeItems:"center", flexShrink:0 }}><BarChart3 size={20} color={C.blue.solid} /></div>
+                      <div>
+                        <h3 style={{ margin:"0 0 3px", color:"#0a0a0a", fontWeight:800, fontSize:16, fontFamily:DISPLAY_FONT }}>Assessment History</h3>
+                        <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:12.5 }}>Track all your assessment attempts</p>
+                      </div>
                     </div>
                     {attempts.length > 0 && (
                       <button onClick={() => setShowAssessmentModal(true)} style={{
-                        padding: "10px 18px",
-                        borderRadius: 10,
-                        border: "1px solid rgba(0,0,0,0.3)",
-                        background: "rgba(0,0,0,0.1)",
-                        color: "#111111",
-                        fontWeight: 700,
-                        fontSize: 12,
-                        cursor: "pointer",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        transition: "all 0.2s ease"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.background = "rgba(0,0,0,0.15)";
-                        e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.background = "rgba(0,0,0,0.1)";
-                        e.target.style.boxShadow = "none";
+                        padding:"10px 18px", borderRadius:10, border:`1px solid ${C.blue.solid}33`,
+                        background:C.blue.soft, color:C.blue.solid, fontWeight:700, fontSize:12,
+                        cursor:"pointer", textTransform:"uppercase", letterSpacing:"0.06em",
                       }}>
                         See All Details
                       </button>
@@ -1429,21 +1248,22 @@ export default function Dashboard() {
 
                 {/* Readiness Card */}
                 <Glass>
-                  <h3 style={{ margin:"0 0 8px", color:"#0a1a0a", fontWeight:800, fontSize:17 }}>Ready to level up?</h3>
+                  <h3 style={{ margin:"0 0 8px", color:"#0a0a0a", fontWeight:800, fontSize:17, fontFamily:DISPLAY_FONT }}>Ready to level up?</h3>
                   <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:14, lineHeight:1.65 }}>
                     Taking assessments helps us gauge your proficiency and unlock more challenging content tailored to your skill level.
                   </p>
-                  <div style={{ marginTop: 16, padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.1)" }}>
-                    <p style={{ margin: 0, fontSize: 12, color: "#111111", fontWeight: 600 }}>
-                      💡 Tip: Score 80% or higher to advance to the next proficiency level!
+                  <div style={{ marginTop:16, display:"flex", alignItems:"center", gap:10, padding:"12px 14px", borderRadius:12, background:C.blue.soft, border:`1px solid ${C.blue.solid}22` }}>
+                    <Sparkles size={16} color={C.blue.solid} style={{ flexShrink:0 }} />
+                    <p style={{ margin:0, fontSize:12.5, color:"rgba(0,0,0,0.6)", fontWeight:600 }}>
+                      Tip: Score 80% or higher to advance to the next proficiency level!
                     </p>
                   </div>
                   <button onClick={() => navigate("/assessment")} style={{
                     marginTop:22, padding:"12px 26px", borderRadius:12, border:"none",
-                    background:"linear-gradient(135deg, #0a0a0a, #000000)",
+                    background:"linear-gradient(135deg, #2f6bff, #4da2ff)",
                     color:"#ffffff", fontWeight:800, fontSize:14,
                     cursor:"pointer", display:"inline-flex", alignItems:"center", gap:9,
-                    boxShadow:"0 8px 24px rgba(0,0,0,0.28)",
+                    boxShadow:"0 8px 24px rgba(47,107,255,0.3)",
                   }}>
                     Start Assessment <ArrowRight size={15} />
                   </button>
@@ -1473,7 +1293,7 @@ export default function Dashboard() {
                   }}>
                     {/* Header */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                      <h2 style={{ margin: 0, color: "#0a1a0a", fontSize: 22, fontWeight: 900 }}>
+                      <h2 style={{ margin: 0, color: "#0a0a0a", fontSize: 22, fontWeight: 900 }}>
                         Assessment History
                       </h2>
                       <button onClick={() => setShowAssessmentModal(false)} style={{
@@ -1551,7 +1371,7 @@ export default function Dashboard() {
 
                               {/* Info */}
                               <div style={{ flex: 1 }}>
-                                <p style={{ margin: 0, color: "#0a1a0a", fontWeight: 700, fontSize: 14 }}>
+                                <p style={{ margin: 0, color: "#0a0a0a", fontWeight: 700, fontSize: 14 }}>
                                   {language.toUpperCase()}
                                 </p>
                                 <p style={{ margin: "2px 0 0", color: "rgba(0,0,0,0.5)", fontSize: 11 }}>
@@ -1623,23 +1443,27 @@ export default function Dashboard() {
           {/* ── LEARNING PATH (Enhanced) ── */}
           {activeView === "learningPath" && (
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
-                <p style={{ margin:0, color:"rgba(0,0,0,0.6)", fontSize:14 }}>
-                  {s.langLabel} • {s.done}/{s.totalTasks} tasks complete • {s.levelConfig.name} Level
-                </p>
-                <button onClick={() => navigate("/learning-path")} style={{
-                  padding:"10px 20px", border:"1px solid #0a0a0a", cursor:"pointer",
-                  background:"#ffffff", color:"#0a0a0a", fontWeight:700, fontSize:13,
-                  display:"inline-flex", alignItems:"center", gap:8,
-                }}>
-                  Full View <ArrowRight size={14} />
-                </button>
-              </div>
-
-              <div style={{ height:6, borderRadius:99, background:"rgba(0,0,0,0.08)", overflow:"hidden" }}>
-                <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`,
-                  background:"linear-gradient(90deg, #0a0a0a, #111111)" }} />
-              </div>
+              {/* Roadmap summary header */}
+              <Glass style={{ padding:"18px 22px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
+                  <div style={{ width:50, height:50, borderRadius:14, background:C.blue.grad, display:"grid", placeItems:"center", flexShrink:0, boxShadow:"0 8px 20px rgba(47,107,255,0.3)", fontSize:23 }}>{s.langEmoji}</div>
+                  <div style={{ flex:1, minWidth:180 }}>
+                    <p style={{ margin:0, fontSize:16, fontWeight:800, color:"#0a0a0a", fontFamily:DISPLAY_FONT }}>{s.langLabel} Roadmap</p>
+                    <p style={{ margin:"3px 0 0", fontSize:12.5, color:"rgba(0,0,0,0.5)" }}>{s.done} of {s.totalTasks} tasks • {s.levelConfig.name} Level</p>
+                  </div>
+                  <span style={{ fontSize:28, fontWeight:900, color:C.blue.solid, fontFamily:DISPLAY_FONT, flexShrink:0 }}>{s.pct}%</span>
+                  <button onClick={() => navigate("/learning-path")} style={{
+                    padding:"10px 18px", borderRadius:10, border:`1px solid ${C.blue.solid}33`, cursor:"pointer",
+                    background:C.blue.soft, color:C.blue.solid, fontWeight:700, fontSize:13,
+                    display:"inline-flex", alignItems:"center", gap:8, flexShrink:0,
+                  }}>
+                    Full View <ArrowRight size={14} />
+                  </button>
+                </div>
+                <div style={{ marginTop:16, height:7, borderRadius:99, background:"rgba(0,0,0,0.08)", overflow:"hidden" }}>
+                  <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`, background:C.blue.grad, transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
+                </div>
+              </Glass>
 
               {!learningPaths.length ? (
                 <Glass style={{ textAlign:"center", padding:52 }}>
@@ -1648,9 +1472,9 @@ export default function Dashboard() {
                   <p style={{ margin:"7px 0 0", color:"rgba(0,0,0,0.4)", fontSize:13 }}>Complete an assessment to generate your personalized learning path.</p>
                   <button onClick={() => setActiveView("assessment")} style={{
                     marginTop:22, padding:"11px 26px", borderRadius:12, border:"none",
-                    background:"linear-gradient(135deg, #0a0a0a, #000000)",
+                    background:"linear-gradient(135deg, #2f6bff, #4da2ff)",
                     color:"#ffffff", fontWeight:800, fontSize:13, cursor:"pointer",
-                    boxShadow:"0 8px 24px rgba(0,0,0,0.28)",
+                    boxShadow:"0 8px 24px rgba(47,107,255,0.3)",
                   }}>
                     Take Assessment
                   </button>
@@ -1661,21 +1485,24 @@ export default function Dashboard() {
                     <div key={task.taskId} className="task-row" style={{
                       padding:"15px 20px",
                       display:"flex", alignItems:"center", gap:16,
-                      opacity: task.status === "locked" ? 0.5 : 1,
+                      opacity: task.status === "locked" ? 0.55 : 1,
                       background:"#ffffff", border:"1px solid #e6e6e6",
+                      borderLeft: task.status === "unlocked" ? `3px solid ${C.blue.solid}`
+                        : task.status === "completed" ? `3px solid ${C.green.solid}`
+                        : "1px solid #e6e6e6",
                     }}>
-                      <div style={{ width:36, height:36, borderRadius:"50%", flexShrink:0,
-                        display:"grid", placeItems:"center", fontWeight:900, fontSize:13,
-                        background: task.status === "completed" ? "rgba(0,0,0,0.15)"
-                          : task.status === "unlocked" ? "rgba(0,0,0,0.15)"
-                          : "rgba(0,0,0,0.08)",
-                        color: task.status === "completed" ? "#111111"
-                          : task.status === "unlocked" ? "#111111"
+                      <div style={{ width:38, height:38, borderRadius:11, flexShrink:0,
+                        display:"grid", placeItems:"center", fontWeight:800, fontSize:13, fontFamily:DISPLAY_FONT,
+                        background: task.status === "completed" ? C.green.soft
+                          : task.status === "unlocked" ? C.blue.soft
+                          : "rgba(0,0,0,0.05)",
+                        color: task.status === "completed" ? C.green.solid
+                          : task.status === "unlocked" ? C.blue.solid
                           : "rgba(0,0,0,0.3)" }}>
-                        {task.status === "completed" ? <CheckCircle2 size={16} /> : i + 1}
+                        {task.status === "completed" ? <CheckCircle2 size={17} /> : i + 1}
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <p style={{ margin:0, color:"#0a1a0a", fontWeight:700, fontSize:14,
+                        <p style={{ margin:0, color:"#0a0a0a", fontWeight:700, fontSize:14,
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{task.title}</p>
                         <p style={{ margin:"3px 0 0", color:"rgba(0,0,0,0.45)", fontSize:12,
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{task.description}</p>
@@ -1690,8 +1517,8 @@ export default function Dashboard() {
                         borderRadius: 8,
                         border: "none",
                         background: "transparent",
-                        color: "#111111",
-                        fontWeight: 600,
+                        color: C.blue.solid,
+                        fontWeight: 700,
                         fontSize: 12,
                         cursor: "pointer"
                       }}>
@@ -1704,6 +1531,160 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* ── LEADERBOARD ── */}
+          {activeView === "leaderboard" && (() => {
+            const rows = leaderboard || [];
+            const myId = String(user?.id || user?._id || "");
+            const me = rows.find(r => String(r.userId) === myId) || null;
+            const top = rows.slice(0, 3);
+            const rest = rows.slice(3);
+            const maxPoints = rows.length ? Math.max(...rows.map(r => r.points), 1) : 1;
+            const podium = [top[1], top[0], top[2]];
+            const initialOf = (n) => (n || "U").charAt(0).toUpperCase();
+
+            return (
+              <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
+
+                {/* Hero */}
+                <Glass style={{ padding:0, overflow:"hidden", position:"relative", border:"none",
+                  background:"linear-gradient(120deg,#7c5cff 0%,#2f6bff 48%,#ff6b9d 100%)",
+                  boxShadow:"0 16px 40px rgba(124,92,255,0.32)" }}>
+                  <div style={{ position:"absolute", top:-70, right:-20, width:230, height:230, borderRadius:"50%", background:"radial-gradient(circle,rgba(255,255,255,0.22),transparent 70%)", pointerEvents:"none" }} />
+                  <div style={{ position:"absolute", bottom:-90, left:120, width:200, height:200, borderRadius:"50%", background:"radial-gradient(circle,rgba(255,255,255,0.12),transparent 70%)", pointerEvents:"none" }} />
+                  <div style={{ position:"relative", display:"flex", alignItems:"center", gap:18, padding:"24px 30px", flexWrap:"wrap" }}>
+                    <div style={{ width:60, height:60, borderRadius:18, background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.3)", display:"grid", placeItems:"center", flexShrink:0 }}>
+                      <Trophy size={30} color="#fff" />
+                    </div>
+                    <div style={{ flex:1, minWidth:220 }}>
+                      <h2 style={{ margin:0, fontSize:26, fontWeight:800, color:"#fff", fontFamily:DISPLAY_FONT, letterSpacing:"-0.02em" }}>Leaderboard</h2>
+                      <p style={{ margin:"4px 0 0", fontSize:13, color:"rgba(255,255,255,0.88)" }}>Earn <strong>+5 points</strong> for every task you complete. Climb the ranks! 🚀</p>
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8, alignItems:"flex-end" }}>
+                      <span style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"6px 12px", borderRadius:99, background:"rgba(255,255,255,0.18)", color:"#fff", fontSize:11, fontWeight:800, letterSpacing:"0.08em" }}>
+                        <span style={{ width:8, height:8, borderRadius:"50%", background:"#22e39b", animation:"pulse 1.6s infinite" }} /> LIVE
+                      </span>
+                      <span style={{ display:"inline-flex", alignItems:"center", gap:6, color:"rgba(255,255,255,0.92)", fontSize:12, fontWeight:700 }}>
+                        <Users size={14} color="#fff" /> {rows.length} player{rows.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  </div>
+                </Glass>
+
+                {lbLoading && !rows.length ? (
+                  <Glass style={{ textAlign:"center", padding:60 }}>
+                    <div style={{ width:34, height:34, borderRadius:"50%", border:"3px solid rgba(0,0,0,0.1)", borderTopColor:C.blue.solid, animation:"spin .8s linear infinite", margin:"0 auto" }} />
+                    <p style={{ margin:"16px 0 0", color:"rgba(0,0,0,0.45)", fontSize:13 }}>Loading rankings…</p>
+                  </Glass>
+                ) : !rows.length ? (
+                  <Glass style={{ textAlign:"center", padding:56 }}>
+                    <div style={{ fontSize:44 }}>🏁</div>
+                    <p style={{ margin:"10px 0 0", color:"#0a0a0a", fontWeight:800, fontSize:16, fontFamily:DISPLAY_FONT }}>No players on the board yet</p>
+                    <p style={{ margin:"6px 0 0", color:"rgba(0,0,0,0.45)", fontSize:13 }}>Complete a task in your learning path to score your first points!</p>
+                  </Glass>
+                ) : (
+                  <>
+                    {/* Podium (top 3) */}
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, alignItems:"end" }}>
+                      {podium.map((p, idx) => {
+                        if (!p) return <div key={`empty-${idx}`} />;
+                        const rs = RANK[p.rank] || RANK[3];
+                        const h = p.rank === 1 ? 150 : p.rank === 2 ? 120 : 104;
+                        const av = p.rank === 1 ? 84 : 66;
+                        const isMe = String(p.userId) === myId;
+                        return (
+                          <div key={p.userId} style={{ textAlign:"center" }}>
+                            <div style={{ position:"relative", width:av, height:av, margin:"0 auto 10px" }}>
+                              {p.rank === 1 && <div style={{ position:"absolute", top:-20, left:"50%", transform:"translateX(-50%)", fontSize:26 }}>👑</div>}
+                              <div style={{ width:"100%", height:"100%", borderRadius:"50%", background:avatarGrad(p.name), display:"grid", placeItems:"center", color:"#fff", fontSize:p.rank===1?32:25, fontWeight:800, fontFamily:DISPLAY_FONT, border:`3px solid ${rs.ring}`, boxShadow:`0 8px 24px ${rs.glow}` }}>{initialOf(p.name)}</div>
+                              <div style={{ position:"absolute", bottom:-6, right:-4, fontSize:22 }}>{rs.emoji}</div>
+                            </div>
+                            <p style={{ margin:0, fontSize:14, fontWeight:800, color:"#0a0a0a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                              {isMe ? "You" : (p.name || "Learner")}
+                            </p>
+                            <p style={{ margin:"2px 0 0", fontSize:11, color:"rgba(0,0,0,0.45)", fontWeight:600 }}>{p.level}</p>
+                            <div style={{ marginTop:10, height:h, borderRadius:"16px 16px 0 0", background:rs.grad, boxShadow:`0 -6px 22px ${rs.glow}`, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:16, position:"relative", overflow:"hidden", outline: isMe ? "3px solid rgba(255,255,255,0.75)" : "none", outlineOffset:-3 }}>
+                              <span style={{ fontSize:28, fontWeight:900, color:"#fff", fontFamily:DISPLAY_FONT, lineHeight:1 }}>{p.points}</span>
+                              <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.9)", textTransform:"uppercase", letterSpacing:"0.12em", marginTop:3 }}>points</span>
+                              <span style={{ position:"absolute", bottom:4, fontSize:34, fontWeight:900, color:"rgba(255,255,255,0.25)", fontFamily:DISPLAY_FONT }}>#{p.rank}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Your rank (if outside top 3) */}
+                    {me && me.rank > 3 && (
+                      <Glass style={{ padding:"16px 22px", border:`2px solid ${C.blue.solid}`, background:C.blue.soft }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                          <span style={{ fontSize:18, fontWeight:900, color:C.blue.solid, fontFamily:DISPLAY_FONT, minWidth:34 }}>#{me.rank}</span>
+                          <div style={{ width:44, height:44, borderRadius:"50%", background:avatarGrad(me.name), display:"grid", placeItems:"center", color:"#fff", fontWeight:800, fontFamily:DISPLAY_FONT, flexShrink:0 }}>{initialOf(me.name)}</div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <p style={{ margin:0, fontWeight:800, fontSize:14, color:"#0a0a0a" }}>You · {me.points} pts</p>
+                            <p style={{ margin:"2px 0 0", fontSize:12, color:"rgba(0,0,0,0.5)" }}>
+                              {(() => { const above = rows.find(r => r.rank === me.rank - 1); const gap = above ? (above.points - me.points) : 0; return gap > 0 ? `${gap} pts to overtake #${me.rank - 1}` : "You're climbing fast!"; })()}
+                            </p>
+                          </div>
+                          <Zap size={20} color={C.blue.solid} fill={C.blue.solid} />
+                        </div>
+                      </Glass>
+                    )}
+
+                    {/* Full rankings */}
+                    {rest.length > 0 && (
+                      <Glass style={{ padding:0, overflow:"hidden" }}>
+                        <div style={{ padding:"14px 22px", borderBottom:"1px solid rgba(0,0,0,0.06)", display:"flex", alignItems:"center", gap:8 }}>
+                          <Medal size={16} color={C.violet.solid} />
+                          <p style={{ margin:0, fontSize:12, fontWeight:800, color:"#0a0a0a", textTransform:"uppercase", letterSpacing:"0.12em" }}>All Rankings</p>
+                        </div>
+                        {rest.map((p) => {
+                          const isMe = String(p.userId) === myId;
+                          const barPct = Math.max(4, Math.round((p.points / maxPoints) * 100));
+                          return (
+                            <div key={p.userId} style={{ display:"flex", alignItems:"center", gap:14, padding:"13px 22px", borderBottom:"1px solid rgba(0,0,0,0.04)", background: isMe ? C.blue.soft : "transparent" }}>
+                              <span style={{ minWidth:30, fontSize:14, fontWeight:900, color: isMe ? C.blue.solid : "rgba(0,0,0,0.35)", fontFamily:DISPLAY_FONT }}>{p.rank}</span>
+                              <div style={{ width:42, height:42, borderRadius:"50%", background:avatarGrad(p.name), display:"grid", placeItems:"center", color:"#fff", fontWeight:800, fontSize:16, fontFamily:DISPLAY_FONT, flexShrink:0 }}>{initialOf(p.name)}</div>
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                  <p style={{ margin:0, fontWeight:700, fontSize:14, color:"#0a0a0a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name || "Learner"}</p>
+                                  {isMe && <span style={{ fontSize:9, fontWeight:800, color:"#fff", background:C.blue.solid, padding:"2px 7px", borderRadius:99, textTransform:"uppercase", letterSpacing:"0.08em" }}>You</span>}
+                                </div>
+                                <div style={{ marginTop:6, height:5, borderRadius:99, background:"rgba(0,0,0,0.07)", overflow:"hidden", maxWidth:280 }}>
+                                  <div style={{ height:"100%", borderRadius:99, width:`${barPct}%`, background:avatarGrad(p.name) }} />
+                                </div>
+                              </div>
+                              <div style={{ textAlign:"right", flexShrink:0 }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:5, justifyContent:"flex-end" }}>
+                                  <Zap size={13} color={C.amber.solid} fill={C.amber.solid} />
+                                  <span style={{ fontSize:16, fontWeight:900, color:"#0a0a0a", fontFamily:DISPLAY_FONT }}>{p.points}</span>
+                                </div>
+                                <p style={{ margin:"1px 0 0", fontSize:10, color:"rgba(0,0,0,0.4)", fontWeight:600 }}>{p.tasksCompleted} tasks</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </Glass>
+                    )}
+
+                    {/* How scoring works */}
+                    <Glass style={{ padding:"16px 22px", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                      <div style={{ width:40, height:40, borderRadius:11, background:C.amber.soft, display:"grid", placeItems:"center", flexShrink:0 }}><Zap size={19} color={C.amber.solid} fill={C.amber.solid} /></div>
+                      <p style={{ margin:0, fontSize:13, color:"rgba(0,0,0,0.6)", flex:1, minWidth:200 }}>
+                        <strong style={{ color:"#0a0a0a" }}>How scoring works:</strong> +5 points per completed task, +25 for passing a cycle quiz. Keep learning to climb! 🔥
+                      </p>
+                      <button onClick={() => setActiveView("learningPath")} style={{
+                        padding:"10px 18px", borderRadius:10, border:"none", cursor:"pointer",
+                        background:"linear-gradient(135deg, #2f6bff, #4da2ff)", color:"#fff", fontWeight:800, fontSize:13,
+                        display:"inline-flex", alignItems:"center", gap:8, boxShadow:"0 8px 22px rgba(47,107,255,0.3)",
+                      }}>
+                        Earn points <ArrowRight size={14} />
+                      </button>
+                    </Glass>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+
         </div>
       </main>
 
@@ -1715,6 +1696,30 @@ export default function Dashboard() {
           onClose={() => { setShowQuiz(false); reloadLearningPaths(); }}
           onQuizPassed={() => reloadLearningPaths()}
         />
+      )}
+
+      {/* Rank-up celebration */}
+      {rankCelebration && (
+        <div style={{ position:"fixed", inset:0, zIndex:200, pointerEvents:"none", overflow:"hidden", display:"grid", placeItems:"center" }}>
+          <style>{`
+            @keyframes ru-pop {0%{transform:scale(0) translateY(20px);opacity:0}55%{transform:scale(1.12);opacity:1}100%{transform:scale(1) translateY(0)}}
+            @keyframes ru-fall {0%{transform:translateY(-40px) rotate(0);opacity:1}100%{transform:translateY(108vh) rotate(680deg);opacity:0}}
+            @keyframes ru-glow {0%,100%{text-shadow:0 0 26px rgba(47,107,255,0.7)}50%{text-shadow:0 0 52px rgba(124,92,255,1)}}
+          `}</style>
+          {rankConfetti.map((c, i) => (
+            <span key={i} style={{ position:"absolute", left:c.left, top:"-5%", width:c.size, height:c.size, background:c.color, borderRadius:c.round?"50%":2, animation:`ru-fall ${c.dur}s ${c.delay}s ease-in forwards` }} />
+          ))}
+          <div style={{ animation:"ru-pop .6s cubic-bezier(.34,1.56,.64,1) both", textAlign:"center", padding:"30px 48px", borderRadius:24, background:"linear-gradient(135deg, rgba(20,24,40,0.94), rgba(34,40,66,0.94))", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", boxShadow:"0 24px 70px rgba(47,107,255,0.4)", border:"1px solid rgba(255,255,255,0.12)" }}>
+            <div style={{ fontSize:46 }}>🚀</div>
+            <div style={{ marginTop:8, fontSize:40, fontWeight:900, fontFamily:DISPLAY_FONT, color:"#fff", letterSpacing:"-0.02em", animation:"ru-glow 1.2s ease-in-out infinite" }}>RANK UP!</div>
+            <div style={{ marginTop:12, display:"inline-flex", alignItems:"center", gap:12, fontFamily:DISPLAY_FONT, fontWeight:900 }}>
+              <span style={{ fontSize:26, color:"rgba(255,255,255,0.4)" }}>#{rankCelebration.from}</span>
+              <ArrowRight size={22} color="#22e39b" />
+              <span style={{ fontSize:36, color:"#22e39b" }}>#{rankCelebration.to}</span>
+            </div>
+            <div style={{ marginTop:10, fontSize:13, color:"rgba(255,255,255,0.72)", fontWeight:600 }}>You climbed the leaderboard! 🔥</div>
+          </div>
+        </div>
       )}
     </div>
   );

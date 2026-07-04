@@ -1094,34 +1094,54 @@ IMPORTANT: Respond with the explanation ONLY, as plain Markdown text. Do NOT wra
 
   switch (action) {
     case 'explain':
-   userPrompt = `Help me understand the important concepts in this problem:
+   userPrompt = `The student wants to LEARN the concepts used in this ${language} task — NOT the answer to it.
 
-Title: ${question}
-Description: ${description}
-Language: ${language}
-Level: ${proficiencyLevel}
+Task title: ${question}
+Task description: ${description}
+Student level: ${proficiencyLevel}
 
-What are the key concepts I need to know? Break down the important ideas and explain them clearly.`;
+Teach it in EXACTLY this shape, and nothing more:
+
+1. Start with ONE short line naming the concepts this task uses. Example: "This task uses: **variables**, **data types**, and the **printf** function."
+
+2. Then take EACH concept in turn, under its own **bold heading**, and for each concept give:
+   - a one-line plain-English definition,
+   - a single GENERIC one-line ${language} example showing its syntax (e.g. how to declare a variable),
+   - if the concept has common variations or types (for example data types: int, float, char), list 2-4 of them, each with its own tiny one-line example.
+
+HARD RULES (must follow):
+- Use ONLY generic, standalone examples such as \`int age = 20;\` or \`printf("Hello");\`. Examples must NOT be the task's actual code.
+- Do NOT write the program that solves this task. Do NOT combine the concepts into a working solution. Do NOT show the task's final output or answer.
+- Keep every example to a single line where possible. You are teaching the building blocks only — the student writes the solution themselves.`;
       break;
       
     case 'breakdown':
-      userPrompt = `Break down this problem into simple steps:
+      userPrompt = `List the steps to solve this ${language} task — just the steps, nothing else.
 
-Title: ${question}
-Description: ${description}
-Language: ${language}
+Task title: ${question}
+Task description: ${description}
+Student level: ${proficiencyLevel}
 
-Show me the thinking process step-by-step. What should I consider first, second, etc?`;
+Output rules (follow exactly):
+- Reply with ONLY a numbered list: **Step 1**, **Step 2**, **Step 3**, and so on.
+- Each step is ONE short, clear sentence stating WHAT to do (example: "Step 1: Initialize a variable to store the name").
+- Keep it to about 3-6 steps. Be concise — no extra explanation, no tips, no reasons, no sub-points.
+- Do NOT write any code, and do NOT show the solution or the final output.
+- Do NOT include the one-line task restatement, any intro or closing sentence, or a "Suggestions" section. Start directly at Step 1 and end at the last step.`;
       break;
       
     case 'hints':
-      userPrompt = `Give me strategic hints for solving this problem:
+      userPrompt = `Give the student helpful hints WITH small examples for this ${language} task.
 
-Title: ${question}
-Description: ${description}
-Language: ${language}
+Task title: ${question}
+Task description: ${description}
+Student level: ${proficiencyLevel}
 
-Provide 3-4 hints that guide me WITHOUT giving away the solution. Help me think through the problem.`;
+Rules:
+- Provide 3-4 hints, numbered **Hint 1**, **Hint 2**, and so on.
+- Each hint should nudge the student in the right direction AND include a tiny generic ${language} example (a short fenced snippet showing the syntax/idea) that illustrates the point WITHOUT being the actual solution to this exact task.
+- For example, if the task is to print a name, a hint about output could show \`printf("Hello\\n");\` as the example — never the final answer itself.
+- Do NOT reveal the complete solution.`;
       break;
       
     case 'feedback':
@@ -1145,10 +1165,10 @@ Provide a helpful, clear explanation at the ${proficiencyLevel} level.`;
 
   try {
     console.log(`🤖 AI Agent: ${action || 'general'} explanation for "${question}"`);
-    
+
     const message = await groqClient.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
-      max_tokens: 2000,
+      max_tokens: 2500,
       temperature: 0.7,
       messages: [
         { role: 'system', content: systemPrompt },

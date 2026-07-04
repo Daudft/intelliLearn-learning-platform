@@ -7,6 +7,68 @@ const LearningPath = require('../models/LearningPath');
 const crypto = require('crypto');
 
 // ============================================
+// LEADERBOARD
+// ============================================
+
+/**
+ * GET LEADERBOARD — real-time ranking of all students.
+ * Score = 5 points per completed learning-path task, + 25 bonus per passed cycle quiz.
+ */
+exports.getLeaderboard = async (req, res) => {
+  try {
+    const POINTS_PER_TASK = 5;
+    const POINTS_PER_QUIZ = 25;
+
+    const [users, paths] = await Promise.all([
+      User.find({ role: { $ne: 'admin' } })
+        .select('name assessmentLanguage proficiencyLevel createdAt')
+        .lean(),
+      LearningPath.find({}).select('userId paths').lean(),
+    ]);
+
+    const pathByUser = {};
+    for (const p of paths) pathByUser[String(p.userId)] = p;
+
+    const rows = users.map((u) => {
+      const p = pathByUser[String(u._id)];
+      let tasksCompleted = 0;
+      let quizzesPassed = 0;
+      let language = u.assessmentLanguage || null;
+      if (p && Array.isArray(p.paths)) {
+        for (const lp of p.paths) {
+          tasksCompleted += (lp.tasks || []).filter((t) => t.status === 'completed').length;
+          if (lp.quiz && lp.quiz.status === 'passed') quizzesPassed += 1;
+          if (!language && lp.language) language = lp.language;
+        }
+      }
+      const points = tasksCompleted * POINTS_PER_TASK + quizzesPassed * POINTS_PER_QUIZ;
+      return {
+        userId: u._id,
+        name: u.name || 'Learner',
+        points,
+        tasksCompleted,
+        quizzesPassed,
+        level: u.proficiencyLevel || 'Beginner',
+        language,
+        joinedAt: u.createdAt,
+      };
+    });
+
+    rows.sort((a, b) =>
+      b.points - a.points ||
+      b.tasksCompleted - a.tasksCompleted ||
+      a.name.localeCompare(b.name)
+    );
+    rows.forEach((r, i) => { r.rank = i + 1; });
+
+    res.json({ leaderboard: rows, pointsPerTask: POINTS_PER_TASK, total: rows.length });
+  } catch (err) {
+    console.error('getLeaderboard error:', err);
+    res.status(500).json({ message: 'Failed to load leaderboard' });
+  }
+};
+
+// ============================================
 // PROFILE ENDPOINTS
 // ============================================
 

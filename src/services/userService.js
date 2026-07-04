@@ -62,6 +62,12 @@ const userService = {
     const response = await api.get(`/users/learning-stats/${userId}`);
     return response.data;
   },
+
+  // Get real-time leaderboard (all students ranked by points)
+  getLeaderboard: async () => {
+    const response = await api.get('/users/leaderboard');
+    return response.data;
+  },
 };
 
 export default userService;

@@ -206,11 +206,14 @@ What would you like help with?`,
     <div className="ai-agent-container">
       {/* Header */}
       <div className="ai-agent-header">
-        <div className="ai-agent-title-section">
-          <Sparkles className="w-4 h-4 text-blue-500" />
-          <h3 className="ai-agent-title">{title}</h3>
+        <div className="ai-agent-avatar-lg">
+          <Sparkles className="w-4 h-4" />
         </div>
-        <p className="ai-agent-subtitle">AI Learning Assistant</p>
+        <div className="ai-agent-heading">
+          <h3 className="ai-agent-title">AI Learning Assistant</h3>
+          <p className="ai-agent-subtitle">Here to help you solve this task</p>
+        </div>
+        <span className="ai-online-dot" />
       </div>
 
       {/* Chat Area */}
