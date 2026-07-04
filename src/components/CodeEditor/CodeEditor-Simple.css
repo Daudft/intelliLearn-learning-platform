@@ -1,102 +1,163 @@
-/* Simplified CodeEditor Styles - HUGE CODE AREA */
+/* CodeEditor — IDE-style dark editor */
 
 .code-editor-container-simple {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #ffffff;
-  border-radius: 8px;
+  background: #16161c;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #e0e0e0;
-  gap: 0;
+  border: 1px solid #2a2a33;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
 }
 
-/* HUGE Textarea */
+/* Top bar */
+.code-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  background: #0f0f14;
+  border-bottom: 1px solid #26262e;
+  flex-shrink: 0;
+}
+
+.code-dots {
+  display: flex;
+  gap: 7px;
+}
+
+.code-dots span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.code-dots span:nth-child(1) { background: #ff5f57; }
+.code-dots span:nth-child(2) { background: #febc2e; }
+.code-dots span:nth-child(3) { background: #28c840; }
+
+.code-filename {
+  color: #c7c7d1;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.code-lang-tag {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #4da2ff;
+  background: rgba(47, 107, 255, 0.16);
+  padding: 3px 10px;
+  border-radius: 6px;
+}
+
+/* Code area */
 .code-textarea-large {
   flex: 1;
   width: 100%;
-  padding: 20px;
+  padding: 18px 20px;
   border: none;
   outline: none;
-  font-family: 'Courier New', 'Monaco', monospace;
-  font-size: 15px;
-  line-height: 1.7;
-  color: #e0e0e0;
-  background: #1a1a1a;
+  font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, 'Courier New', monospace;
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: #e6e6ea;
+  background: #16161c;
   resize: none;
   overflow: auto;
-  min-height: 400px;
+  min-height: 300px;
+  tab-size: 2;
 }
 
 .code-textarea-large::placeholder {
-  color: #555;
-  font-size: 15px;
+  color: #5a5a66;
 }
 
 .code-textarea-large:focus {
-  outline: none;
-  background: #222;
+  background: #1b1b22;
+}
+
+.code-textarea-large::-webkit-scrollbar {
+  width: 10px;
+}
+
+.code-textarea-large::-webkit-scrollbar-track {
+  background: #16161c;
+}
+
+.code-textarea-large::-webkit-scrollbar-thumb {
+  background: #33333d;
+  border-radius: 5px;
+}
+
+.code-textarea-large::-webkit-scrollbar-thumb:hover {
+  background: #44444f;
 }
 
 /* Error/Hint Display */
 .code-error-hint {
-  padding: 12px 20px;
-  background: #fffbeb;
-  border-top: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
-  color: #a16207;
+  padding: 11px 20px;
+  background: #2a2410;
+  border-top: 1px solid #3a3320;
+  color: #f5c451;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.5;
 }
 
 .code-error-hint strong {
-  color: #92400e;
+  color: #ffd77a;
   font-weight: 700;
 }
 
-/* Footer - Minimal */
+/* Footer */
 .code-editor-footer-minimal {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 20px;
-  background: #fafafa;
-  border-top: 1px solid #e0e0e0;
+  padding: 13px 18px;
+  background: #0f0f14;
+  border-top: 1px solid #26262e;
+  flex-shrink: 0;
 }
 
-/* Submit Button - Only One */
+/* Submit Button */
 .btn-submit-only {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 24px;
+  padding: 11px 26px;
   border: none;
-  border-radius: 6px;
+  border-radius: 9px;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: #a3ff00;
-  color: #0a1a0a;
+  background: linear-gradient(135deg, #2f6bff, #4da2ff);
+  color: #fff;
   font-family: system-ui, -apple-system, sans-serif;
+  box-shadow: 0 6px 16px rgba(47, 107, 255, 0.35);
 }
 
 .btn-submit-only:hover:not(:disabled) {
-  background: #c6ff4d;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(163, 255, 0, 0.3);
+  box-shadow: 0 8px 20px rgba(47, 107, 255, 0.45);
 }
 
 .btn-submit-only:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-submit-only.btn-success {
-  background: #34d399;
-  color: white;
+  background: linear-gradient(135deg, #12b76a, #3ddc97);
+  box-shadow: 0 6px 16px rgba(18, 183, 106, 0.4);
 }
 
 .spinner {
@@ -105,14 +166,13 @@
 
 /* Score Badge */
 .score-badge {
-  font-size: 12px;
-  color: #666;
+  font-size: 12.5px;
+  color: #9a9aa6;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .score-badge strong {
-  color: #a3ff00;
-  font-weight: 700;
+  color: #4da2ff;
+  font-weight: 800;
 }
-

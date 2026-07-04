@@ -11,8 +11,12 @@ const {
   updateLearningPreferences,
   getLearningStats,
   getDashboardData,
+  getLeaderboard,
 } = require('../controllers/userController');
 const { protect } = require('../middleware/auth');
+
+// Leaderboard (public — ranking of all students)
+router.get('/leaderboard', getLeaderboard);
 
 // Profile routes
 router.get('/profile/:userId', protect, getUserProfile);
