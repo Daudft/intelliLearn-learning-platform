@@ -8,12 +8,13 @@ import { Loader, AlertCircle, Lock, CheckCircle2, Play, Award, ArrowLeft } from 
 const DISPLAY_FONT = "'Space Grotesk', system-ui, sans-serif";
 
 /* ─── Per-language color themes ─── */
+// Colors aligned with the dashboard accent map: Python=blue, Java=orange, C=violet.
 const LANG_THEME = {
-  c:      { solid:"#2f6bff", grad:"linear-gradient(135deg,#2f6bff,#4da2ff)", soft:"#eaf0ff", glow:"rgba(47,107,255,0.32)", emoji:"⚙️", label:"C Language" },
-  python: { solid:"#7c5cff", grad:"linear-gradient(135deg,#7c5cff,#b06bff)", soft:"#f1ecff", glow:"rgba(124,92,255,0.32)", emoji:"🐍", label:"Python" },
-  java:   { solid:"#ff7a1a", grad:"linear-gradient(135deg,#ff7a1a,#ffb020)", soft:"#fff1e2", glow:"rgba(255,122,26,0.32)", emoji:"☕", label:"Java" },
+  python: { solid:"#2f6bff", grad:"linear-gradient(135deg,#2f6bff,#4da2ff)", soft:"#eaf0ff", glow:"rgba(47,107,255,0.32)", emoji:"🐍", label:"Python" },
+  java:   { solid:"#f97316", grad:"linear-gradient(135deg,#f97316,#fbbf24)", soft:"#fff2e6", glow:"rgba(249,115,22,0.32)", emoji:"☕", label:"Java" },
+  c:      { solid:"#7c5cff", grad:"linear-gradient(135deg,#7c5cff,#9d86ff)", soft:"#f0ecff", glow:"rgba(124,92,255,0.32)", emoji:"⚙️", label:"C Language" },
 };
-const themeFor = (lang) => LANG_THEME[String(lang || "").toLowerCase()] || LANG_THEME.c;
+const themeFor = (lang) => LANG_THEME[String(lang || "").toLowerCase()] || LANG_THEME.python;
 const GREEN = { solid:"#12b76a", soft:"#e6f7ef", grad:"linear-gradient(135deg,#12b76a,#3ddc97)" };
 
 export default function PathwayVisualization() {

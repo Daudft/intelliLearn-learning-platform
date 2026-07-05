@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowRight, ClipboardList, Flame, Layers,
+  ArrowRight, ClipboardList, Flame, Layers, Clock,
   LayoutDashboard, LogOut, Target, TrendingUp,
   BookOpen, CheckCircle2, Lock, Circle, ChevronRight, Play,
   Award, BarChart3, Sparkles, Star, Trophy, Zap,
@@ -27,9 +27,34 @@ function getLangEmoji(l) {
   return ({ python: "🐍", java: "☕", c: "⚙️" })[l?.toLowerCase()] || "💻";
 }
 
-function getLangColor() {
-  // Brand blue accent used across the learning cards.
-  return "#2f6bff";
+/* Per-language accent palette — each language themes the dashboard playfully. */
+const LANG_ACCENT = {
+  python: {
+    solid: "#2f6bff",
+    grad: "linear-gradient(135deg,#2f6bff,#4da2ff)",
+    soft: "#eaf0ff",
+    banner: "linear-gradient(120deg,#1e5cff 0%,#2f6bff 45%,#4da2ff 100%)",
+  },
+  java: {
+    solid: "#f97316",
+    grad: "linear-gradient(135deg,#f97316,#fbbf24)",
+    soft: "#fff2e6",
+    banner: "linear-gradient(120deg,#ea6a0c 0%,#f97316 45%,#fbbf24 100%)",
+  },
+  c: {
+    solid: "#7c5cff",
+    grad: "linear-gradient(135deg,#7c5cff,#9d86ff)",
+    soft: "#f0ecff",
+    banner: "linear-gradient(120deg,#6a4bff 0%,#7c5cff 45%,#9d86ff 100%)",
+  },
+};
+
+function getLangAccent(l) {
+  return LANG_ACCENT[l?.toLowerCase()] || LANG_ACCENT.python;
+}
+
+function getLangColor(l) {
+  return getLangAccent(l).solid;
 }
 
 /* ─── Proficiency Level Configuration ─── */
@@ -100,23 +125,89 @@ const PROFICIENCY_CONFIG = {
 };
 
 /* ─── StatusPill ─── */
-function StatusPill({ status }) {
+function StatusPill({ status, accent }) {
+  const a = accent || { solid:"#2f6bff", soft:"#eaf0ff" };
   const map = {
-    completed: { bg:"#0a0a0a", color:"#ffffff", border:"1px solid #0a0a0a", icon: <CheckCircle2 size={10} /> },
-    unlocked:  { bg:"#ffffff", color:"#0a0a0a", border:"1px solid #0a0a0a", icon: <Circle size={10} /> },
-    locked:    { bg:"#f2f2f2", color:"rgba(0,0,0,0.4)", border:"1px solid #e6e6e6", icon: <Lock size={10} /> },
+    completed: { bg:"#e6f7ef", color:"#12b76a", border:"none", icon: <CheckCircle2 size={10} /> },
+    unlocked:  { bg:a.soft, color:a.solid, border:"none", icon: <Circle size={10} /> },
+    locked:    { bg:"#f2f2f2", color:"rgba(0,0,0,0.4)", border:"none", icon: <Lock size={10} /> },
   };
   const { bg, color, border, icon } = map[status] || map.locked;
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"4px 10px",
-      fontSize:11, fontWeight:700, background: bg, color, border,
+    <span style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"5px 12px",
+      borderRadius:99, fontSize:11, fontWeight:700, background: bg, color, border,
       textTransform:"uppercase", letterSpacing:"0.05em" }}>
       {icon} {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   );
 }
 
+/* Circular carousel arrow that lights up in the current language's accent. */
+function CarouselArrow({ dir = "left", onClick, accent }) {
+  const a = accent || { solid: "#2f6bff", grad: "linear-gradient(135deg,#2f6bff,#4da2ff)" };
+  return (
+    <button
+      onClick={onClick}
+      aria-label={dir === "left" ? "Previous" : "Next"}
+      style={{
+        flexShrink: 0, width: 44, height: 44, borderRadius: "50%", cursor: "pointer",
+        background: "#ffffff", color: a.solid, border: `1.5px solid ${a.solid}33`,
+        display: "grid", placeItems: "center",
+        boxShadow: `0 4px 14px ${a.solid}22`,
+        transition: "transform .22s cubic-bezier(.4,0,.2,1), box-shadow .22s ease, background .22s ease, color .22s ease, border-color .22s ease",
+      }}
+      onMouseEnter={(e) => {
+        const b = e.currentTarget;
+        b.style.background = a.grad; b.style.color = "#ffffff";
+        b.style.borderColor = "transparent";
+        b.style.transform = "translateY(-2px) scale(1.07)";
+        b.style.boxShadow = `0 10px 24px ${a.solid}55`;
+      }}
+      onMouseLeave={(e) => {
+        const b = e.currentTarget;
+        b.style.background = "#ffffff"; b.style.color = a.solid;
+        b.style.borderColor = `${a.solid}33`;
+        b.style.transform = "none";
+        b.style.boxShadow = `0 4px 14px ${a.solid}22`;
+      }}
+    >
+      <ChevronRight size={20} style={{ transform: dir === "left" ? "rotate(180deg)" : "none" }} />
+    </button>
+  );
+}
+
 const DISPLAY_FONT = "'Space Grotesk', system-ui, sans-serif";
+
+/* Real "solve streak": consecutive days (ending today or yesterday) that have at
+   least one completed task. Skipping a full day resets it to 0. */
+function computeSolveStreak(paths) {
+  const days = new Set();
+  (paths || []).forEach((p) =>
+    (p?.tasks || []).forEach((t) => {
+      if (t?.status === "completed" && t?.completedAt) {
+        const d = new Date(t.completedAt);
+        if (!isNaN(d.getTime())) {
+          days.add(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime());
+        }
+      }
+    })
+  );
+  if (!days.size) return 0;
+  const MS = 86400000;
+  const now = new Date();
+  const todayKey = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  // Streak is only "alive" if the last solve was today or yesterday.
+  let cursor;
+  if (days.has(todayKey)) cursor = todayKey;
+  else if (days.has(todayKey - MS)) cursor = todayKey - MS;
+  else return 0;
+  let streak = 0;
+  while (days.has(cursor)) {
+    streak++;
+    cursor -= MS;
+  }
+  return streak;
+}
 
 /* ─── Accent palette (matching-color icons) ─── */
 const C = {
@@ -465,6 +556,11 @@ export default function Dashboard() {
   const initial = (user?.name || "U").charAt(0).toUpperCase();
   const LevelIcon = s.levelConfig.icon;
 
+  // Per-language accent — follows the language selected in the "My Learning" slider.
+  const accentLangKey = (learningPaths[currentLearningIndex]?.language || s.lang || "python").toLowerCase();
+  const accent = getLangAccent(accentLangKey);
+  const accentLang = { label: getLanguageLabel(accentLangKey), emoji: getLangEmoji(accentLangKey) };
+
   return (
     <div style={{ minHeight:"100vh", display:"flex", background: pageBg,
       fontFamily:"'Inter', system-ui, sans-serif", position:"relative" }}>
@@ -505,8 +601,8 @@ export default function Dashboard() {
       }}>
         <div style={{ padding:"32px 24px 28px" }}>
           <div style={{ display:"flex", alignItems:"baseline", gap:0 }}>
-            <span style={{ color:"#fff", fontWeight:700, fontSize:20, letterSpacing:"-0.02em", fontFamily:DISPLAY_FONT }}>Intelli</span>
-            <span style={{ color:"rgba(255,255,255,0.55)", fontWeight:600, fontSize:20, letterSpacing:"-0.02em", fontFamily:DISPLAY_FONT }}>Learn</span>
+            <span style={{ color:"#4da2ff", fontWeight:700, fontSize:20, letterSpacing:"-0.02em", fontFamily:DISPLAY_FONT }}>Intelli</span>
+            <span style={{ color:"#fff", fontWeight:600, fontSize:20, letterSpacing:"-0.02em", fontFamily:DISPLAY_FONT }}>Learn</span>
           </div>
         </div>
 
@@ -591,10 +687,10 @@ export default function Dashboard() {
           {activeView === "dashboard" && (
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
 
-              {/* ══ HERO: Profile banner (blue membership card) ══ */}
+              {/* ══ HERO: Profile banner (accent-themed membership card) ══ */}
               <Glass style={{ padding:0, overflow:"hidden", position:"relative", border:"none",
-                background:"linear-gradient(120deg,#1e5cff 0%,#2f6bff 45%,#4da2ff 100%)",
-                boxShadow:"0 16px 40px rgba(47,107,255,0.28)" }}>
+                background: accent.banner,
+                boxShadow:`0 16px 40px ${accent.solid}47`, transition:"background .5s ease, box-shadow .5s ease" }}>
                 {/* decorative glow */}
                 <div style={{ position:"absolute", top:-70, right:-20, width:230, height:230, borderRadius:"50%", background:"radial-gradient(circle,rgba(255,255,255,0.20),transparent 70%)", pointerEvents:"none" }} />
                 <div style={{ position:"absolute", bottom:-90, right:150, width:210, height:210, borderRadius:"50%", background:"radial-gradient(circle,rgba(255,255,255,0.10),transparent 70%)", pointerEvents:"none" }} />
@@ -607,11 +703,11 @@ export default function Dashboard() {
                     <div style={{ position:"relative", flexShrink:0 }}>
                       <div style={{
                         width:70, height:70, borderRadius:"50%",
-                        background:"#fff", color:C.blue.solid, display:"grid", placeItems:"center",
+                        background:"#fff", color:accent.solid, display:"grid", placeItems:"center",
                         fontSize:28, fontWeight:800, fontFamily:DISPLAY_FONT,
-                        boxShadow:"0 10px 24px rgba(0,0,0,0.22)",
+                        boxShadow:"0 10px 24px rgba(0,0,0,0.22)", transition:"color .5s ease",
                       }}>{initial}</div>
-                      <div style={{ position:"absolute", right:2, bottom:2, width:16, height:16, borderRadius:"50%", background:"#22e39b", border:"3px solid #2f6bff" }} />
+                      <div style={{ position:"absolute", right:2, bottom:2, width:16, height:16, borderRadius:"50%", background:"#22e39b", border:`3px solid ${accent.solid}`, transition:"border-color .5s ease" }} />
                     </div>
                     <div style={{ minWidth:0 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:9, flexWrap:"wrap" }}>
@@ -631,7 +727,7 @@ export default function Dashboard() {
                       </p>
                       <div style={{ marginTop:11, display:"inline-flex", alignItems:"center", gap:8, padding:"6px 12px", borderRadius:10, background:"rgba(255,255,255,0.16)", border:"1px solid rgba(255,255,255,0.22)" }}>
                         <span style={{ fontSize:9, fontWeight:700, color:"rgba(255,255,255,0.72)", textTransform:"uppercase", letterSpacing:"0.1em" }}>Learning</span>
-                        <span style={{ fontSize:12.5, fontWeight:800, color:"#fff" }}>{s.langEmoji} {s.langLabel}</span>
+                        <span style={{ fontSize:12.5, fontWeight:800, color:"#fff" }}>{accentLang.emoji} {accentLang.label}</span>
                       </div>
                     </div>
                   </div>
@@ -640,7 +736,7 @@ export default function Dashboard() {
                   <div style={{ width:300, maxWidth:"100%", flexShrink:0 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.78)", textTransform:"uppercase", letterSpacing:"0.1em" }}>XP Progress</span>
-                      <span style={{ fontSize:11, fontWeight:800, color:C.blue.solid, background:"#fff", padding:"2px 9px", borderRadius:5, fontFamily:DISPLAY_FONT }}>{s.xp} / {s.nextLevelXP}</span>
+                      <span style={{ fontSize:11, fontWeight:800, color:accent.solid, background:"#fff", padding:"2px 9px", borderRadius:5, fontFamily:DISPLAY_FONT }}>{s.xp} / {s.nextLevelXP}</span>
                     </div>
                     <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.25)", overflow:"hidden" }}>
                       <div style={{ height:"100%", borderRadius:99, width:`${Math.min(100,(s.xp/s.nextLevelXP)*100)}%`, background:"#fff", boxShadow:"0 0 12px rgba(255,255,255,0.7)", transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
@@ -673,32 +769,11 @@ export default function Dashboard() {
                       <div style={{ display:"flex", alignItems:"center", gap:24 }}>
                         {/* Left Arrow */}
                         {learningPaths.length > 1 && (
-                          <button
+                          <CarouselArrow
+                            dir="left"
+                            accent={accent}
                             onClick={() => setCurrentLearningIndex((prev) => (prev - 1 + learningPaths.length) % learningPaths.length)}
-                            style={{
-                              flexShrink: 0,
-                              width: 40,
-                              height: 40,
-                              borderRadius: 10,
-                              border: "none",
-                              background: "rgba(0,0,0,0.15)",
-                              cursor: "pointer",
-                              display: "grid",
-                              placeItems: "center",
-                              transition: "all 0.2s ease",
-                              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.2)"
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.background = "rgba(0,0,0,0.25)";
-                              e.target.style.transform = "scale(1.05)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.background = "rgba(0,0,0,0.15)";
-                              e.target.style.transform = "scale(1)";
-                            }}
-                          >
-                            <ChevronRight size={20} color="#111111" style={{ transform: "rotate(180deg)" }} />
-                          </button>
+                          />
                         )}
 
                         {/* Card Content */}
@@ -748,7 +823,7 @@ export default function Dashboard() {
                                 <div style={{ height:6, borderRadius:99, background:"rgba(0,0,0,0.08)",
                                   overflow:"hidden", maxWidth:320 }}>
                                   <div style={{ height:"100%", borderRadius:99, width:`${pct}%`,
-                                    background:C.blue.grad,
+                                    background:getLangAccent(langKey).grad,
                                     transition:"width 1s cubic-bezier(.4,0,.2,1)" }} />
                                 </div>
                               </div>
@@ -767,7 +842,7 @@ export default function Dashboard() {
 
                                 <button className="continue-btn" onClick={() => navigate("/learning-path")} style={{
                                   padding:"12px 22px", borderRadius:12, border:"none", cursor:"pointer",
-                                  background:`linear-gradient(135deg, #2f6bff, #4da2ff)`,
+                                  background:getLangAccent(langKey).grad,
                                   color:"#ffffff", fontWeight:800, fontSize:14,
                                   display:"inline-flex", alignItems:"center", gap:8,
                                   boxShadow:"0 8px 24px rgba(0,0,0,0.3)",
@@ -782,32 +857,11 @@ export default function Dashboard() {
 
                         {/* Right Arrow */}
                         {learningPaths.length > 1 && (
-                          <button
+                          <CarouselArrow
+                            dir="right"
+                            accent={accent}
                             onClick={() => setCurrentLearningIndex((prev) => (prev + 1) % learningPaths.length)}
-                            style={{
-                              flexShrink: 0,
-                              width: 40,
-                              height: 40,
-                              borderRadius: 10,
-                              border: "none",
-                              background: "rgba(0,0,0,0.15)",
-                              cursor: "pointer",
-                              display: "grid",
-                              placeItems: "center",
-                              transition: "all 0.2s ease",
-                              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.2)"
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.background = "rgba(0,0,0,0.25)";
-                              e.target.style.transform = "scale(1.05)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.background = "rgba(0,0,0,0.15)";
-                              e.target.style.transform = "scale(1)";
-                            }}
-                          >
-                            <ChevronRight size={20} color="#111111" />
-                          </button>
+                          />
                         )}
                       </div>
 
@@ -823,10 +877,10 @@ export default function Dashboard() {
                                 height: 8,
                                 borderRadius: 4,
                                 border: "none",
-                                background: currentLearningIndex === index ? "#0a0a0a" : "rgba(0,0,0,0.15)",
+                                background: currentLearningIndex === index ? accent.grad : "rgba(0,0,0,0.15)",
                                 cursor: "pointer",
                                 transition: "all 0.3s ease",
-                                boxShadow: currentLearningIndex === index ? "0 4px 12px rgba(0,0,0,0.3)" : "none"
+                                boxShadow: currentLearningIndex === index ? `0 4px 12px ${accent.solid}55` : "none"
                               }}
                             />
                           ))}
@@ -842,7 +896,7 @@ export default function Dashboard() {
                           <div style={{ margin:"20px 0 0", padding:"12px 16px", borderRadius:12,
                             background:"rgba(0,0,0,0.04)",
                             display:"flex", alignItems:"center", gap:12 }}>
-                            <div style={{ width:8, height:8, borderRadius:"50%", background:"#0a0a0a",
+                            <div style={{ width:8, height:8, borderRadius:"50%", background:accent.solid,
                               flexShrink:0, animation:"pulse 2s ease-in-out infinite" }} />
                             <div style={{ flex:1, minWidth:0 }}>
                               <p style={{ margin:0, color:"rgba(0,0,0,0.5)", fontSize:10, fontWeight:700,
@@ -852,7 +906,7 @@ export default function Dashboard() {
                                 {daily.title}
                               </p>
                             </div>
-                            <StatusPill status={daily.status} />
+                            <StatusPill status={daily.status} accent={accent} />
                           </div>
                         ) : null;
                       })()}
@@ -886,7 +940,7 @@ export default function Dashboard() {
                   <Glass style={{ padding:"18px 24px" }}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
                       <div>
-                        <p style={{ margin:0, fontSize:10, fontWeight:800, letterSpacing:"0.14em", textTransform:"uppercase", color:C.blue.solid }}>Course Progress</p>
+                        <p style={{ margin:0, fontSize:10, fontWeight:800, letterSpacing:"0.14em", textTransform:"uppercase", color:accent.solid }}>Course Progress</p>
                         <p style={{ margin:"4px 0 0", fontSize:16, fontWeight:800, color:"#0a0a0a", fontFamily:DISPLAY_FONT }}>
                           {courseCompleted ? `🏆 Course complete — all ${totalCycles} cycles!` : `Cycle ${cycle} of ${totalCycles}`}
                         </p>
@@ -899,7 +953,7 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div style={{ marginTop:12, height:9, borderRadius:99, background:"rgba(0,0,0,0.07)", overflow:"hidden" }}>
-                      <div style={{ height:"100%", borderRadius:99, width:`${coursePct}%`, background: courseCompleted ? C.green.grad : C.blue.grad, transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
+                      <div style={{ height:"100%", borderRadius:99, width:`${coursePct}%`, background: courseCompleted ? C.green.grad : accent.grad, transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
                     </div>
                     <div style={{ display:"flex", justifyContent:"space-between", marginTop:7, fontSize:11.5, color:"rgba(0,0,0,0.5)", fontWeight:600 }}>
                       <span>{coursePct}% of course</span>
@@ -926,10 +980,11 @@ export default function Dashboard() {
                 const qScore = qp.quiz?.lastScore;
                 const qLang = qp.language;
                 const qLabel = getLanguageLabel(qLang);
+                const qAccent = getLangAccent(qLang);
                 const pct = qTotal ? Math.round((qDone / qTotal) * 100) : 0;
                 const btnStyle = {
                   padding: "11px 22px", borderRadius: 10, border: "none", cursor: "pointer",
-                  background: "linear-gradient(135deg, #2f6bff, #4da2ff)", color: "#ffffff",
+                  background: qAccent.grad, color: "#ffffff",
                   fontWeight: 800, fontSize: 13, whiteSpace: "nowrap",
                 };
 
@@ -938,11 +993,11 @@ export default function Dashboard() {
                     <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                       <div style={{
                         width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                        background: qAllDone ? C.blue.grad : "rgba(0,0,0,0.05)",
+                        background: qAllDone ? qAccent.grad : qAccent.soft,
                         display: "grid", placeItems: "center",
-                        boxShadow: qAllDone ? "0 8px 22px rgba(47,107,255,0.30)" : "none",
+                        boxShadow: qAllDone ? `0 8px 22px ${qAccent.solid}4d` : "none",
                       }}>
-                        {qAllDone ? <Award size={24} color="#ffffff" /> : <Lock size={22} color="rgba(0,0,0,0.35)" />}
+                        {qAllDone ? <Award size={24} color="#ffffff" /> : <Lock size={22} color={qAccent.solid} />}
                       </div>
 
                       <div style={{ flex: 1, minWidth: 220 }}>
@@ -950,7 +1005,7 @@ export default function Dashboard() {
                           <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#0a0a0a" }}>Cycle Quiz</p>
                           <span style={{
                             padding: "2px 9px", borderRadius: 99, fontSize: 10, fontWeight: 700,
-                            background: "rgba(0,0,0,0.15)", color: "#111111", textTransform: "uppercase", letterSpacing: "0.06em",
+                            background: qAccent.soft, color: qAccent.solid, textTransform: "uppercase", letterSpacing: "0.06em",
                           }}>{qLabel}</span>
                         </div>
                         <p style={{ margin: 0, fontSize: 13, color: "rgba(0,0,0,0.55)", lineHeight: 1.45 }}>
@@ -962,7 +1017,7 @@ export default function Dashboard() {
                         </p>
                         {!qAllDone && (
                           <div style={{ height: 6, borderRadius: 99, background: "rgba(0,0,0,0.08)", overflow: "hidden", marginTop: 10, maxWidth: 360 }}>
-                            <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: C.blue.grad }} />
+                            <div style={{ height: "100%", borderRadius: 99, width: `${pct}%`, background: qAccent.grad }} />
                           </div>
                         )}
                       </div>
@@ -971,7 +1026,7 @@ export default function Dashboard() {
                         {!qAllDone ? (
                           <span style={{
                             display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 18px",
-                            borderRadius: 10, background: "rgba(0,0,0,0.05)", color: "rgba(0,0,0,0.4)", fontWeight: 700, fontSize: 13,
+                            borderRadius: 10, background: qAccent.soft, color: qAccent.solid, fontWeight: 700, fontSize: 13,
                           }}>
                             <Lock size={14} /> Locked
                           </span>
@@ -1019,60 +1074,66 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Proficiency Achievement Banner */}
-              <Glass style={{ background: "linear-gradient(135deg, #f7f7f7, #ffffff)", padding: 22 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-                  <div style={{ width:56, height:56, borderRadius:14, background:C.blue.grad, display:"grid", placeItems:"center", flexShrink:0, boxShadow:"0 8px 22px rgba(47,107,255,0.30)" }}>
-                    <LevelIcon size={26} color="#ffffff" />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <Sparkles size={16} color={s.levelConfig.color} />
-                      <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: s.levelConfig.color }}>
-                        {s.levelConfig.name} Level Achievements
-                      </p>
-                    </div>
-                    <p style={{ margin: 0, fontSize: 13, color: "rgba(0,0,0,0.6)" }}>
-                      {s.level === "beginner" && "🎯 Complete more tasks and assessments to level up your skills!"}
-                      {s.level === "intermediate" && "⚡ Great progress! You're mastering the fundamentals!"}
-                      {s.level === "advanced" && "🚀 Exceptional work! Complex concepts are becoming clear!"}
-                      {s.level === "expert" && "🏆 Outstanding! You're ready for advanced challenges!"}
-                      {s.level === "master" && "👑 Legendary! You've reached the highest mastery level!"}
-                    </p>
-                  </div>
-                  {s.nextLevelConfig && (
-                    <button 
-                      onClick={() => setActiveView("assessment")}
-                      style={{
-                        padding: "10px 20px",
-                        borderRadius: 12,
-                        border: "none",
-                        background: C.blue.grad,
-                        color: "white",
-                        fontWeight: 700,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 8,
-                        boxShadow: "0 8px 22px rgba(47,107,255,0.30)"
-                      }}
-                    >
-                      Level Up <Zap size={14} />
-                    </button>
-                  )}
-                </div>
-              </Glass>
             </div>
           )}
 
           {/* ── PROGRESS (Enhanced) ── */}
-          {activeView === "progress" && (
+          {activeView === "progress" && (() => {
+            // ── Real course progress for the SELECTED language (slider) ──
+            const pIndex        = learningPaths.length ? Math.min(currentLearningIndex, learningPaths.length - 1) : 0;
+            const path          = learningPaths[pIndex] || null;
+            const pLang         = (path?.language || "python").toLowerCase();
+            const pAccent       = getLangAccent(pLang);
+            const pLabel        = getLanguageLabel(pLang);
+            const pEmoji        = getLangEmoji(pLang);
+            const totalCyclesN  = 24; // keep in sync with backend TOTAL_CYCLES
+            const cycle         = path?.cycle || 1;
+            const courseCompleted = !!path?.courseCompleted;
+            const courseDeadline  = path?.courseDeadline ? new Date(path.courseDeadline) : null;
+            const daysLeft      = courseDeadline
+              ? Math.max(0, Math.ceil((courseDeadline.getTime() - Date.now()) / 86400000))
+              : null;
+            const cTasks        = path?.tasks || [];
+            const cDone         = cTasks.filter(t => t.status === "completed").length;
+            const cTotal        = cTasks.length;
+            const cyclePct      = cTotal ? Math.round((cDone / cTotal) * 100) : 0;
+            const courseProgressPct = courseCompleted
+              ? 100
+              : Math.min(100, Math.round((((cycle - 1) + (cTotal ? cDone / cTotal : 0)) / totalCyclesN) * 100));
+            // Streak counts consecutive solving days for THIS language only.
+            const solveStreak   = computeSolveStreak(path ? [path] : []);
+            const deadlineSoon  = daysLeft != null && daysLeft <= 14;
+            const daysColor     = deadlineSoon ? C.flame : pAccent;
+
+            return (
             <div className="fade-up" style={{ display:"flex", flexDirection:"column", gap:20 }}>
-              {/* Proficiency overview — blue banner */}
+              {/* Language switcher — pick which course to view */}
+              {learningPaths.length > 0 && (
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:16 }}>
+                  {learningPaths.length > 1 && (
+                    <CarouselArrow dir="left" accent={pAccent}
+                      onClick={() => setCurrentLearningIndex((prev) => (prev - 1 + learningPaths.length) % learningPaths.length)} />
+                  )}
+                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 20px", borderRadius:99,
+                    background:pAccent.soft, border:`1.5px solid ${pAccent.solid}33`, minWidth:170, justifyContent:"center",
+                    transition:"background .4s ease, border-color .4s ease" }}>
+                    <span style={{ fontSize:20, lineHeight:1 }}>{pEmoji}</span>
+                    <span style={{ fontWeight:800, fontSize:15, color:pAccent.solid, fontFamily:DISPLAY_FONT }}>{pLabel}</span>
+                    {learningPaths.length > 1 && (
+                      <span style={{ fontSize:11, fontWeight:700, color:pAccent.solid, opacity:0.65 }}>{pIndex + 1}/{learningPaths.length}</span>
+                    )}
+                  </div>
+                  {learningPaths.length > 1 && (
+                    <CarouselArrow dir="right" accent={pAccent}
+                      onClick={() => setCurrentLearningIndex((prev) => (prev + 1) % learningPaths.length)} />
+                  )}
+                </div>
+              )}
+
+              {/* Course progress — accent banner */}
               <Glass style={{ padding:0, overflow:"hidden", position:"relative", border:"none",
-                background:"linear-gradient(120deg,#1e5cff 0%,#2f6bff 45%,#4da2ff 100%)",
-                boxShadow:"0 16px 40px rgba(47,107,255,0.28)" }}>
+                background: pAccent.banner,
+                boxShadow:`0 16px 40px ${pAccent.solid}47`, transition:"background .5s ease, box-shadow .5s ease" }}>
                 <div style={{ position:"absolute", top:-70, right:-20, width:230, height:230, borderRadius:"50%", background:"radial-gradient(circle,rgba(255,255,255,0.20),transparent 70%)", pointerEvents:"none" }} />
                 <div style={{ position:"absolute", inset:0, background:"radial-gradient(circle at 10% 15%, rgba(255,255,255,0.14), transparent 45%)", pointerEvents:"none" }} />
                 <div style={{ position:"relative", display:"flex", alignItems:"center", gap:22, padding:"26px 30px", flexWrap:"wrap" }}>
@@ -1082,24 +1143,31 @@ export default function Dashboard() {
                   <div style={{ flex:1, minWidth:250 }}>
                     <p style={{ margin:0, fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.14em" }}>Current Level</p>
                     <h3 style={{ margin:"3px 0 0", fontSize:24, fontWeight:700, color:"#fff", fontFamily:DISPLAY_FONT, letterSpacing:"-0.02em" }}>{s.levelConfig.name}</h3>
-                    <p style={{ margin:"4px 0 13px", fontSize:12.5, color:"rgba(255,255,255,0.8)" }}>{s.levelConfig.description}</p>
+                    <p style={{ margin:"4px 0 13px", fontSize:12.5, color:"rgba(255,255,255,0.8)" }}>
+                      {courseCompleted ? `Course complete — all ${totalCyclesN} cycles finished!` : s.levelConfig.description}
+                    </p>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:7 }}>
-                      <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.1em" }}>XP Progress</span>
-                      <span style={{ fontSize:11, fontWeight:800, color:C.blue.solid, background:"#fff", padding:"2px 9px", borderRadius:5, fontFamily:DISPLAY_FONT }}>{s.xp} / {s.nextLevelXP}</span>
+                      <span style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.1em" }}>Course Progress</span>
+                      <span style={{ fontSize:11, fontWeight:800, color:pAccent.solid, background:"#fff", padding:"2px 9px", borderRadius:5, fontFamily:DISPLAY_FONT }}>Cycle {cycle} / {totalCyclesN}</span>
                     </div>
                     <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.25)", overflow:"hidden" }}>
-                      <div style={{ height:"100%", borderRadius:99, width:`${Math.min(100,(s.xp/s.nextLevelXP)*100)}%`, background:"#fff", boxShadow:"0 0 12px rgba(255,255,255,0.7)", transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
+                      <div style={{ height:"100%", borderRadius:99, width:`${courseProgressPct}%`, background:"#fff", boxShadow:"0 0 12px rgba(255,255,255,0.7)", transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
                     </div>
+                    <p style={{ margin:"8px 0 0", fontSize:11.5, color:"rgba(255,255,255,0.82)" }}>
+                      {courseProgressPct}% of your {totalCyclesN}-cycle course
+                      {!courseCompleted && daysLeft != null ? ` · ${daysLeft} day${daysLeft === 1 ? "" : "s"} left` : ""}
+                      {!courseCompleted && courseDeadline ? ` · finish by ${courseDeadline.toLocaleDateString()}` : ""}
+                    </p>
                   </div>
                 </div>
               </Glass>
 
-              {/* Colored stat cards */}
+              {/* Real-time stat cards: Cycle · Days Left · Streak */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
                 {[
-                  { label:"Total XP",   value:`${s.xp}`,                  c:C.blue,  Icon:Award,        description:"Experience earned" },
-                  { label:"Tasks Done", value:`${s.done}/${s.totalTasks}`, c:C.green, Icon:CheckCircle2, description:"Across all paths" },
-                  { label:"Day Streak", value:`${s.streak}`,              c:C.flame, Icon:Flame,        description:"Keep it going" },
+                  { label:"Current Cycle", value:`${cycle}/${totalCyclesN}`, c:pAccent, Icon:Layers, description:"Course stage" },
+                  { label:"Days Left",     value: courseCompleted ? "—" : (daysLeft != null ? `${daysLeft}` : "—"), c:daysColor, Icon:Clock, description: courseCompleted ? "Course finished" : (daysLeft != null ? "Until deadline" : "No deadline set") },
+                  { label:"Day Streak",    value:`${solveStreak}`, c:C.flame, Icon:Flame, description: solveStreak > 0 ? "Days solving in a row" : "Solve a task today!" },
                 ].map(({ label, value, c, Icon, description }) => (
                   <Glass key={label} className="stat-card" style={{ padding:0, overflow:"hidden" }}>
                     <div style={{ height:3, background:c.grad }} />
@@ -1119,26 +1187,36 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Course completion */}
+              {/* Deadline warning */}
+              {deadlineSoon && !courseCompleted && (
+                <Glass style={{ borderLeft:`3px solid ${C.flame.solid}`, background:C.flame.soft }}>
+                  <p style={{ margin:0, fontSize:13, fontWeight:600, color:"#7c2d12" }}>
+                    ⏰ Only {daysLeft} day{daysLeft === 1 ? "" : "s"} left to finish all {totalCyclesN} cycles — miss the deadline and the course restarts from Cycle 1.
+                  </p>
+                </Glass>
+              )}
+
+              {/* This cycle's task completion */}
               <Glass>
                 <div style={{ display:"flex", alignItems:"center", gap:24, flexWrap:"wrap" }}>
                   <div style={{ position:"relative", width:90, height:90, display:"grid", placeItems:"center", flexShrink:0 }}>
                     <div style={{ position:"absolute", inset:0 }}>
-                      <Ring pct={s.pct} size={90} stroke={8} color={C.blue.solid} />
+                      <Ring pct={cyclePct} size={90} stroke={8} color={pAccent.solid} />
                     </div>
-                    <div style={{ fontSize:21, fontWeight:900, color:"#0a0a0a", fontFamily:DISPLAY_FONT }}>{s.pct}%</div>
+                    <div style={{ fontSize:21, fontWeight:900, color:"#0a0a0a", fontFamily:DISPLAY_FONT }}>{cyclePct}%</div>
                   </div>
                   <div style={{ flex:1, minWidth:220 }}>
-                    <p style={{ margin:0, color:"#0a0a0a", fontWeight:700, fontSize:16, fontFamily:DISPLAY_FONT }}>Course Completion</p>
-                    <p style={{ margin:"4px 0 14px", color:"rgba(0,0,0,0.5)", fontSize:13 }}>{s.done} of {s.totalTasks} tasks completed</p>
+                    <p style={{ margin:0, color:"#0a0a0a", fontWeight:700, fontSize:16, fontFamily:DISPLAY_FONT }}>Current Cycle Tasks</p>
+                    <p style={{ margin:"4px 0 14px", color:"rgba(0,0,0,0.5)", fontSize:13 }}>{pLabel} · {cDone} of {cTotal} tasks completed in cycle {cycle}</p>
                     <div style={{ height:8, borderRadius:99, background:"rgba(0,0,0,0.08)", overflow:"hidden" }}>
-                      <div style={{ height:"100%", borderRadius:99, width:`${s.pct}%`, background:C.blue.grad, transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
+                      <div style={{ height:"100%", borderRadius:99, width:`${cyclePct}%`, background:pAccent.grad, transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
                     </div>
                   </div>
                 </div>
               </Glass>
             </div>
-          )}
+            );
+          })()}
 
           {/* ── ASSESSMENT (Enhanced with Modal) ── */}
           {activeView === "assessment" && (() => {

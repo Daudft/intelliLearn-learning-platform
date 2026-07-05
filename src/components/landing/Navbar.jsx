@@ -38,7 +38,7 @@ export default function Navbar() {
         {/* LOGO */}
         <a href="/" className="shrink-0">
           <h1 className="flex items-baseline leading-none">
-            <span className="text-[22px] font-bold text-white tracking-tight">Intelli</span>
+            <span className="text-[22px] font-bold text-sui-blue tracking-tight">Intelli</span>
             <span className="text-[22px] font-semibold text-white tracking-tight">Learn</span>
           </h1>
         </a>
