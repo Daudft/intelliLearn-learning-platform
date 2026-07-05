@@ -265,8 +265,10 @@ int main() {
                 </button>
               </div>
 
-              {/* PASSWORD RULE */}
-              <p className="text-xs text-gray-400 mt-1.5">Use uppercase, lowercase, number, symbol, and 8+ characters.</p>
+              {/* PASSWORD RULE — turns red when weak (color only, no layout shift) */}
+              <p className={`text-xs mt-1.5 transition-colors ${strength === "weak" ? "text-red-500" : "text-gray-400"}`}>
+                Use uppercase, lowercase, number, symbol, and 8+ characters.
+              </p>
 
               {/* PASSWORD STRENGTH BAR — 3-Step Indicator */}
               <div className={`flex gap-2 mt-2 transition-opacity ${password ? "opacity-100" : "opacity-0"}`}>
@@ -302,12 +304,6 @@ int main() {
                 />
               </div>
 
-              {/* Inline weak helper */}
-              {strength === "weak" && (
-                <p className="text-xs text-red-600 mt-2">
-                  Password is too weak. Use uppercase, lowercase, numbers, symbols and at least 8 characters.
-                </p>
-              )}
             </div>
 
             {/* CONFIRM PASSWORD */}
