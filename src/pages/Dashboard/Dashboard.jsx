@@ -657,75 +657,6 @@ export default function Dashboard() {
                 </div>
               </Glass>
 
-              {/* ══ HERO: Streak banner ══ */}
-              <Glass style={{ padding:"22px 28px", position:"relative", overflow:"hidden" }}>
-                {/* faded flame watermark */}
-                <div style={{ position:"absolute", top:-34, right:-16, opacity:0.06, pointerEvents:"none", transform:"rotate(8deg)" }}>
-                  <Flame size={168} color={C.flame.solid} fill={C.flame.solid} />
-                </div>
-
-                <div style={{ position:"relative", display:"flex", alignItems:"center", gap:26, flexWrap:"wrap" }}>
-
-                  {/* Flame + days */}
-                  <div style={{ display:"flex", alignItems:"center", gap:15, flexShrink:0 }}>
-                    <div style={{ position:"relative" }}>
-                      <div style={{ position:"absolute", inset:-7, borderRadius:20, background:C.flame.solid, opacity:0.20, filter:"blur(11px)" }} />
-                      <div style={{ position:"relative", width:58, height:58, borderRadius:16, background:C.flame.grad, display:"grid", placeItems:"center", boxShadow:"0 8px 22px rgba(255,107,53,0.42)" }}>
-                        <Flame size={27} color="#fff" fill="#fff" />
-                      </div>
-                    </div>
-                    <div>
-                      <p style={{ margin:0, fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.45)", textTransform:"uppercase", letterSpacing:"0.12em" }}>Learning Streak</p>
-                      <div style={{ display:"flex", alignItems:"baseline", gap:5, marginTop:3 }}>
-                        <span style={{ fontSize:36, fontWeight:900, color:"#0a0a0a", fontFamily:DISPLAY_FONT, letterSpacing:"-0.02em", lineHeight:1 }}>{s.streak}</span>
-                        <span style={{ fontSize:14, fontWeight:700, color:"rgba(0,0,0,0.4)" }}>day{s.streak !== 1 ? "s" : ""}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Day chain on a connecting track (center, grows) */}
-                  <div style={{ flex:1, minWidth:250, position:"relative", display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0 8px" }}>
-                    <div style={{ position:"absolute", left:24, right:24, top:"50%", height:3, background:"rgba(0,0,0,0.07)", transform:"translateY(-50%)", borderRadius:99 }} />
-                    {DAYS.map((d, i) => {
-                      const isToday = i === s.todayDayIndex;
-                      const inStreak = i >= (s.todayDayIndex - s.streak + 1) && i <= s.todayDayIndex;
-                      return (
-                        <div key={i} style={{
-                          position:"relative",
-                          width:38, height:38, borderRadius:"50%", display:"grid", placeItems:"center",
-                          background: inStreak ? C.flame.grad : "#fff",
-                          border: inStreak ? "none" : "2px solid rgba(0,0,0,0.1)",
-                          boxShadow: isToday ? `0 0 0 3px #fff, 0 0 0 5px ${C.flame.solid}` : inStreak ? "0 4px 10px rgba(255,107,53,0.35)" : "none",
-                          transition:"all .3s cubic-bezier(0.34,1.56,0.64,1)", flexShrink:0,
-                        }}>
-                          {inStreak
-                            ? <Flame size={15} color="#fff" fill="#fff" />
-                            : <span style={{ fontSize:10, fontWeight:800, color:"rgba(0,0,0,0.3)" }}>{d}</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* This-week ring (right) */}
-                  <div style={{ display:"flex", alignItems:"center", gap:13, flexShrink:0 }}>
-                    <div style={{ position:"relative", width:66, height:66, display:"grid", placeItems:"center" }}>
-                      <div style={{ position:"absolute", inset:0 }}>
-                        <Ring pct={Math.min(100, Math.round(Math.min(s.streak,7)/7*100))} size={66} stroke={6} color={C.flame.solid} />
-                      </div>
-                      <div style={{ fontSize:16, fontWeight:900, color:"#0a0a0a", fontFamily:DISPLAY_FONT, lineHeight:1 }}>
-                        {Math.min(s.streak,7)}<span style={{ fontSize:10, fontWeight:700, color:"rgba(0,0,0,0.4)" }}>/7</span>
-                      </div>
-                    </div>
-                    <div style={{ maxWidth:140 }}>
-                      <p style={{ margin:0, fontSize:10, fontWeight:700, color:"rgba(0,0,0,0.45)", textTransform:"uppercase", letterSpacing:"0.1em" }}>This Week</p>
-                      <p style={{ margin:"4px 0 0", fontSize:11, fontWeight:600, color:"rgba(0,0,0,0.55)", lineHeight:1.35 }}>
-                        {s.streak >= 7 ? "Perfect week! 🏆" : `${7 - s.streak} more to a perfect week 🔥`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Glass>
-
               {/* ══ CONTINUE LEARNING CARD (WITH CAROUSEL) ══ */}
               <Glass style={{ padding:0, overflow:"hidden" }}>
                 {/* Header strip */}
@@ -934,6 +865,54 @@ export default function Dashboard() {
                   )}
                 </div>
               </Glass>
+
+              {/* ══ COURSE PROGRESS BAR ══ */}
+              {(() => {
+                const cp = learningPaths[currentLearningIndex];
+                if (!cp) return null;
+                const totalCycles = 24; // keep in sync with backend TOTAL_CYCLES
+                const cycle = cp.cycle || 1;
+                const courseCompleted = !!cp.courseCompleted;
+                const cTasks = cp.tasks || [];
+                const cTotal = cTasks.length;
+                const cDone = cTasks.filter((t) => t.status === "completed").length;
+                const deadline = cp.courseDeadline ? new Date(cp.courseDeadline) : null;
+                const daysLeft = deadline ? Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 86400000)) : null;
+                const coursePct = courseCompleted
+                  ? 100
+                  : Math.min(100, Math.round((((cycle - 1) + (cTotal ? cDone / cTotal : 0)) / totalCycles) * 100));
+                const urgent = !courseCompleted && daysLeft != null && daysLeft <= 14;
+                return (
+                  <Glass style={{ padding:"18px 24px" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+                      <div>
+                        <p style={{ margin:0, fontSize:10, fontWeight:800, letterSpacing:"0.14em", textTransform:"uppercase", color:C.blue.solid }}>Course Progress</p>
+                        <p style={{ margin:"4px 0 0", fontSize:16, fontWeight:800, color:"#0a0a0a", fontFamily:DISPLAY_FONT }}>
+                          {courseCompleted ? `🏆 Course complete — all ${totalCycles} cycles!` : `Cycle ${cycle} of ${totalCycles}`}
+                        </p>
+                      </div>
+                      {!courseCompleted && daysLeft != null && (
+                        <div style={{ textAlign:"right" }}>
+                          <div style={{ fontSize:24, fontWeight:900, fontFamily:DISPLAY_FONT, lineHeight:1, color: urgent ? "#e11d48" : "#0a0a0a" }}>{daysLeft}</div>
+                          <div style={{ fontSize:10, color:"rgba(0,0,0,0.5)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", marginTop:2 }}>days left</div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ marginTop:12, height:9, borderRadius:99, background:"rgba(0,0,0,0.07)", overflow:"hidden" }}>
+                      <div style={{ height:"100%", borderRadius:99, width:`${coursePct}%`, background: courseCompleted ? C.green.grad : C.blue.grad, transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginTop:7, fontSize:11.5, color:"rgba(0,0,0,0.5)", fontWeight:600 }}>
+                      <span>{coursePct}% of course</span>
+                      {deadline && !courseCompleted && <span>Finish by {deadline.toLocaleDateString()}</span>}
+                    </div>
+                    {urgent && (
+                      <p style={{ margin:"10px 0 0", fontSize:12, color:"#b91c1c", fontWeight:600, lineHeight:1.45 }}>
+                        ⏰ Only {daysLeft} day{daysLeft === 1 ? "" : "s"} left! Finish all {totalCycles} cycles or the course restarts from Cycle 1.
+                      </p>
+                    )}
+                  </Glass>
+                );
+              })()}
 
               {/* ══ CYCLE QUIZ CARD ══ */}
               {(() => {

@@ -279,8 +279,14 @@
 .hints-btn { color: #7c5cff; background: #f1ecff; border-color: #e2d9ff; }
 .hints-btn:hover:not(:disabled) { background: #e2d9ff; box-shadow: 0 4px 12px rgba(124, 92, 255, 0.18); }
 
+.review-btn { color: #7c5cff; background: #f1ecff; border-color: #e2d9ff; }
+.review-btn:hover:not(:disabled) { background: #e2d9ff; box-shadow: 0 4px 12px rgba(124, 92, 255, 0.18); }
+
 .feedback-btn { color: #16a34a; background: #eafaf0; border-color: #cdf0da; }
 .feedback-btn:hover:not(:disabled) { background: #cdf0da; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.18); }
+
+.output-btn { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
+.output-btn:hover:not(:disabled) { background: #e2e8f0; box-shadow: 0 4px 12px rgba(71, 85, 105, 0.18); }
 
 /* ── Input ── */
 .ai-agent-input {

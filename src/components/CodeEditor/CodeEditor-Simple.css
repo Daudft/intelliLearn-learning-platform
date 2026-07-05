@@ -176,3 +176,197 @@
   color: #4da2ff;
   font-weight: 800;
 }
+
+/* ── Run / Input actions ── */
+.editor-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 20px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #1f1f28;
+  color: #e6e6ea;
+  border: 1px solid #33333d;
+  transition: all 0.18s ease;
+}
+
+.btn-run:hover:not(:disabled) {
+  background: #26262f;
+  border-color: #3ddc97;
+  color: #3ddc97;
+  transform: translateY(-1px);
+}
+
+.btn-run:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-input-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  color: #9a9aa6;
+  border: 1px solid #2a2a33;
+  font-family: system-ui, -apple-system, sans-serif;
+  transition: all 0.18s ease;
+}
+
+.btn-input-toggle:hover { color: #c7c7d1; border-color: #3a3a44; }
+.btn-input-toggle.active { color: #4da2ff; border-color: rgba(77, 162, 255, 0.4); background: rgba(77, 162, 255, 0.08); }
+
+.spin { animation: ce-spin 0.8s linear infinite; }
+@keyframes ce-spin { to { transform: rotate(360deg); } }
+
+/* ── stdin panel ── */
+.stdin-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 18px;
+  background: #121218;
+  border-top: 1px solid #26262e;
+  flex-shrink: 0;
+}
+
+.stdin-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #7a7a86;
+  text-transform: uppercase;
+}
+
+.stdin-textarea {
+  width: 100%;
+  min-height: 50px;
+  max-height: 120px;
+  resize: vertical;
+  background: #0f0f14;
+  border: 1px solid #2a2a33;
+  border-radius: 8px;
+  color: #e6e6ea;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  padding: 9px 12px;
+  outline: none;
+}
+
+.stdin-textarea:focus { border-color: #4da2ff; }
+
+/* ── Output terminal ── */
+.output-panel {
+  display: flex;
+  flex-direction: column;
+  background: #0c0c11;
+  border-top: 1px solid #26262e;
+  max-height: 200px;
+  flex-shrink: 0;
+}
+
+.output-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #0f0f14;
+  border-bottom: 1px solid #1e1e26;
+  flex-shrink: 0;
+}
+
+.output-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a8a96;
+}
+
+.output-exit {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: 5px;
+}
+
+.output-exit.ok { color: #3ddc97; background: rgba(61, 220, 151, 0.12); }
+.output-exit.bad { color: #ff6b6b; background: rgba(255, 107, 107, 0.12); }
+
+.output-clear {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #6a6a76;
+  cursor: pointer;
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 5px;
+  transition: all 0.15s ease;
+}
+
+.output-clear:hover { color: #c7c7d1; background: #1e1e26; }
+
+.output-body {
+  overflow: auto;
+  padding: 12px 16px;
+}
+
+.output-body::-webkit-scrollbar { width: 8px; }
+.output-body::-webkit-scrollbar-track { background: #0c0c11; }
+.output-body::-webkit-scrollbar-thumb { background: #33333d; border-radius: 4px; }
+
+.output-running {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #9a9aa6;
+  font-size: 13px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.output-text {
+  margin: 0;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e6e6ea;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.output-text.err { color: #ff9b9b; }
+
+.output-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 8px 0 4px;
+}
+
+.output-label:first-child { margin-top: 0; }
+.output-label.err { color: #ff6b6b; }
+
+.output-empty {
+  color: #6a6a76;
+  font-size: 13px;
+  font-style: italic;
+  font-family: system-ui, -apple-system, sans-serif;
+}

@@ -2,11 +2,12 @@ import { useState, useRef } from 'react';
 import { Send, Check } from 'lucide-react';
 import './CodeEditor-Simple.css';
 
-const FILE_NAMES = { c: 'solution.c', python: 'solution.py', java: 'Solution.java' };
+const FILE_NAMES = { c: 'solution.c', python: 'solution.py', java: 'Main.java' };
 
 export default function CodeEditor({
   initialCode = '',
   onSubmit,
+  onCodeChange,
   isSubmitting = false,
   canSubmit = true,
   passScore = 7,
@@ -53,7 +54,10 @@ export default function CodeEditor({
       <textarea
         ref={editorRef}
         value={code}
-        onChange={(e) => setCode(e.target.value)}
+        onChange={(e) => {
+          setCode(e.target.value);
+          onCodeChange?.(e.target.value);
+        }}
         className="code-textarea-large"
         placeholder="Write your code here..."
         spellCheck="false"
@@ -66,7 +70,7 @@ export default function CodeEditor({
         </div>
       )}
 
-      {/* Submit Button */}
+      {/* Submit */}
       <div className="code-editor-footer-minimal">
         <button
           onClick={handleSubmit}
@@ -76,7 +80,7 @@ export default function CodeEditor({
           {submitLoading || isSubmitting ? (
             <>
               <span className="spinner">⏳</span>
-              Evaluating...
+              Running & evaluating...
             </>
           ) : isSuccessful ? (
             <>

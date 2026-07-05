@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Loader, CheckCircle, XCircle, Award, AlertCircle } from 'lucide-react';
+import { X, Loader, CheckCircle, XCircle, Award, AlertCircle, RefreshCw } from 'lucide-react';
 import learningPathService from '../../services/learningPathService';
 import './QuizModal.css';
 
@@ -16,6 +16,7 @@ export default function QuizModal({ language, userId, onClose, onQuizPassed }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [advancing, setAdvancing] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -58,6 +59,29 @@ export default function QuizModal({ language, userId, onClose, onQuizPassed }) {
     ? quiz.codingQuestions.filter((c) => (codingCode[c.questionId] || '').trim()).length
     : 0;
   const totalCoding = quiz?.codingQuestions?.length || 0;
+
+  // Load a fresh quiz into state and reset any in-progress answers.
+  const applyQuiz = (q) => {
+    setQuiz(q);
+    const seed = {};
+    (q.codingQuestions || []).forEach((c) => { seed[c.questionId] = c.starterCode || ''; });
+    setCodingCode(seed);
+    setMcqAnswers({});
+    setResult(null);
+  };
+
+  const handleRegenerate = async () => {
+    try {
+      setRegenerating(true);
+      setError(null);
+      const data = await learningPathService.regenerateQuiz(userId, language);
+      if (data.quiz) applyQuiz(data.quiz);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to regenerate quiz.');
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!quiz) return;
@@ -255,17 +279,31 @@ export default function QuizModal({ language, userId, onClose, onQuizPassed }) {
             <p className="quiz-progress">
               MCQs {answeredMcqs}/{totalMcqs} · Coding {codedCount}/{totalCoding}
             </p>
-            <button
-              className="quiz-btn-primary"
-              onClick={handleSubmit}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <><Loader size={16} className="spin" /> Grading…</>
-              ) : (
-                'Submit Quiz'
-              )}
-            </button>
+            <div className="quiz-footer-actions">
+              <button
+                className="quiz-btn-secondary"
+                onClick={handleRegenerate}
+                disabled={submitting || regenerating}
+                title="Get a fresh set of questions based on your last tasks"
+              >
+                {regenerating ? (
+                  <><Loader size={16} className="spin" /> Regenerating…</>
+                ) : (
+                  <><RefreshCw size={15} /> New questions</>
+                )}
+              </button>
+              <button
+                className="quiz-btn-primary"
+                onClick={handleSubmit}
+                disabled={submitting || regenerating}
+              >
+                {submitting ? (
+                  <><Loader size={16} className="spin" /> Grading…</>
+                ) : (
+                  'Submit Quiz'
+                )}
+              </button>
+            </div>
           </div>
         )}
       </div>

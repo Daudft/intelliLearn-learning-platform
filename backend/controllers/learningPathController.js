@@ -1,9 +1,61 @@
 const LearningPath = require('../models/LearningPath');
-const { generatePersonalizedTasks, evaluateCodeWithAI, getAIAgentExplanation, generateCycleQuiz } = require('../utils/aiTaskGenerator');
+const { generatePersonalizedTasks, evaluateCodeWithAI, getAIAgentExplanation, generateProgramInput, generateCycleQuiz } = require('../utils/aiTaskGenerator');
 
 const QUIZ_PASS_SCORE = 80; // out of 100 (7 MCQ x 10 + 3 coding x qualityScore)
 const LEVEL_UP_THRESHOLD = 90; // quiz score (out of 100) needed to level up
 const PROFICIENCY_ORDER = ['Beginner', 'Intermediate', 'Advanced'];
+
+// ── Course timeline ──
+const TOTAL_CYCLES = 24;          // cycles (× 10 tasks) to finish a language course
+const COURSE_DURATION_DAYS = 90;  // 3-month deadline to finish the whole course
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Ensure a language path has its course timeline fields (backfills older paths).
+function initCourseFields(languagePath, now = new Date()) {
+  if (!languagePath.courseStartLevel) {
+    languagePath.courseStartLevel = languagePath.proficiencyLevel || 'Beginner';
+  }
+  if (!languagePath.courseStartedAt) {
+    languagePath.courseStartedAt = languagePath.createdAt || now;
+  }
+  if (!languagePath.courseDeadline) {
+    languagePath.courseDeadline = new Date(
+      new Date(languagePath.courseStartedAt).getTime() + COURSE_DURATION_DAYS * DAY_MS
+    );
+  }
+}
+
+// If the 3-month deadline lapsed and the course isn't finished, reset it to
+// cycle 1 at the starting level (points drop, clock restarts). Returns true on reset.
+async function enforceCourseDeadline(languagePath, now = new Date()) {
+  initCourseFields(languagePath, now);
+  if (languagePath.courseCompleted) return false;
+  if (now <= new Date(languagePath.courseDeadline)) return false;
+
+  const startLevel = languagePath.courseStartLevel || 'Beginner';
+  console.log(`⏰ Deadline missed for ${languagePath.language} — resetting course to cycle 1 (${startLevel}).`);
+
+  let freshTasks = null;
+  try {
+    freshTasks = await generatePersonalizedTasks(languagePath.language, startLevel, {}, 50);
+  } catch (e) {
+    console.error('Course-reset generation failed:', e.message);
+  }
+  // Never wipe progress if we couldn't produce a fresh set.
+  if (!Array.isArray(freshTasks) || freshTasks.length === 0) return false;
+
+  languagePath.proficiencyLevel = startLevel;
+  languagePath.tasks = freshTasks;
+  languagePath.cycle = 1;
+  languagePath.quiz = {
+    status: 'locked', mcqs: [], codingQuestions: [],
+    attempts: 0, lastScore: null, lastResult: '', generatedAt: null, lastTakenAt: null,
+  };
+  languagePath.courseStartedAt = now;
+  languagePath.courseDeadline = new Date(now.getTime() + COURSE_DURATION_DAYS * DAY_MS);
+  languagePath.lastResetAt = now;
+  return true;
+}
 
 const LANGUAGE_LABELS = {
   python: 'Python',
@@ -11,6 +63,13 @@ const LANGUAGE_LABELS = {
   c: 'C Language',
 };
 const LEARNING_PASS_SCORE = Number(process.env.LEARNING_PASS_SCORE || 7);
+
+// Paiza.IO — free, keyless code execution (compile + run) for the "Run" button.
+const PAIZA_BASE = 'https://api.paiza.io';
+const PAIZA_KEY = 'guest';
+const PAIZA_LANG = { c: 'c', python: 'python3', java: 'java' };
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function getLanguagePathAndTask(learningPath, language, taskId) {
   const languagePath = learningPath.paths.find((path) => path.language === language);
@@ -56,6 +115,15 @@ async function ensurePathForLanguage(userId, language, proficiencyLevel, topicBr
 
   console.log(`📚 Generated ${generatedTasks.length} tasks for user`);
 
+  const nowTs = Date.now();
+  const courseFields = {
+    courseStartLevel: proficiencyLevel,
+    courseStartedAt: new Date(nowTs),
+    courseDeadline: new Date(nowTs + COURSE_DURATION_DAYS * DAY_MS),
+    courseCompleted: false,
+    courseCompletedAt: null,
+  };
+
   if (!learningPath) {
     learningPath = await LearningPath.create({
       userId,
@@ -64,6 +132,7 @@ async function ensurePathForLanguage(userId, language, proficiencyLevel, topicBr
           language,
           proficiencyLevel,
           tasks: generatedTasks,
+          ...courseFields,
         },
       ],
     });
@@ -79,6 +148,7 @@ async function ensurePathForLanguage(userId, language, proficiencyLevel, topicBr
       proficiencyLevel,
       tasks: generatedTasks,
       createdAt: new Date(),
+      ...courseFields,
     });
     learningPath.updatedAt = new Date();
     await learningPath.save();
@@ -87,8 +157,11 @@ async function ensurePathForLanguage(userId, language, proficiencyLevel, topicBr
   }
 
   if (existing.proficiencyLevel !== proficiencyLevel) {
+    // Re-assessed at a different level → fresh course + fresh clock.
     existing.proficiencyLevel = proficiencyLevel;
     existing.tasks = generatedTasks;
+    existing.cycle = 1;
+    Object.assign(existing, courseFields);
     learningPath.updatedAt = new Date();
     await learningPath.save();
     console.log(`✅ Learning path updated for ${language}`);
@@ -112,6 +185,22 @@ exports.getLearningPath = async (req, res) => {
       });
     }
 
+    // Enforce the 3-month course deadline (and backfill course fields) per path.
+    const now = new Date();
+    let anyReset = false;
+    let changed = false;
+    for (const lp of learningPath.paths) {
+      const before = `${lp.courseDeadline || ''}|${lp.courseStartLevel || ''}`;
+      const reset = await enforceCourseDeadline(lp, now);
+      if (reset) anyReset = true;
+      const after = `${lp.courseDeadline || ''}|${lp.courseStartLevel || ''}`;
+      if (reset || before !== after) changed = true;
+    }
+    if (changed) {
+      learningPath.updatedAt = now;
+      await learningPath.save();
+    }
+
     // Strip quiz answer keys (correctAnswer/explanation) so they never reach the client.
     const safePaths = learningPath.paths.map((p) => {
       const obj = p.toObject ? p.toObject() : p;
@@ -130,6 +219,8 @@ exports.getLearningPath = async (req, res) => {
         userId: learningPath.userId,
         paths: safePaths,
       },
+      totalCycles: TOTAL_CYCLES,
+      deadlineReset: anyReset,
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
@@ -326,7 +417,7 @@ exports.getTaskCodeFeedback = async (req, res) => {
 
 exports.saveTaskDraft = async (req, res) => {
   try {
-    const { userId, language, taskId, code } = req.body;
+    const { userId, language, taskId, code, output } = req.body;
 
     if (!userId || !language || !taskId) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -344,6 +435,23 @@ exports.saveTaskDraft = async (req, res) => {
 
     result.task.draftCode = (code || '').toString();
     result.task.lastWorkedAt = new Date();
+
+    // Append this run's output to the task's history (keep the last 20).
+    if (output && typeof output === 'object') {
+      result.task.outputs = result.task.outputs || [];
+      result.task.outputs.push({
+        stdout: (output.stdout || '').toString().slice(0, 4000),
+        stderr: (output.stderr || '').toString().slice(0, 4000),
+        compileError: (output.compileError || '').toString().slice(0, 4000),
+        exitCode:
+          output.exitCode != null && output.exitCode !== '' ? Number(output.exitCode) : null,
+        timedOut: !!output.timedOut,
+        at: new Date(),
+      });
+      if (result.task.outputs.length > 20) {
+        result.task.outputs = result.task.outputs.slice(-20);
+      }
+    }
 
     learningPath.updatedAt = new Date();
     await learningPath.save();
@@ -379,22 +487,69 @@ exports.submitTaskSolution = async (req, res) => {
 
     console.log(`📝 Evaluating code submission for task: ${taskId} (Attempt ${task.attempts})`);
 
-    const review = await evaluateCodeWithAi({
-      language,
-      proficiencyLevel: languagePath.proficiencyLevel,
-      taskTitle: task.title,
-      taskDescription: task.description,
-      code,
-      testCases: task.testCases || [],
-    });
+    // Run the code AND review it together. The run is the hard gate: a task can
+    // only be completed if the program actually compiles and runs cleanly.
+    let runResult = null;
+    let runError = null;
+    const [runSettled, review] = await Promise.all([
+      // Auto-generate stdin when the program reads input, then run with it,
+      // and remember what we fed it so the client can show the student.
+      (async () => {
+        const stdin = await generateProgramInput({
+          language,
+          taskTitle: task.title,
+          taskDescription: task.description,
+          code,
+        });
+        const r = await executeCode(language, code, stdin);
+        r.input = stdin;
+        return r;
+      })().catch((e) => { runError = e; return null; }),
+      evaluateCodeWithAi({
+        language,
+        proficiencyLevel: languagePath.proficiencyLevel,
+        taskTitle: task.title,
+        taskDescription: task.description,
+        code,
+        testCases: task.testCases || [],
+      }),
+    ]);
+    runResult = runSettled;
 
     task.lastFeedback = review.feedback;
     task.lastFeedbackScore = Number(review.qualityScore || 0);
 
-    const passed = Number(review.qualityScore || 0) >= LEARNING_PASS_SCORE;
+    // Persist this run's output to the task history (keep last 20).
+    if (runResult) {
+      task.outputs = task.outputs || [];
+      task.outputs.push({
+        input: (runResult.input || '').slice(0, 1000),
+        stdout: (runResult.stdout || '').slice(0, 4000),
+        stderr: (runResult.stderr || '').slice(0, 4000),
+        compileError: (runResult.compileError || '').slice(0, 4000),
+        exitCode: runResult.exitCode != null ? Number(runResult.exitCode) : null,
+        timedOut: !!runResult.timedOut,
+        at: new Date(),
+      });
+      if (task.outputs.length > 20) task.outputs = task.outputs.slice(-20);
+    }
+
+    const runOk = didRunCleanly(runResult);
+    const scoreOk = Number(review.qualityScore || 0) >= LEARNING_PASS_SCORE;
+    // BOTH must hold: the code must run cleanly AND meet the score threshold.
+    const passed = runOk && scoreOk;
+
+    // Why it didn't pass — drives a helpful client message.
+    let reason = '';
+    if (!passed) {
+      if (!runResult) reason = 'could_not_run';
+      else if (!runOk) reason = 'run_error';
+      else reason = 'low_score';
+    }
+
     let unlockedTaskId = null;
 
-    console.log(`🎯 Score: ${task.lastFeedbackScore}/10 | Pass Threshold: ${LEARNING_PASS_SCORE}/10 | Status: ${passed ? '✅ PASS' : '❌ FAIL'}`);
+    console.log(`🎯 Score ${task.lastFeedbackScore}/10 (need ${LEARNING_PASS_SCORE}) | runOk=${runOk} | ${passed ? '✅ PASS' : `❌ FAIL (${reason})`}`);
 
     if (passed && task.status !== 'completed') {
       task.status = 'completed';
@@ -411,24 +566,34 @@ exports.submitTaskSolution = async (req, res) => {
       } else {
         console.log(`✅ All tasks completed!`);
       }
-    } else if (!passed) {
-      console.log(`💡 Feedback provided. Score ${task.lastFeedbackScore}/${LEARNING_PASS_SCORE} needed to pass.`);
     }
 
     learningPath.updatedAt = new Date();
     await learningPath.save();
 
+    let message;
+    if (passed) {
+      message = '🎉 Excellent! Task passed! Next question unlocked.';
+    } else if (reason === 'run_error') {
+      message = '⚠️ Your code did not run successfully — fix the error shown above, then submit again.';
+    } else if (reason === 'could_not_run') {
+      message = '⚠️ Could not run your code right now. Please try submitting again.';
+    } else {
+      message = `❌ Score ${task.lastFeedbackScore}/${LEARNING_PASS_SCORE}. Improve your solution and try again.`;
+    }
+
     return res.status(200).json({
-      message: passed 
-        ? '🎉 Excellent! Task passed! Next question unlocked.' 
-        : `❌ Score: ${task.lastFeedbackScore}/${LEARNING_PASS_SCORE}. ${LEARNING_PASS_SCORE} needed to pass. Try again!`,
+      message,
       passed,
+      runOk,
+      reason,
       passScore: LEARNING_PASS_SCORE,
       qualityScore: Number(review.qualityScore || 0),
       unlockedTaskId,
       feedback: review.feedback,
       suggestions: review.suggestions,
       attempts: task.attempts,
+      output: runResult, // real program output for display + history
       paths: learningPath.paths,
     });
   } catch (error) {
@@ -646,6 +811,56 @@ exports.submitQuiz = async (req, res) => {
   }
 };
 
+// Discard the saved quiz and generate a fresh one from the completed tasks.
+exports.regenerateQuiz = async (req, res) => {
+  try {
+    const { userId, language } = req.body;
+    if (!userId || !language) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const learningPath = await LearningPath.findOne({ userId });
+    if (!learningPath) {
+      return res.status(404).json({ message: 'Learning path not found' });
+    }
+
+    const languagePath = learningPath.paths.find((p) => p.language === language);
+    if (!languagePath) {
+      return res.status(404).json({ message: 'Language path not found' });
+    }
+
+    if (!allTasksCompleted(languagePath)) {
+      return res.status(400).json({ message: 'Complete all tasks before generating the quiz.' });
+    }
+
+    const completedTasks = languagePath.tasks.filter((t) => t.status === 'completed');
+    const generated = await generateCycleQuiz(language, languagePath.proficiencyLevel, completedTasks);
+
+    languagePath.quiz = {
+      status: 'available',
+      mcqs: generated.mcqs,
+      codingQuestions: generated.codingQuestions,
+      attempts: 0,
+      lastScore: null,
+      lastResult: '',
+      generatedAt: new Date(),
+      lastTakenAt: null,
+    };
+    learningPath.updatedAt = new Date();
+    await learningPath.save();
+
+    console.log(`🔄 Quiz regenerated for ${language} (${languagePath.proficiencyLevel})`);
+
+    return res.status(200).json({
+      message: 'Quiz regenerated with fresh questions',
+      quiz: sanitizeQuiz(languagePath.quiz),
+    });
+  } catch (error) {
+    console.error('❌ regenerateQuiz error:', error.message);
+    return res.status(500).json({ message: 'Error regenerating quiz', error: error.message });
+  }
+};
+
 // After a passed quiz, generate the next cycle of 15 tasks — adaptively by score:
 // >= 90 levels up (harder questions), 80-89 stays at the same level (fresh questions).
 exports.advanceCycle = async (req, res) => {
@@ -667,6 +882,35 @@ exports.advanceCycle = async (req, res) => {
 
     if (!languagePath.quiz || languagePath.quiz.status !== 'passed') {
       return res.status(400).json({ message: 'Pass the cycle quiz before advancing.' });
+    }
+
+    // If the deadline lapsed, the course resets instead of advancing.
+    const wasReset = await enforceCourseDeadline(languagePath);
+    if (wasReset) {
+      learningPath.updatedAt = new Date();
+      await learningPath.save();
+      return res.status(200).json({
+        deadlineReset: true,
+        cycle: 1,
+        totalCycles: TOTAL_CYCLES,
+        message: '⏰ Your 3-month deadline passed, so the course has restarted from Cycle 1.',
+        paths: learningPath.paths,
+      });
+    }
+
+    // Finished the final cycle → whole course complete (no cycle 25).
+    if ((languagePath.cycle || 1) >= TOTAL_CYCLES) {
+      languagePath.courseCompleted = true;
+      languagePath.courseCompletedAt = new Date();
+      learningPath.updatedAt = new Date();
+      await learningPath.save();
+      return res.status(200).json({
+        courseCompleted: true,
+        cycle: languagePath.cycle,
+        totalCycles: TOTAL_CYCLES,
+        message: `🏆 Congratulations! You've completed the entire ${LANGUAGE_LABELS[language] || language} course — all ${TOTAL_CYCLES} cycles!`,
+        paths: learningPath.paths,
+      });
     }
 
     const score = Number(languagePath.quiz.lastScore || 0);
@@ -709,6 +953,7 @@ exports.advanceCycle = async (req, res) => {
       leveledUp,
       newLevel,
       cycle: languagePath.cycle,
+      totalCycles: TOTAL_CYCLES,
       paths: learningPath.paths,
     });
   } catch (error) {
@@ -717,9 +962,102 @@ exports.advanceCycle = async (req, res) => {
   }
 };
 
+// Execute code via Paiza.IO (create job → poll for result) and return a
+// normalized output object. Throws on runner/network failure. Reused by both
+// the Run endpoint and the submit gate.
+async function executeCode(language, code, stdin = '') {
+  const paizaLang = PAIZA_LANG[String(language).toLowerCase()];
+  if (!paizaLang) {
+    throw new Error(`Unsupported language: ${language}`);
+  }
+
+  const createBody = new URLSearchParams({
+    source_code: code.toString(),
+    language: paizaLang,
+    input: (stdin || '').toString(),
+    api_key: PAIZA_KEY,
+  });
+
+  const createRes = await fetch(`${PAIZA_BASE}/runners/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: createBody,
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!createRes.ok) {
+    throw new Error(`Paiza create failed: ${createRes.status}`);
+  }
+  const created = await createRes.json();
+  if (!created.id) {
+    throw new Error(created.error || 'Code runner rejected the request.');
+  }
+
+  let details = null;
+  for (let i = 0; i < 20; i++) {
+    await sleep(700);
+    const detRes = await fetch(
+      `${PAIZA_BASE}/runners/get_details?id=${encodeURIComponent(created.id)}&api_key=${PAIZA_KEY}`,
+      { signal: AbortSignal.timeout(12000) }
+    );
+    if (!detRes.ok) continue;
+    const d = await detRes.json();
+    if (d.status === 'completed') { details = d; break; }
+  }
+  if (!details) {
+    throw new Error('Paiza timed out');
+  }
+
+  const compileFailed = details.build_result === 'failure';
+  const compileError = compileFailed
+    ? (details.build_stderr || details.build_stdout || 'Compilation failed.')
+    : '';
+  const exitCode =
+    details.exit_code != null && details.exit_code !== '' ? Number(details.exit_code) : null;
+  const timedOut = details.result === 'timeout';
+
+  return {
+    success: !compileFailed && details.result === 'success' && exitCode === 0,
+    language: details.language,
+    compileError,
+    stdout: details.stdout || '',
+    stderr: details.stderr || '',
+    exitCode,
+    timedOut,
+  };
+}
+
+// True when the program compiled, didn't time out, and exited cleanly (0).
+function didRunCleanly(runResult) {
+  return !!runResult && !runResult.compileError && !runResult.timedOut && runResult.exitCode === 0;
+}
+
+// Execute the student's code and return normalized output for the editor.
+exports.runCode = async (req, res) => {
+  try {
+    const { language, code, stdin } = req.body;
+
+    if (!language || !code || !code.toString().trim()) {
+      return res.status(400).json({ message: 'Missing required fields: language, code' });
+    }
+    if (!PAIZA_LANG[String(language).toLowerCase()]) {
+      return res.status(400).json({ message: `Unsupported language: ${language}` });
+    }
+
+    const result = await executeCode(language, code, stdin);
+    console.log(`▶️ Ran ${language} → exit ${result.exitCode}, clean=${didRunCleanly(result)}`);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      return res.status(504).json({ message: 'Execution timed out. Please try again.' });
+    }
+    console.error('❌ runCode error:', error.message);
+    return res.status(502).json({ message: 'Code runner is unavailable right now. Please try again.' });
+  }
+};
+
 exports.getAIAgentExplanation = async (req, res) => {
   try {
-    const { question, description, language, proficiencyLevel, userQuery, taskCompleted, action } = req.body;
+    const { question, description, language, proficiencyLevel, userQuery, taskCompleted, action, code } = req.body;
 
     if (!question || !description || !language) {
       return res.status(400).json({ message: 'Missing required fields: question, description, language' });
@@ -734,7 +1072,8 @@ exports.getAIAgentExplanation = async (req, res) => {
       proficiencyLevel: proficiencyLevel || 'Beginner',
       userQuery: userQuery || '',
       taskCompleted: taskCompleted || false,
-      action: action || 'explain'
+      action: action || 'ask',
+      code: code || ''
     });
 
     return res.status(200).json({
