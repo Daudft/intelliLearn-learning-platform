@@ -138,8 +138,8 @@ int main() {
 
           {/* LOGO */}
           <Link to="/" className="mb-8 flex items-baseline leading-none">
-            <span className="text-xl font-bold text-sui-sea font-display tracking-tight">Intelli</span>
-            <span className="text-xl font-semibold text-sui-bright font-display tracking-tight">Learn</span>
+            <span className="text-xl font-bold text-sui-blue font-display tracking-tight">Intelli</span>
+            <span className="text-xl font-semibold text-black font-display tracking-tight">Learn</span>
           </Link>
 
           <h2 className="text-3xl font-bold font-display tracking-tight text-sui-sea">Welcome back</h2>
