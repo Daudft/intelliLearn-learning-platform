@@ -220,6 +220,29 @@
 .quiz-btn-primary:hover:not(:disabled) { background: #c6ff4d; }
 .quiz-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.quiz-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quiz-btn-secondary {
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  background: #fff;
+  color: #374151;
+  font-weight: 700;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.quiz-btn-secondary:hover:not(:disabled) { background: #f3f4f6; border-color: #9ca3af; }
+.quiz-btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* Result */
 .quiz-result { animation: quizSlideUp 0.3s ease; }
 

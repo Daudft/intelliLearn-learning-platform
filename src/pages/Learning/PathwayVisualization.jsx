@@ -26,6 +26,8 @@ export default function PathwayVisualization() {
   const [showModal, setShowModal] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [advancing, setAdvancing] = useState(false);
+  const [totalCycles, setTotalCycles] = useState(24);
+  const [deadlineReset, setDeadlineReset] = useState(false);
 
   const stored = (() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } })();
   const userId = stored?.id || stored?._id;
@@ -41,6 +43,8 @@ export default function PathwayVisualization() {
       setError(null);
       const data = await learningPathService.waitForLearningPath(userId);
       setLearningPath(data.learningPath);
+      setTotalCycles(data.totalCycles || 24);
+      setDeadlineReset(!!data.deadlineReset);
       if (data.learningPath?.paths?.length > 0 && !selectedLanguage) {
         setSelectedLanguage(data.learningPath.paths[0].language);
       }
@@ -85,6 +89,17 @@ export default function PathwayVisualization() {
   const pct = total ? Math.round((done / total) * 100) : 0;
   const allCompleted = total > 0 && done === total;
   const quizPassed = currentPath?.quiz?.status === 'passed';
+
+  // Course-level progress + 3-month deadline
+  const cycle = currentPath?.cycle || 1;
+  const courseCompleted = !!currentPath?.courseCompleted;
+  const courseDeadline = currentPath?.courseDeadline ? new Date(currentPath.courseDeadline) : null;
+  const daysLeft = courseDeadline
+    ? Math.max(0, Math.ceil((courseDeadline.getTime() - Date.now()) / 86400000))
+    : null;
+  const coursePct = courseCompleted
+    ? 100
+    : Math.min(100, Math.round((((cycle - 1) + (total ? done / total : 0)) / totalCycles) * 100));
 
   return (
     <div style={{ minHeight:"100vh", background:"#f5f5f4", fontFamily:"'Inter', system-ui, sans-serif", padding:"30px 24px 60px" }}>
@@ -149,6 +164,48 @@ export default function PathwayVisualization() {
               </div>
             </div>
 
+            {/* Deadline-reset notice */}
+            {deadlineReset && (
+              <div style={{ marginTop:16, display:"flex", alignItems:"center", gap:10, padding:"12px 16px", borderRadius:12, background:"#fff7ed", border:"1px solid #fed7aa", color:"#9a3412", fontSize:13, fontWeight:600 }}>
+                ⏰ Your 3-month deadline passed — the course restarted from Cycle 1. Fresh start, you've got this!
+              </div>
+            )}
+
+            {/* Course progress + deadline */}
+            {currentPath && (
+              <div style={{ marginTop:16, background:"#fff", border:"1px solid #e6e6e6", borderRadius:16, padding:"16px 20px" }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+                  <div>
+                    <p style={{ margin:0, fontSize:10, fontWeight:800, letterSpacing:"0.12em", textTransform:"uppercase", color: th.solid }}>Course Progress</p>
+                    <p style={{ margin:"4px 0 0", fontSize:16, fontWeight:800, color:"#0a0a0a", fontFamily:DISPLAY_FONT }}>
+                      {courseCompleted ? `🏆 Course complete — all ${totalCycles} cycles!` : `Cycle ${cycle} of ${totalCycles}`}
+                    </p>
+                  </div>
+                  {!courseCompleted && daysLeft != null && (
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ fontSize:24, fontWeight:900, fontFamily:DISPLAY_FONT, lineHeight:1, color: daysLeft <= 14 ? "#e11d48" : "#0a0a0a" }}>{daysLeft}</div>
+                      <div style={{ fontSize:11, color:"rgba(0,0,0,0.5)", fontWeight:600, marginTop:2 }}>days left</div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ marginTop:12, height:9, borderRadius:99, background:"#eeeeee", overflow:"hidden" }}>
+                  <div style={{ height:"100%", borderRadius:99, width:`${coursePct}%`, background: courseCompleted ? GREEN.grad : th.grad, transition:"width .8s cubic-bezier(.4,0,.2,1)" }} />
+                </div>
+
+                <div style={{ display:"flex", justifyContent:"space-between", marginTop:7, fontSize:11.5, color:"rgba(0,0,0,0.5)", fontWeight:600 }}>
+                  <span>{coursePct}% of course</span>
+                  {courseDeadline && !courseCompleted && <span>Finish by {courseDeadline.toLocaleDateString()}</span>}
+                </div>
+
+                {!courseCompleted && daysLeft != null && daysLeft <= 14 && (
+                  <p style={{ margin:"10px 0 0", fontSize:12, color:"#b91c1c", fontWeight:600, lineHeight:1.45 }}>
+                    ⏰ Only {daysLeft} day{daysLeft === 1 ? '' : 's'} left! Finish all {totalCycles} cycles in time — miss the deadline and the course restarts from Cycle 1 (your rank drops).
+                  </p>
+                )}
+              </div>
+            )}
+
             {error && (
               <div style={{ marginTop:16, display:"flex", alignItems:"center", gap:10, padding:"12px 16px", borderRadius:12, background:"#fff0f0", border:"1px solid #ffd0d0", color:"#c0392b", fontSize:13, fontWeight:600 }}>
                 <AlertCircle size={18} /> {error}
@@ -158,7 +215,7 @@ export default function PathwayVisualization() {
             {currentPath && (
               <>
                 {/* Quiz banner */}
-                {allCompleted && (
+                {allCompleted && !courseCompleted && (
                   <div style={{ marginTop:20, borderRadius:16, padding:"18px 22px", display:"flex", alignItems:"center", gap:16, flexWrap:"wrap",
                     background: quizPassed ? GREEN.soft : th.soft, border:`1px solid ${(quizPassed ? GREEN.solid : th.solid)}33` }}>
                     <div style={{ width:52, height:52, borderRadius:14, background: quizPassed ? GREEN.grad : th.grad, display:"grid", placeItems:"center", flexShrink:0, boxShadow:`0 8px 20px ${quizPassed ? 'rgba(18,183,106,0.3)' : th.glow}` }}>
@@ -180,7 +237,7 @@ export default function PathwayVisualization() {
                         background:GREEN.grad, color:"#fff", fontWeight:800, fontSize:13, whiteSpace:"nowrap",
                         boxShadow:"0 8px 20px rgba(18,183,106,0.3)", opacity: advancing ? 0.7 : 1,
                       }}>
-                        {advancing ? 'Generating…' : 'Start Next Cycle'}
+                        {advancing ? 'Generating…' : (cycle >= totalCycles ? 'Finish Course 🏆' : 'Start Next Cycle')}
                       </button>
                     ) : (
                       <button onClick={() => setShowQuiz(true)} style={{

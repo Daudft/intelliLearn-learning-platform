@@ -1,10 +1,49 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Loader, Sparkles, BookOpen, Lightbulb, CheckCircle } from 'lucide-react';
+import { Send, Loader, Sparkles, BookOpen, Lightbulb, ScanSearch, TerminalSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import aiAgentService from '../../services/aiAgentService';
 import './AIAgent.css';
 
-export default function AIAgent({ title, description, language, proficiencyLevel, taskCompleted, submissionFeedback, isSubmitting }) {
+// Render just the body of one run result (code block / error / empty).
+function outputBody(output) {
+  if (!output) return '_(no output captured)_';
+  if (output.compileError) {
+    return `_compilation error_\n\n\`\`\`\n${output.compileError.trim()}\n\`\`\``;
+  }
+  // The program reads input, so we auto-fed it this — tell the student.
+  const inputLine = (output.input && output.input.trim())
+    ? `🧩 _I used this input:_ \`${output.input.trim().replace(/\s+/g, ' ')}\`\n\n`
+    : '';
+  const out = (output.stdout || '').trim();
+  const err = (output.stderr || '').trim();
+  if (out) return `${inputLine}\`\`\`\n${out}\n\`\`\``;
+  if (err) return `${inputLine}_runtime error_\n\n\`\`\`\n${err}\n\`\`\``;
+  if (output.timedOut) return `${inputLine}⏱ Timed out — check for an infinite loop.`;
+  return `${inputLine}_(your program produced no output)_`;
+}
+
+// The latest run's output, shown above the review on submit.
+function formatProgramOutput(output) {
+  if (!output) return '';
+  return `🖥️ **Program Output**\n\n${outputBody(output)}\n\n`;
+}
+
+// The full saved output history for this task (Output button).
+function formatAllOutputs(outputs) {
+  if (!outputs || outputs.length === 0) {
+    return `🖥️ **No output yet**\n\nClick **Submit** to run your code — I'll show its output and keep a history of every attempt right here.`;
+  }
+  const blocks = outputs.map((o, i) => {
+    const when = o.at ? new Date(o.at) : null;
+    const time = when && !isNaN(when.getTime())
+      ? ` · ${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      : '';
+    return `**Attempt ${i + 1}**${time}\n\n${outputBody(o)}`;
+  });
+  return `🖥️ **Output history — ${outputs.length} run${outputs.length > 1 ? 's' : ''}**\n\n${blocks.join('\n\n---\n\n')}`;
+}
+
+export default function AIAgent({ title, description, language, proficiencyLevel, taskCompleted, submissionFeedback, isSubmitting, currentCode, outputs }) {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -12,34 +51,27 @@ export default function AIAgent({ title, description, language, proficiencyLevel
   const messagesEndRef = useRef(null);
   const lastFeedbackRef = useRef(null);
 
-  // Initialize AI agent with welcome message
+  // Seed the chat with a static welcome message for the current task.
   useEffect(() => {
-    const initializeAgent = async () => {
-      try {
-        const initialMessage = {
-          id: 'welcome',
-          type: 'ai',
-          content: `👋 Hi! I'm your **AI Learning Assistant**.
+    const initialMessage = {
+      id: 'welcome',
+      type: 'ai',
+      content: `👋 Hi! I'm your **AI Learning Assistant**.
 
 **Task:** ${title}
 ${description ? `\n${description}\n` : ''}
 I can help you:
 - **Explain** the key concepts in this task
 - **Break down** the problem into clear steps
-- Give you **Hints** without spoiling the answer
+- **Review** the code you've written and nudge you in the right direction
+- Show your **Output** history for every run
 - Answer anything you type in the box below
 
 What would you like help with?`,
-          timestamp: new Date(),
-        };
-        setMessages([initialMessage]);
-        setAgentReady(true);
-      } catch (error) {
-        console.error('Error initializing AI agent:', error);
-      }
+      timestamp: new Date(),
     };
-
-    initializeAgent();
+    setMessages([initialMessage]);
+    setAgentReady(true);
   }, [title, description]);
 
   const scrollToBottom = () => {
@@ -62,9 +94,18 @@ What would you like help with?`,
     } else {
       const score = submissionFeedback.qualityScore;
       const passScore = submissionFeedback.passScore || 7;
-      const header = submissionFeedback.passed
-        ? `✅ **Solution Approved!**${score != null ? ` — Score: **${score}/10**` : ''}`
-        : `📋 **Code Review**${score != null ? ` — Score: **${score}/10** (need ${passScore}/10 to pass)` : ''}`;
+      const reason = submissionFeedback.reason;
+      // The code failed to compile/run — that's the blocker, not the score.
+      const runBlocked = !submissionFeedback.passed && (reason === 'run_error' || reason === 'could_not_run');
+
+      let header;
+      if (submissionFeedback.passed) {
+        header = `✅ **Solution Approved!**${score != null ? ` — Score: **${score}/10**` : ''}`;
+      } else if (runBlocked) {
+        header = `⚠️ **Not completed — your code didn't run cleanly.** Fix the error above first.${score != null ? ` _(logic score: ${score}/10)_` : ''}`;
+      } else {
+        header = `📋 **Code Review**${score != null ? ` — Score: **${score}/10** (need ${passScore}/10 to pass)` : ''}`;
+      }
 
       const body = submissionFeedback.feedback ? `\n\n${submissionFeedback.feedback}` : '';
 
@@ -75,9 +116,12 @@ What would you like help with?`,
 
       const next = submissionFeedback.passed
         ? `\n\n✨ Great work! The next task will unlock automatically.`
-        : `\n\nFix the issues above and submit again when you're ready. Ask me if anything is unclear!`;
+        : runBlocked
+          ? `\n\nThe task stays incomplete until your program runs without errors. Fix it and submit again to earn your points — tap **Review My Code** if you'd like a hint.`
+          : `\n\nFix the issues above and submit again when you're ready. Ask me if anything is unclear!`;
 
-      content = header + body + suggestions + next;
+      // Show the real program output (from running the code) above the review.
+      content = formatProgramOutput(submissionFeedback.output) + header + body + suggestions + next;
     }
 
     setMessages((prev) => [
@@ -114,6 +158,8 @@ What would you like help with?`,
         proficiencyLevel: proficiencyLevel,
         userQuery: inputValue,
         taskCompleted: taskCompleted,
+        action: 'ask', // free-form question → answer it specifically (not the canned Explain)
+        code: currentCode || '', // current editor code, so answers can reference it when relevant
       });
 
       const aiMessage = {
@@ -148,11 +194,8 @@ What would you like help with?`,
       case 'breakdown':
         query = `Break down the problem into simple steps`;
         break;
-      case 'hints':
-        query = `Give me strategic hints for solving this problem without giving away the solution`;
-        break;
-      case 'feedback':
-        query = `Now that I've completed this task, please give me feedback on my understanding and suggest better approaches or optimizations`;
+      case 'review':
+        query = `Review the code I've written so far and tell me what to fix — without giving me the answer.`;
         break;
       default:
         return;
@@ -177,6 +220,8 @@ What would you like help with?`,
         userQuery: query,
         taskCompleted: taskCompleted,
         action: action,
+        // Only the code-aware "review" action needs the current editor contents.
+        code: action === 'review' ? (currentCode || '') : undefined,
       });
 
       const aiMessage = {
@@ -200,6 +245,19 @@ What would you like help with?`,
     } finally {
       setLoading(false);
     }
+  };
+
+  // Show the saved output history for this task (no API call — local data).
+  const handleShowOutputs = () => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `outputs-${Date.now()}`,
+        type: 'ai',
+        content: formatAllOutputs(outputs),
+        timestamp: new Date(),
+      },
+    ]);
   };
 
   return (
@@ -287,24 +345,23 @@ What would you like help with?`,
             <span>Breakdown</span>
           </button>
           <button
-            onClick={() => handleQuickAction('hints')}
-            className="action-btn hints-btn"
+            onClick={() => handleQuickAction('review')}
+            className="action-btn review-btn"
             disabled={loading}
-            title="Get strategic hints"
+            title="Review the code you've written so far"
           >
-            🔍<span>Hints</span>
+            <ScanSearch className="w-3 h-3" />
+            <span>Review My Code</span>
           </button>
-          {taskCompleted && (
-            <button
-              onClick={() => handleQuickAction('feedback')}
-              className="action-btn feedback-btn"
-              disabled={loading}
-              title="Get feedback on solution"
-            >
-              <CheckCircle className="w-3 h-3" />
-              <span>Feedback</span>
-            </button>
-          )}
+          <button
+            onClick={handleShowOutputs}
+            className="action-btn output-btn"
+            disabled={loading}
+            title="See all program outputs for this task"
+          >
+            <TerminalSquare className="w-3 h-3" />
+            <span>Output</span>
+          </button>
         </div>
       )}
 

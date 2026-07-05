@@ -43,6 +43,19 @@ const learningTaskSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // History of program-run outputs for this task, one per submission.
+    outputs: [
+      {
+        input: { type: String, default: '' },
+        stdout: { type: String, default: '' },
+        stderr: { type: String, default: '' },
+        compileError: { type: String, default: '' },
+        exitCode: { type: Number, default: null },
+        timedOut: { type: Boolean, default: false },
+        at: { type: Date, default: Date.now },
+        _id: false,
+      },
+    ],
     lastFeedback: {
       type: String,
       default: '',
@@ -165,6 +178,17 @@ const languagePathSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // ── Fixed-length course with a 3-month deadline ──
+    courseStartLevel: {
+      type: String,
+      enum: ['Beginner', 'Intermediate', 'Advanced'],
+      default: null,
+    },
+    courseStartedAt: { type: Date, default: Date.now },
+    courseDeadline: { type: Date, default: null },
+    courseCompleted: { type: Boolean, default: false },
+    courseCompletedAt: { type: Date, default: null },
+    lastResetAt: { type: Date, default: null },
   },
   { _id: false }
 );

@@ -17,6 +17,20 @@ const LANGUAGE_LABELS = {
   c: 'C Language',
 };
 
+// Clean, minimal starter skeletons per language. We deliberately do NOT trust the
+// AI's own starterCode for a task, because the model frequently pre-fills the full
+// working solution — which would defeat the exercise.
+const STARTER_STUBS = {
+  python: () => `# Write your solution here\n`,
+  java: () => `public class Main {\n    public static void main(String[] args) {\n        // Write your solution here\n\n    }\n}\n`,
+  c: () => `#include <stdio.h>\n\nint main() {\n    // Write your solution here\n\n    return 0;\n}\n`,
+};
+
+function makeStarterStub(language) {
+  const stub = STARTER_STUBS[language] || STARTER_STUBS.python;
+  return stub();
+}
+
 /**
  * Clean and fix malformed JSON from Groq API
  * Handles unescaped control characters in strings
@@ -414,7 +428,7 @@ function normalizeRealQuestions(questions, language, proficiencyLevel, weakTopic
       explanation: (q?.description || 'Write solution based on the problem statement.').toString().slice(0, 500),
       difficulty: difficultyMap[q?.difficulty?.toLowerCase()] || 'medium',
       topic: normalizedTopic,
-      starterCode: (q?.starterCode || `// Solution for ${LANGUAGE_LABELS[language]}\n`).toString(),
+      starterCode: makeStarterStub(language),
       testCases: Array.isArray(q?.testCases)
         ? q.testCases.slice(0, 3).map(tc => ({
             input: (tc?.input || '').toString().slice(0, 500),
@@ -485,7 +499,7 @@ function generateFallbackQuestions(language, proficiencyLevel, topicBreakdown, c
   // Simple, language-appropriate starter stubs (AI evaluates the final code).
   const STUBS = {
     python: (title) => `# ${title}\n# Write your solution below\n`,
-    java: (title) => `public class Solution {\n    public static void main(String[] args) {\n        // ${title}\n        // Write your solution here\n    }\n}\n`,
+    java: (title) => `public class Main {\n    public static void main(String[] args) {\n        // ${title}\n        // Write your solution here\n    }\n}\n`,
     c: (title) => `#include <stdio.h>\n\nint main() {\n    // ${title}\n    // Write your solution here\n    return 0;\n}\n`,
   };
 
@@ -576,13 +590,18 @@ ${code}
 
 Provide feedback as JSON only.`;
 
+  // Abort the Groq call if it hangs longer than the timeout. The signal is
+  // passed into the request below so this actually cancels it.
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 10000); // 10 second timeout
+
   try {
     console.log(`📝 Evaluating ${language} code for: ${taskTitle}`);
-    
-    // Add timeout to prevent hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
+
     const message = await groqClient.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 1000,
@@ -591,9 +610,7 @@ Provide feedback as JSON only.`;
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-    });
-
-    clearTimeout(timeoutId);
+    }, { signal: controller.signal });
 
     const content = message.choices?.[0]?.message?.content || '{}';
     let jsonStr = content;
@@ -621,9 +638,10 @@ Provide feedback as JSON only.`;
     };
   } catch (error) {
     console.error('❌ Code evaluation error:', error.message);
-    
-    // If timeout or network error, return a generic score
-    if (error.code === 'ABORT_ERR' || error.message.includes('timeout')) {
+
+    // If the request was aborted by our timeout (or otherwise timed out),
+    // return a neutral score instead of failing the submission.
+    if (timedOut || error.name === 'AbortError' || error.code === 'ABORT_ERR' || /abort|timeout/i.test(error.message || '')) {
       console.log('⚠️ Evaluation timeout - returning neutral score');
       return {
         feedback: 'Evaluation took too long. Please review: Does your code handle all test cases?',
@@ -637,6 +655,8 @@ Provide feedback as JSON only.`;
       suggestions: ['Trace through test cases', 'Check edge cases', 'Ensure output format matches'],
       qualityScore: 5,
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -814,7 +834,7 @@ Ensure difficulty matches level and topic. Focus on practical, real-world scenar
       explanation: (q?.description || 'Write solution').toString().slice(0, 500),
       topic,
       difficulty,
-      starterCode: (q?.starterCode || `// ${topic} - ${difficulty}\n`).toString(),
+      starterCode: makeStarterStub(language),
       testCases: Array.isArray(q?.testCases) ? q.testCases.map(tc => ({
         input: (tc?.input || '').toString().slice(0, 200),
         expectedOutput: (tc?.expectedOutput || '').toString().slice(0, 200),
@@ -1063,10 +1083,77 @@ function generateFallbackMCQQuestions(language, proficiencyLevel, topic, difficu
 }
 
 /**
+ * Does this code read from standard input? Used to decide whether we need the AI
+ * to synthesize stdin before running it.
+ */
+function codeReadsInput(language, code) {
+  const c = (code || '').toString();
+  switch (String(language).toLowerCase()) {
+    case 'python':
+      return /\binput\s*\(|sys\.stdin/.test(c);
+    case 'java':
+      return /\bScanner\b|BufferedReader|System\.in|readLine|\.next(Line|Int|Double|Float|Long|Boolean)?\s*\(/.test(c);
+    case 'c':
+    default:
+      return /\bscanf\b|\bscanf_s\b|\bgets\b|\bfgets\b|\bgetchar\b|\bgetline\b/.test(c);
+  }
+}
+
+/**
+ * Generate the exact STDIN a program needs so it can run in the automated judge.
+ * Returns '' if the program reads no input (no Groq call in that case).
+ */
+async function generateProgramInput({ language, taskTitle, taskDescription, code }) {
+  if (!codeReadsInput(language, code)) return '';
+  if (!groqClient) return '';
+
+  const languageLabel = LANGUAGE_LABELS[language] || language;
+
+  const systemPrompt = `You generate STDIN input so a ${languageLabel} program can run in an automated judge.
+Output ONLY the raw input the program reads from standard input — the exact values, in the order the code reads them, one value per line — and NOTHING else.
+Rules:
+- Output ONLY the input values. No explanations, no labels, no prompts, no quotes, no code fences.
+- Match what the code actually reads (the count and the types). If it reads two integers, output two integers.
+- Prefer the values from the task's own example when it gives one (e.g. task says "if the input is 10" → output 10).
+- If the program reads no input, output nothing at all.`;
+
+  const userPrompt = `Task: ${taskTitle}
+${taskDescription}
+
+Student's ${languageLabel} code:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Output the exact STDIN this program needs to run (or nothing if it reads no input).`;
+
+  try {
+    const message = await groqClient.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 200,
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    });
+
+    let input = (message.choices?.[0]?.message?.content || '').trim();
+    // Strip an accidental code fence if the model added one.
+    const fenced = input.match(/^```[\w]*\s*([\s\S]*?)\s*```$/);
+    if (fenced) input = fenced[1].trim();
+    return input.slice(0, 1000);
+  } catch (error) {
+    console.warn(`⚠️ Input generation failed: ${error.message}`);
+    return '';
+  }
+}
+
+/**
  * AI Agent - Explain and break down questions using Groq
  * Provides concept explanations, problem breakdowns, hints, and feedback
  */
-async function getAIAgentExplanation({ question, description, language, proficiencyLevel, userQuery, taskCompleted, action }) {
+async function getAIAgentExplanation({ question, description, language, proficiencyLevel, userQuery, taskCompleted, action, code }) {
   if (!groqClient) {
     return {
       explanation: '❌ AI Agent not available. Please ensure GROQ_API_KEY is configured.',
@@ -1116,18 +1203,33 @@ HARD RULES (must follow):
       break;
       
     case 'breakdown':
-      userPrompt = `List the steps to solve this ${language} task — just the steps, nothing else.
+      userPrompt = `Break this ${language} task into simple, beginner-friendly steps for a ${proficiencyLevel} student.
 
 Task title: ${question}
 Task description: ${description}
-Student level: ${proficiencyLevel}
 
-Output rules (follow exactly):
-- Reply with ONLY a numbered list: **Step 1**, **Step 2**, **Step 3**, and so on.
-- Each step is ONE short, clear sentence stating WHAT to do (example: "Step 1: Initialize a variable to store the name").
-- Keep it to about 3-6 steps. Be concise — no extra explanation, no tips, no reasons, no sub-points.
-- Do NOT write any code, and do NOT show the solution or the final output.
-- Do NOT include the one-line task restatement, any intro or closing sentence, or a "Suggestions" section. Start directly at Step 1 and end at the last step.`;
+Follow this EXACT style and format. The example below is for a DIFFERENT task — copy its STYLE, not its content:
+
+**Step 1:** Store the number the program is given in a variable (a named box that holds a value).
+
+**Step 2:** Multiply that number by 2 to get the result.
+
+**Step 3:** Use a built-in print function to display the result on the screen.
+
+**Step 4:** Run the program and check that it prints the correct answer.
+
+That's the whole logic — store, multiply, print, run.
+
+Rules:
+- Use bold **Step 1:**, **Step 2:**, ... labels, ONE step per line, with a blank line between each step.
+- Each step is ONE short, clear sentence in plain everyday English a beginner understands. A brief clarifying note in parentheses is welcome when it helps.
+- Give about 3 to 5 steps: the real problem-solving actions, and a final step to run the program and check the output.
+- Each step should describe a REAL action (start it with a verb like Store, Read, Add, Compare, Loop, Check, Print, Run).
+- DO NOT include filler/thinking steps like "understand the problem" or "plan your approach".
+- DO NOT include boilerplate steps about the main function, imports/includes/headers, or declaring the class — that code is already written for them.
+- Do NOT write any actual code, and do NOT reveal the finished solution.
+- Finish with ONE short recap line that starts exactly with "That's the whole logic — " followed by the key actions in order.
+- Output ONLY the steps and that recap line — no title and no other intro or closing text.`;
       break;
       
     case 'hints':
@@ -1149,18 +1251,54 @@ Rules:
 
 Give me feedback on my learning. What concepts did I practice? Suggest ways I could improve or optimize my approach.`;
       break;
-      
-    default:
-      userPrompt = `Help me understand this programming question:
 
-Title: ${question}
-Description: ${description}
-Language: ${language}
-Level: ${proficiencyLevel}
+    case 'review':
+      userPrompt = `The student is solving this ${language} task and wants feedback on the code they have written SO FAR. Coach them from where they are — do NOT hand them the solution.
 
-User Question: ${userQuery}
+Task title: ${question}
+Task description: ${description}
+Student level: ${proficiencyLevel}
 
-Provide a helpful, clear explanation at the ${proficiencyLevel} level.`;
+The student's current code:
+\`\`\`${language}
+${(code && code.trim()) ? code : '(the editor only has the empty starter skeleton — no real solution yet)'}
+\`\`\`
+
+Reply in EXACTLY this shape, as plain Markdown:
+1. ONE short encouraging opening line about their progress (if they haven't really started, say something like "Let's get you started 👍").
+2. A short bullet list (1-3 bullets) of SPECIFIC observations about THEIR actual code:
+   - point out what they did correctly, naming their real variable(s) or line(s), and
+   - point out what is missing, in the wrong order, or likely wrong — phrased as a NUDGE, not a correction.
+3. ONE short closing line telling them the single next thing to try.
+
+HARD RULES (must follow):
+- NEVER write the corrected line(s) or the full/working solution. Do NOT paste a fixed version of their code. A tiny GENERIC syntax reminder (e.g. \`printf("...\\n");\`) is allowed only if it is not the task's actual answer.
+- Be specific to what they REALLY wrote — refer to their actual variable names and lines, not generic advice.
+- If the code has no real solution yet, tell them the very first concrete action to take (do not list every step).
+- Keep it concise, warm, and beginner-friendly at the ${proficiencyLevel} level.`;
+      break;
+
+    case 'ask':
+    default: {
+      const codeContext = (code && code.toString().trim())
+        ? `\n\nThe student's current code (reference this ONLY if their question is about it):\n\`\`\`${language}\n${code}\n\`\`\``
+        : '';
+      userPrompt = `The student is working on the ${language} task "${question}" and has asked you a question. Answer THEIR question directly and specifically.
+
+Task (context only): ${description}
+Student level: ${proficiencyLevel}
+
+The student's question:
+"${userQuery}"${codeContext}
+
+How to answer:
+- Answer EXACTLY what they asked. Stay on their question — do NOT give a generic overview of the whole task unless that is what they asked for.
+- Be clear, concise, and friendly, pitched at the ${proficiencyLevel} level. Use plain Markdown: **bold** key terms and short bullet lists.
+- When it helps, show a small ${language} example in a fenced \`\`\`${language} block (e.g. how to read input, declare a variable, use a loop).
+- Keep it conversational — the student may ask follow-up questions.
+- If they explicitly ask for the full solution, you may give it; otherwise prefer to teach and guide so they learn.`;
+      break;
+    }
   }
 
   try {
@@ -1226,7 +1364,7 @@ function normalizeQuizCoding(q, language, index) {
     questionId: `${language}-quiz-${index + 1}`,
     title: (q?.title || `Coding Challenge ${index + 1}`).toString().slice(0, 120),
     description: (q?.description || 'Solve the coding problem.').toString().slice(0, 500),
-    starterCode: (q?.starterCode || `// Write your solution here\n`).toString(),
+    starterCode: makeStarterStub(language),
     difficulty: q?.difficulty || 'medium',
     topic: q?.topic || 'Functions',
     testCases: Array.isArray(q?.testCases)
@@ -1331,21 +1469,57 @@ Mix easy and medium difficulty. Each must have exactly one clearly correct answe
   }
 }
 
-async function generateQuizCoding(language, proficiencyLevel, topicList, count = 3) {
+async function generateQuizCoding(language, proficiencyLevel, topicList, titles = [], completedTasks = [], count = 3) {
+  const norm = (s) => (s || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
   let raw = [];
+
   if (groqClient) {
+    // Match the difficulty the learner actually practiced, but never harder than
+    // "medium" — this is a fair review of what they did, not a step up.
+    const diffCounts = {};
+    (completedTasks || []).forEach((t) => {
+      const d = ['easy', 'medium', 'hard'].includes(t.difficulty) ? t.difficulty : null;
+      if (d) diffCounts[d] = (diffCounts[d] || 0) + 1;
+    });
+    let difficultyTier =
+      Object.entries(diffCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+      (proficiencyLevel === 'Beginner' ? 'easy' : 'medium');
+    if (difficultyTier === 'hard') difficultyTier = 'medium';
+
+    const languageLabel = LANGUAGE_LABELS[language] || language;
+    // The level/difficulty rules (e.g. "Beginner easy = NO loops, NO if/else")
+    // must stay in force — prepend them so our review guidance doesn't drop them.
+    const batchGuide = getBatchGuidance(proficiencyLevel, difficultyTier);
+    const taskList = titles.slice(0, 10).map((t) => `- ${t}`).join('\n') || '- core fundamentals';
+    const contentGuidance = `${batchGuide ? batchGuide + '\n\n' : ''}This is a REVIEW quiz. The student just finished these ${proficiencyLevel} ${languageLabel} tasks:
+${taskList}
+
+Create ${count} brand-NEW problems that review the SAME concepts as those tasks, at the SAME difficulty — never harder or more advanced than what they just did.
+Concepts to review — use ONLY these: ${topicList}.
+CRITICAL: Do NOT introduce ANY concept the student has not already practiced in the tasks above. If those tasks do not use loops, do NOT write a problem that needs a loop; likewise do NOT add arrays, functions, recursion, or conditionals unless the tasks above clearly used them. Every problem must be solvable using ONLY the concepts shown in those tasks.
+Make each problem clearly DIFFERENT from the tasks listed above — same style and difficulty, but a new problem they have not seen.`;
+
     raw = await requestQuestionBatch({
       language,
       proficiencyLevel,
       focusAreas: topicList,
       assessmentScore: 60,
       count,
-      difficultyTier: 'medium',
+      difficultyTier,
+      contentGuidance,
+      avoidTitles: titles,
     });
   }
+
+  // If Groq under-delivered, top up with template problems — but skip any whose
+  // title matches a task the learner already solved.
   if (raw.length < count) {
-    raw = raw.concat(generateFallbackQuestions(language, proficiencyLevel, new Map(), count - raw.length));
+    const solved = new Set((titles || []).map(norm));
+    const fallback = generateFallbackQuestions(language, proficiencyLevel, new Map(), 10)
+      .filter((q) => !solved.has(norm(q.title)));
+    raw = raw.concat(fallback.slice(0, count - raw.length));
   }
+
   return raw.slice(0, count).map((q, i) => normalizeQuizCoding(q, language, i));
 }
 
@@ -1362,7 +1536,7 @@ async function generateCycleQuiz(language, proficiencyLevel, completedTasks = []
 
   const [mcqs, codingQuestions] = await Promise.all([
     generateQuizMCQs(language, proficiencyLevel, topicList, titles, 7),
-    generateQuizCoding(language, proficiencyLevel, topicList, 3),
+    generateQuizCoding(language, proficiencyLevel, topicList, titles, completedTasks, 3),
   ]);
 
   console.log(`✅ Quiz ready: ${mcqs.length} MCQs + ${codingQuestions.length} coding questions`);
@@ -1377,5 +1551,6 @@ module.exports = {
   generateQuestionsForTopic,
   generateMCQQuestions,
   getAIAgentExplanation,
+  generateProgramInput,
   generateCycleQuiz,
 };

@@ -65,6 +65,12 @@ const learningPathService = {
     return response.data;
   },
 
+  // Execute code via the backend (Piston) and return its output.
+  runCode: async (payload) => {
+    const response = await api.post('/learning-path/run-code', payload);
+    return response.data;
+  },
+
   // End-of-cycle quiz (unlocks after all tasks are completed)
   getQuiz: async (userId, language) => {
     const response = await api.get(`/learning-path/${userId}/${language}/quiz`);
@@ -73,6 +79,11 @@ const learningPathService = {
 
   submitQuiz: async (payload) => {
     const response = await api.post('/learning-path/quiz/submit', payload);
+    return response.data;
+  },
+
+  regenerateQuiz: async (userId, language) => {
+    const response = await api.post('/learning-path/quiz/regenerate', { userId, language });
     return response.data;
   },
 

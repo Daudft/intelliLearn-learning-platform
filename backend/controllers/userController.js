@@ -18,6 +18,10 @@ exports.getLeaderboard = async (req, res) => {
   try {
     const POINTS_PER_TASK = 5;
     const POINTS_PER_QUIZ = 25;
+    // Each fully-completed cycle (10 tasks + 1 passed quiz) is wiped from `tasks`
+    // when the learner advances, so we count those from the cycle number to keep
+    // points cumulative across cycles instead of resetting each advance.
+    const TASKS_PER_CYCLE = 10;
 
     const [users, paths] = await Promise.all([
       User.find({ role: { $ne: 'admin' } })
@@ -36,8 +40,14 @@ exports.getLeaderboard = async (req, res) => {
       let language = u.assessmentLanguage || null;
       if (p && Array.isArray(p.paths)) {
         for (const lp of p.paths) {
-          tasksCompleted += (lp.tasks || []).filter((t) => t.status === 'completed').length;
-          if (lp.quiz && lp.quiz.status === 'passed') quizzesPassed += 1;
+          const currentCompleted = (lp.tasks || []).filter((t) => t.status === 'completed').length;
+          const currentQuizPassed = lp.quiz && lp.quiz.status === 'passed' ? 1 : 0;
+          // Cycles already advanced past are wiped from `tasks`; recover them from
+          // the cycle number so points accumulate instead of resetting.
+          const cyclesCompleted = Math.max(0, (lp.cycle || 1) - 1);
+
+          tasksCompleted += cyclesCompleted * TASKS_PER_CYCLE + currentCompleted;
+          quizzesPassed += cyclesCompleted + currentQuizPassed;
           if (!language && lp.language) language = lp.language;
         }
       }
