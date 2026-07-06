@@ -130,7 +130,7 @@ export default function TaskPage() {
     );
   }
 
-  const passScore = 7;
+  const passScore = 6;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 p-4 md:p-6">

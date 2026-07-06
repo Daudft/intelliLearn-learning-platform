@@ -93,7 +93,7 @@ What would you like help with?`,
       content = `❌ **Submission failed**\n\n${submissionFeedback.error}`;
     } else {
       const score = submissionFeedback.qualityScore;
-      const passScore = submissionFeedback.passScore || 7;
+      const passScore = submissionFeedback.passScore || 6;
       const reason = submissionFeedback.reason;
       // The code failed to compile/run — that's the blocker, not the score.
       const runBlocked = !submissionFeedback.passed && (reason === 'run_error' || reason === 'could_not_run');
