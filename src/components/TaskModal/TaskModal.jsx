@@ -41,7 +41,7 @@ export default function TaskModal({ task, language, userId, totalTasks, onClose,
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  const passScore = 7;
+  const passScore = 6;
 
   // Confetti pieces for the reward celebration (generated once)
   const confetti = useMemo(

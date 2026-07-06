@@ -10,7 +10,7 @@ export default function CodeEditor({
   onCodeChange,
   isSubmitting = false,
   canSubmit = true,
-  passScore = 7,
+  passScore = 6,
   qualityScore = null,
   language = '',
 }) {

@@ -62,7 +62,7 @@ const LANGUAGE_LABELS = {
   java: 'Java',
   c: 'C Language',
 };
-const LEARNING_PASS_SCORE = Number(process.env.LEARNING_PASS_SCORE || 7);
+const LEARNING_PASS_SCORE = Number(process.env.LEARNING_PASS_SCORE || 6);
 
 // Paiza.IO — free, keyless code execution (compile + run) for the "Run" button.
 const PAIZA_BASE = 'https://api.paiza.io';
