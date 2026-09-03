@@ -1,34 +1,97 @@
-# React + Vite
+# IntelliLearn
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An adaptive learning platform for Introduction to Programming concepts, built with AI integration to personalize how students learn to code.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+IntelliLearn is a Final Year Project (FYP) designed to help students learn programming fundamentals through adaptive, AI-guided learning pathways. It combines competency assessment, real-time code execution, and an AI mentor agent to give learners a personalized path through introductory programming concepts.
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Authentication** — secure user registration and login
+- **Competency Assessment** — evaluates a learner's current skill level to tailor content
+- **AI-Powered Learning Pathways** — adaptive content generated via the Groq API (LLaMA models)
+- **AI Mentor Agent** — conversational mentor that assists learners using contextual prompt templates
+- **Built-in Code Editor / IDE** — real compiler execution with a submission flow
+- **Quizzes** — knowledge checks tied to learning progress
+- **Leaderboard** — gamified progress tracking across learners
+- **Analytics Dashboard** — insights into learner performance and progress
+- **Admin Panel** — management interface for content and users
 
-## Expanding the ESLint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **Frontend:** React
+- **Backend:** Node.js, Express
+- **Database:** MongoDB (MongoDB Atlas)
+- **AI Integration:** Groq API / LLaMA models
+- **ODM:** Mongoose
 
-## Learning Path AI Setup
+## AI Mentor Architecture
 
-To enable AI-generated learning tasks and AI code review:
+The AI mentor agent is built around:
+- A Mongoose `MentorSession` model to track mentor conversations
+- An Express controller powered by four distinct Groq prompt templates
+- A React `MentorPanel` component for the front-end mentor interface
 
-1. Copy `backend/.env.example` to `backend/.env`.
-2. Set your OpenAI key in `OPENAI_API_KEY`.
-3. Keep or adjust `LEARNING_PASS_SCORE`.
+## Project Structure
 
-Required variables:
-
-```env
-OPENAI_API_KEY=your_openai_api_key
-LEARNING_PASS_SCORE=7
+```
+intellilearn/
+├── client/          # React front-end
+├── server/          # Express back-end
+│   ├── controllers/
+│   ├── models/
+│   ├── routes/
+│   └── utils/
+│       └── aiTaskGenerator.js
+└── README.md
 ```
 
-- `OPENAI_API_KEY`: Enables OpenAI task generation and code feedback.
-- `LEARNING_PASS_SCORE`: Minimum AI quality score (1-10) required to unlock the next task.
+## Getting Started
+
+### Prerequisites
+- Node.js
+- MongoDB (local instance or MongoDB Atlas)
+- A Groq API key
+
+### Installation
+
+1. Clone the repository
+   ```bash
+   git clone <repository-url>
+   cd intellilearn
+   ```
+
+2. Install dependencies for both client and server
+   ```bash
+   cd server && npm install
+   cd ../client && npm install
+   ```
+
+3. Configure environment variables (create a `.env` file in `server/`)
+   ```
+   MONGODB_URI=your_mongodb_connection_string
+   GROQ_API_KEY=your_groq_api_key
+   ```
+
+4. Run the development servers
+   ```bash
+   # In server/
+   npm run dev
+
+   # In client/
+   npm start
+   ```
+
+## Deployment
+
+The project has been deployed and tested on Hugging Face Spaces.
+
+## Contributors
+
+- Daud Afzal
+- Muhammad Ali
+
+## License
+
+This project was developed as a Final Year Project (FYP) for academic purposes.
